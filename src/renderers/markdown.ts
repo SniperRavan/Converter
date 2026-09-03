@@ -1,5 +1,4 @@
 import type { BlockNode, InlineNode, NormalizedDocument, TableCellNode } from '../core/types'
-import { getInlineText } from '../core/stats'
 
 function renderInlineToMarkdown(node: InlineNode): string {
   switch (node.type) {

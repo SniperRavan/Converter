@@ -1,4 +1,4 @@
-import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
+import type { BlockNode, NormalizedDocument } from '../core/types'
 import { getInlineText } from '../core/stats'
 
 function renderBlockToPlainText(block: BlockNode): string {
