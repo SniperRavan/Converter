@@ -35,14 +35,19 @@ function renderInlineToHtml(node: InlineNode): string {
       return `<code>${escapeHtml(node.value)}</code>`
     case 'inlineMath': {
       try {
-        const rendered = katex.renderToString(node.value, {
+        const raw = katex.renderToString(node.value, {
           displayMode: false,
-          output: 'htmlAndMathml',
+          output: 'mathml',
           throwOnError: false,
         })
-        return `<span class="math-inline" data-math="${escapeHtml(node.value)}">${rendered}</span>`
+        const clean = raw
+          .replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/gi, '')
+          .replace(/^<span[^>]*>/, '')
+          .replace(/<\/span>$/, '')
+          .trim()
+        return clean
       } catch {
-        return `<span class="math-inline" data-math="${escapeHtml(node.value)}">$${escapeHtml(node.value)}$</span>`
+        return `<span>$${escapeHtml(node.value)}$</span>`
       }
     }
     case 'link':
@@ -79,14 +84,19 @@ function renderBlockToHtml(block: BlockNode): string {
 
     case 'mathBlock': {
       try {
-        const rendered = katex.renderToString(block.value, {
+        const raw = katex.renderToString(block.value, {
           displayMode: true,
-          output: 'htmlAndMathml',
+          output: 'mathml',
           throwOnError: false,
         })
-        return `<div class="math-block" data-math="${escapeHtml(block.value)}">${rendered}</div>`
+        const clean = raw
+          .replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/gi, '')
+          .replace(/^<span[^>]*>/, '')
+          .replace(/<\/span>$/, '')
+          .trim()
+        return `<div class="math-block" align="center">\n${clean}\n</div>`
       } catch {
-        return `<div class="math-block" data-math="${escapeHtml(block.value)}">$$\n${escapeHtml(block.value)}\n$$</div>`
+        return `<div class="math-block">$$\n${escapeHtml(block.value)}\n$$</div>`
       }
     }
 
