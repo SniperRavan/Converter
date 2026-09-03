@@ -12,7 +12,6 @@ import {
   Sparkles,
   Bot,
 } from 'lucide-react'
-import katex from 'katex'
 import { useConverterStore } from '../store/useConverterStore'
 import { RichPreview } from './RichPreview'
 import { CodeOutputPreview } from './CodeOutputPreview'
@@ -222,7 +221,7 @@ export const Workspace: React.FC = () => {
   const handleCopy = async () => {
     if (selectedFormat === 'preview') {
       try {
-        const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false })
+        const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'images' })
         const plainSnippet = renderToPlainText(parsedDocument)
         const blobHtml = new Blob([htmlSnippet], { type: 'text/html' })
         const blobText = new Blob([plainSnippet], { type: 'text/plain' })
@@ -566,28 +565,56 @@ export const Workspace: React.FC = () => {
                       <div className="my-1 border-t border-[#E5DDD0] dark:border-white/10" />
 
                       <button
-                        onClick={() => {
-                          const mathmlBlocks = parsedDocument.children
-                            .filter((c) => c.type === 'mathBlock')
-                            .map((b) => (b.type === 'mathBlock' ? b.value : ''))
-                          const mathmlText = mathmlBlocks
-                            .map((eq) => {
-                              try {
-                                return katex.renderToString(eq, { output: 'mathml', displayMode: true })
-                              } catch {
-                                return eq
-                              }
-                            })
-                            .join('\n\n')
-                          navigator.clipboard.writeText(mathmlText)
+                        onClick={async () => {
+                          const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'images' })
+                          const plainSnippet = renderToPlainText(parsedDocument)
+                          await navigator.clipboard.write([
+                            new ClipboardItem({
+                              'text/html': new Blob([htmlSnippet], { type: 'text/html' }),
+                              'text/plain': new Blob([plainSnippet], { type: 'text/plain' }),
+                            }),
+                          ])
                           setCopiedRichText(true)
                           setTimeout(() => setCopiedRichText(false), 2000)
                           setShowExportMenu(false)
                         }}
                         className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
                       >
-                        <span>Copy MathML (Word/Office)</span>
-                        <span className="text-[10px] text-emerald-500 font-mono">&lt;math&gt;</span>
+                        <span>Copy for Google Docs (Images)</span>
+                        <span className="text-[10px] text-blue-500 font-mono">DOCS</span>
+                      </button>
+
+                      <button
+                        onClick={async () => {
+                          const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'mathml' })
+                          const plainSnippet = renderToPlainText(parsedDocument)
+                          await navigator.clipboard.write([
+                            new ClipboardItem({
+                              'text/html': new Blob([htmlSnippet], { type: 'text/html' }),
+                              'text/plain': new Blob([plainSnippet], { type: 'text/plain' }),
+                            }),
+                          ])
+                          setCopiedRichText(true)
+                          setTimeout(() => setCopiedRichText(false), 2000)
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                      >
+                        <span>Copy for Word (MathML)</span>
+                        <span className="text-[10px] text-emerald-500 font-mono">WORD</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(renderedMarkdown)
+                          setCopiedRichText(true)
+                          setTimeout(() => setCopiedRichText(false), 2000)
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                      >
+                        <span>Copy LaTeX Math ($$)</span>
+                        <span className="text-[10px] text-amber-500 font-mono">$$</span>
                       </button>
                     </div>
                   )}

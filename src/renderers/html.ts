@@ -15,43 +15,60 @@ function escapeHtml(str: string): string {
 // Sanitize URLs to prevent javascript: or data: injection
 function sanitizeUrl(url: string): string {
   const clean = url.trim()
-  if (/^(javascript|vbscript|data):/i.test(clean)) {
+  if (/^(javascript|vbscript):/i.test(clean)) {
     return '#blocked-unsafe-url'
   }
   return clean
 }
 
-function renderInlineToHtml(node: InlineNode): string {
+export interface HtmlRenderOptions {
+  includeWrapper?: boolean
+  title?: string
+  mathMode?: 'images' | 'mathml' | 'latex'
+}
+
+function renderMathToMathMl(latex: string, displayMode: boolean): string {
+  try {
+    const raw = katex.renderToString(latex, {
+      displayMode,
+      output: 'mathml',
+      throwOnError: false,
+    })
+    return raw
+      .replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/gi, '')
+      .replace(/^<span[^>]*>/, '')
+      .replace(/<\/span>$/, '')
+      .trim()
+  } catch {
+    return displayMode ? `$$\n${escapeHtml(latex)}\n$$` : `$${escapeHtml(latex)}$`
+  }
+}
+
+function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'latex' = 'images'): string {
   switch (node.type) {
     case 'text':
       return escapeHtml(node.value)
     case 'strong':
-      return `<strong>${node.children.map(renderInlineToHtml).join('')}</strong>`
+      return `<strong>${node.children.map(c => renderInlineToHtml(c, mathMode)).join('')}</strong>`
     case 'emphasis':
-      return `<em>${node.children.map(renderInlineToHtml).join('')}</em>`
+      return `<em>${node.children.map(c => renderInlineToHtml(c, mathMode)).join('')}</em>`
     case 'strikethrough':
-      return `<del>${node.children.map(renderInlineToHtml).join('')}</del>`
+      return `<del>${node.children.map(c => renderInlineToHtml(c, mathMode)).join('')}</del>`
     case 'inlineCode':
       return `<code>${escapeHtml(node.value)}</code>`
     case 'inlineMath': {
-      try {
-        const raw = katex.renderToString(node.value, {
-          displayMode: false,
-          output: 'mathml',
-          throwOnError: false,
-        })
-        const clean = raw
-          .replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/gi, '')
-          .replace(/^<span[^>]*>/, '')
-          .replace(/<\/span>$/, '')
-          .trim()
-        return clean
-      } catch {
-        return `<span>$${escapeHtml(node.value)}$</span>`
+      if (mathMode === 'images') {
+        const encoded = encodeURIComponent(node.value.trim())
+        const url = `https://latex.codecogs.com/png.image?%5Cdpi%7B300%7D${encoded}`
+        return `<img src="${url}" alt="${escapeHtml(node.value)}" style="vertical-align: -0.2em; max-height: 1.45em; display: inline-block; margin: 0 2px;" />`
       }
+      if (mathMode === 'mathml') {
+        return renderMathToMathMl(node.value, false)
+      }
+      return `<span>$${escapeHtml(node.value)}$</span>`
     }
     case 'link':
-      return `<a href="${escapeHtml(sanitizeUrl(node.url))}" target="_blank" rel="noopener noreferrer">${node.children.map(renderInlineToHtml).join('')}</a>`
+      return `<a href="${escapeHtml(sanitizeUrl(node.url))}" target="_blank" rel="noopener noreferrer">${node.children.map(c => renderInlineToHtml(c, mathMode)).join('')}</a>`
     case 'image':
       return `<img src="${escapeHtml(sanitizeUrl(node.url))}" alt="${escapeHtml(node.alt || '')}" />`
     default:
@@ -59,21 +76,21 @@ function renderInlineToHtml(node: InlineNode): string {
   }
 }
 
-function renderBlockToHtml(block: BlockNode): string {
+function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'latex' = 'images'): string {
   switch (block.type) {
     case 'heading': {
       const tag = `h${block.level}`
-      const content = block.children.map(renderInlineToHtml).join('')
+      const content = block.children.map(c => renderInlineToHtml(c, mathMode)).join('')
       return `<${tag}>${content}</${tag}>`
     }
 
     case 'paragraph': {
-      const content = block.children.map(renderInlineToHtml).join('')
+      const content = block.children.map(c => renderInlineToHtml(c, mathMode)).join('')
       return `<p>${content}</p>`
     }
 
     case 'blockquote': {
-      const inner = block.children.map(renderBlockToHtml).join('\n')
+      const inner = block.children.map(c => renderBlockToHtml(c, mathMode)).join('\n')
       return `<blockquote>${inner}</blockquote>`
     }
 
@@ -83,21 +100,15 @@ function renderBlockToHtml(block: BlockNode): string {
     }
 
     case 'mathBlock': {
-      try {
-        const raw = katex.renderToString(block.value, {
-          displayMode: true,
-          output: 'mathml',
-          throwOnError: false,
-        })
-        const clean = raw
-          .replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/gi, '')
-          .replace(/^<span[^>]*>/, '')
-          .replace(/<\/span>$/, '')
-          .trim()
-        return `<div class="math-block" align="center">\n${clean}\n</div>`
-      } catch {
-        return `<div class="math-block">$$\n${escapeHtml(block.value)}\n$$</div>`
+      if (mathMode === 'images') {
+        const encoded = encodeURIComponent(block.value.trim())
+        const url = `https://latex.codecogs.com/png.image?%5Cdpi%7B300%7D${encoded}`
+        return `<p align="center" style="text-align: center; margin: 18px 0;"><img src="${url}" alt="${escapeHtml(block.value)}" style="max-width: 95%; height: auto; display: inline-block;" /></p>`
       }
+      if (mathMode === 'mathml') {
+        return `<div class="math-block" align="center">\n${renderMathToMathMl(block.value, true)}\n</div>`
+      }
+      return `<div class="math-block">$$\n${escapeHtml(block.value)}\n$$</div>`
     }
 
     case 'list': {
@@ -108,10 +119,10 @@ function renderBlockToHtml(block: BlockNode): string {
           const content = item.children
             .map(child => {
               if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
-                return child.children.map(renderInlineToHtml).join('')
+                return child.children.map(c => renderInlineToHtml(c, mathMode)).join('')
               }
               if ('type' in child && child.type === 'list') {
-                return renderBlockToHtml(child)
+                return renderBlockToHtml(child, mathMode)
               }
               return ''
             })
@@ -128,7 +139,7 @@ function renderBlockToHtml(block: BlockNode): string {
       const ths = block.headers
         .map((cell, idx) => {
           const align = block.alignments[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
-          const content = cell.children.map(renderInlineToHtml).join('')
+          const content = cell.children.map(c => renderInlineToHtml(c, mathMode)).join('')
           return `<th${align}>${content}</th>`
         })
         .join('')
@@ -138,7 +149,7 @@ function renderBlockToHtml(block: BlockNode): string {
           const tds = row.cells
             .map((cell, idx) => {
               const align = block.alignments[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
-              const content = cell.children.map(renderInlineToHtml).join('')
+              const content = cell.children.map(c => renderInlineToHtml(c, mathMode)).join('')
               return `<td${align}>${content}</td>`
             })
             .join('')
@@ -160,15 +171,11 @@ function renderBlockToHtml(block: BlockNode): string {
   }
 }
 
-export interface HtmlRenderOptions {
-  includeWrapper?: boolean
-  title?: string
-}
-
 export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions = {}): string {
-  const rawHtml = doc.children.map(renderBlockToHtml).join('\n')
+  const mathMode = options.mathMode || 'images'
+  const rawHtml = doc.children.map(c => renderBlockToHtml(c, mathMode)).join('\n')
 
-  // Strict sanitization with DOMPurify while preserving full MathML & SVG
+  // Strict sanitization with DOMPurify while preserving images and math
   const sanitizedBody = DOMPurify.sanitize(rawHtml, {
     USE_PROFILES: { html: true, mathMl: true, svg: true },
     ADD_TAGS: [
@@ -181,7 +188,7 @@ export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions
       'xmlns', 'display', 'displaystyle', 'scriptlevel', 'mathvariant', 'columnalign',
       'rowalign', 'rowlines', 'columnlines', 'linethickness', 'open', 'close',
       'separators', 'fence', 'stretchy', 'symmetric', 'lspace', 'rspace', 'minsize',
-      'maxsize', 'data-math',
+      'maxsize', 'data-math', 'src', 'alt', 'style', 'align',
     ],
   })
 
@@ -212,6 +219,7 @@ export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions
     code { font-family: monospace; font-size: 0.9em; }
     blockquote { border-left: 4px solid #3b82f6; margin: 20px 0; padding-left: 16px; color: #64748b; }
     .math-block { margin: 18px 0; text-align: center; }
+    img { max-width: 100%; height: auto; }
   </style>
 </head>
 <body>

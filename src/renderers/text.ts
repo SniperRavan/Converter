@@ -24,7 +24,7 @@ function renderBlockToPlainText(block: BlockNode): string {
     }
 
     case 'mathBlock': {
-      return `\n    [Formula] ${block.value.trim()}\n`
+      return `\n$$\n${block.value.trim()}\n$$\n`
     }
 
     case 'list': {
