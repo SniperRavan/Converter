@@ -67,21 +67,33 @@ export const Header: React.FC = () => {
     }
   }, [])
 
-  // Smoothly reposition the sliding active pill
+  const navContainerRef = React.useRef<HTMLElement | null>(null)
+
+  // Smoothly reposition the sliding active pill with exact subpixel alignment
   useEffect(() => {
     const updatePill = () => {
+      const nav = navContainerRef.current
       const el = navRefs.current[activeSection]
-      if (el) {
+      if (nav && el) {
+        const navRect = nav.getBoundingClientRect()
+        const elRect = el.getBoundingClientRect()
         setPillStyle({
-          left: el.offsetLeft,
-          width: el.offsetWidth,
+          left: Math.round(elRect.left - navRect.left),
+          width: Math.round(elRect.width),
           ready: true,
         })
       }
     }
-    updatePill()
+
+    // Double RAF to guarantee DOM font rendering and layout metrics are stable
+    const rafId = requestAnimationFrame(() => {
+      requestAnimationFrame(updatePill)
+    })
     window.addEventListener('resize', updatePill, { passive: true })
-    return () => window.removeEventListener('resize', updatePill)
+    return () => {
+      cancelAnimationFrame(rafId)
+      window.removeEventListener('resize', updatePill)
+    }
   }, [activeSection])
 
   const navItems = [
@@ -109,14 +121,17 @@ export const Header: React.FC = () => {
           </span>
         </a>
 
-        {/* Center Nav Links with Smooth Gliding Indicator Pill */}
-        <nav className="relative hidden md:flex items-center p-1 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/5 dark:border-white/10 text-xs font-medium">
+        {/* Center Nav Links with Mathematically Symmetric Sliding Pill */}
+        <nav
+          ref={navContainerRef}
+          className="relative hidden md:flex items-center p-1 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/5 dark:border-white/10 text-xs font-medium"
+        >
           {/* Sliding Active Pill */}
           <div
             aria-hidden="true"
-            className="absolute top-1 bottom-1 rounded-lg bg-neutral-900/10 dark:bg-white/15 shadow-2xs transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pointer-events-none"
+            className="absolute left-0 top-1 bottom-1 rounded-lg bg-neutral-900/10 dark:bg-white/15 shadow-2xs transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pointer-events-none"
             style={{
-              transform: `translateX(${pillStyle.left}px)`,
+              transform: `translate3d(${pillStyle.left}px, 0, 0)`,
               width: `${pillStyle.width}px`,
               opacity: pillStyle.ready ? 1 : 0,
             }}
@@ -131,9 +146,9 @@ export const Header: React.FC = () => {
                   navRefs.current[item.id] = el
                 }}
                 href={item.href}
-                className={`relative z-10 px-3 py-1.5 rounded-lg transition-colors duration-200 cursor-pointer ${
+                className={`relative z-10 px-3.5 py-1.5 rounded-lg text-center flex items-center justify-center font-medium transition-colors duration-200 cursor-pointer ${
                   isActive
-                    ? 'text-neutral-950 dark:text-white font-semibold'
+                    ? 'text-neutral-950 dark:text-white'
                     : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
                 }`}
               >
