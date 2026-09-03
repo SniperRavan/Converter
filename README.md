@@ -1,7 +1,7 @@
 # Convertion
 
 > **No logins, no paywalls, no data collection, forever.**  
-> **Fully open source. Long live the handmade web.**  
+> **Fully open source.**  
 >  
 > Universal, privacy-first, client-side document conversion engine. Transform messy AI outputs, mixed Markdown, LaTeX mathematics, structured tables, and arbitrary text into clean, presentation-ready formats — entirely inside your browser.
 

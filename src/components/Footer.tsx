@@ -17,7 +17,7 @@ export const Footer: React.FC = () => {
           </h4>
 
           <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-            Fully open source. Long live the handmade web. Every single conversion is performed directly in your browser's local runtime with deterministic AST parsing and zero remote telemetry.
+            Fully open source. Every single conversion is performed directly in your browser's local runtime with deterministic AST parsing and zero remote telemetry.
           </p>
         </div>
       </div>

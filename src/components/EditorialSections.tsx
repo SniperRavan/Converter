@@ -232,7 +232,7 @@ export const EditorialSections: React.FC = () => {
           </a>
         </div>
         <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-4">
-          © 2026 Converter · Crafted by <a href="https://github.com/sniperravan" target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-900 dark:hover:text-white">Akash (sniperravan)</a>. No logins, no paywalls, no tracking. Long live the handmade web.
+          © 2026 Converter · Crafted by <a href="https://github.com/sniperravan" target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-900 dark:hover:text-white">Akash (sniperravan)</a>. No logins, no paywalls, no tracking.
         </p>
       </footer>
     </div>
