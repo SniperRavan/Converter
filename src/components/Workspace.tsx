@@ -318,10 +318,10 @@ export const Workspace: React.FC = () => {
                 {/* Dedicated LLM Slot Button */}
                 <button
                   onClick={loadLlmSample}
-                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-blue-400/40 dark:border-blue-500/40 bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 h-8 sm:h-9 rounded-md px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
-                  title="Load sample messy LLM output (Markdown + LaTeX Math + HTML + Tables + Code)"
+                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-md px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
+                  title="Load sample messy LLM output"
                 >
-                  <Bot className="h-3.5 w-3.5 mr-1 text-blue-600 dark:text-blue-400" />
+                  <Bot className="h-3.5 w-3.5 mr-1 text-neutral-500 dark:text-neutral-400" />
                   <span>LLM Sample</span>
                 </button>
 
@@ -345,7 +345,7 @@ export const Workspace: React.FC = () => {
               </div>
             </div>
 
-            {/* Input Format Selector Pills & LLM Dedicated Slot */}
+            {/* Input Format Selector Pills */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
               <span className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mr-1 uppercase tracking-wider shrink-0">
                 Mode:
@@ -356,21 +356,12 @@ export const Workspace: React.FC = () => {
                   onClick={() => setInputFormat(fmt.id)}
                   className={`px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
                     inputFormat === fmt.id
-                      ? fmt.id === 'llm-mixed'
-                        ? 'bg-blue-600 text-white shadow-xs font-semibold'
-                        : 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-xs font-semibold'
-                      : fmt.id === 'llm-mixed'
-                      ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 hover:bg-blue-100 dark:hover:bg-blue-900/60'
+                      ? 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-xs font-semibold'
                       : 'bg-[#FAF5ED] dark:bg-[#141414] text-neutral-600 dark:text-neutral-400 border border-[#EBE3D6] dark:border-white/10 hover:text-neutral-900 dark:hover:text-white'
                   }`}
                 >
                   {fmt.icon}
                   <span>{fmt.label}</span>
-                  {fmt.badge && (
-                    <span className="text-[9px] px-1 rounded bg-white/20 uppercase font-bold tracking-tight">
-                      {fmt.badge}
-                    </span>
-                  )}
                 </button>
               ))}
             </div>

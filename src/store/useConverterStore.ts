@@ -255,6 +255,7 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
   clearDocument: () => {
     set({
       inputContent: '',
+      inputFormat: 'auto',
       parsedDocument: createEmptyDocument(),
       detectionResult: detectInputFormat(''),
     })

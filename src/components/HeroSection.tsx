@@ -30,9 +30,9 @@ export const HeroSection: React.FC = () => {
           <span>Real-time Preview</span>
         </div>
 
-        <div className="inline-flex items-center rounded-full border border-blue-300 dark:border-blue-700/60 px-3.5 py-1 text-xs sm:text-sm font-medium bg-blue-50/80 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 shadow-2xs">
-          <Bot className="w-4 h-4 mr-1.5 text-blue-600 dark:text-blue-400 shrink-0" />
-          <span>LLM Mixed Stream Slot</span>
+        <div className="inline-flex items-center rounded-full border border-[#E5DDD0] dark:border-white/15 px-3.5 py-1 text-xs sm:text-sm font-medium bg-white dark:bg-[#111111] text-neutral-800 dark:text-neutral-200 shadow-2xs">
+          <Bot className="w-4 h-4 mr-1.5 text-neutral-600 dark:text-neutral-300 shrink-0" />
+          <span>LLM Stream (Mixed)</span>
         </div>
 
         <div className="inline-flex items-center rounded-full border border-[#E5DDD0] dark:border-white/15 px-3.5 py-1 text-xs sm:text-sm font-medium bg-white dark:bg-[#111111] text-neutral-800 dark:text-neutral-200 shadow-2xs">
