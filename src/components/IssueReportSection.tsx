@@ -3,7 +3,6 @@ import {
   AlertCircle,
   CheckCircle2,
   Send,
-  ExternalLink,
   Shield,
   MessageSquare,
 } from 'lucide-react'
@@ -62,18 +61,10 @@ export const IssueReportSection: React.FC = () => {
       setDescription('')
       setContact('')
     } catch {
-      setErrorMsg('Failed to submit issue. You can also report it directly on GitHub.')
+      setErrorMsg('Failed to submit issue. Please check your network connection and try again.')
     } finally {
       setSubmitting(false)
     }
-  }
-
-  const getGithubIssueUrl = () => {
-    const encodedTitle = encodeURIComponent(`[${category.toUpperCase()}] ${title || 'Issue Report'}`)
-    const encodedBody = encodeURIComponent(
-      `### Issue Description\n${description || '(No description provided)'}\n\n### Category\n${category}\n\n### Contact (Optional)\n${contact || 'Anonymous'}`
-    )
-    return `https://github.com/sniperravan/Convertion/issues/new?title=${encodedTitle}&body=${encodedBody}`
   }
 
   return (
@@ -219,21 +210,11 @@ export const IssueReportSection: React.FC = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                <a
-                  href={getGithubIssueUrl()}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center text-xs font-medium text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
-                >
-                  <span>Have a GitHub account? Open directly on GitHub</span>
-                  <ExternalLink className="w-3.5 h-3.5 ml-1 opacity-70" />
-                </a>
-
+              <div className="flex justify-end pt-2">
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center justify-center text-sm font-semibold bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black h-10 rounded-xl px-5 shadow-xs transition-opacity disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center justify-center text-sm font-semibold bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black h-10 rounded-xl px-6 shadow-xs transition-opacity disabled:opacity-50 cursor-pointer"
                 >
                   {submitting ? (
                     <span>Submitting...</span>
