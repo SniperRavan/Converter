@@ -35,7 +35,7 @@ function App() {
           <HeroSection />
 
           {/* 2-Column Side-by-Side Converter Studio */}
-          <div className="mt-2 mb-10">
+          <div id="converter" className="mt-2 mb-10 scroll-mt-20">
             <Workspace />
           </div>
 

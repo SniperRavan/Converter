@@ -5,6 +5,105 @@ import { IssueReportSection } from './IssueReportSection'
 export const EditorialSections: React.FC = () => {
   return (
     <div className="w-full space-y-16 py-12">
+      {/* ================= USER GUIDE ================= */}
+      <section id="guide" className="scroll-mt-20">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-10">
+            <h2 className="text-3xl font-bold text-neutral-900 dark:text-white tracking-tight">
+              User Guide
+            </h2>
+            <div className="w-12 h-1 bg-neutral-900 dark:bg-white mx-auto mt-3 rounded-full" />
+          </div>
+
+          {/* Getting Started */}
+          <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 sm:p-8 bg-white dark:bg-[#0a0a0a] shadow-xs mb-6">
+            <div className="flex items-center gap-2.5 mb-3">
+              <BookOpen className="w-5 h-5 text-neutral-900 dark:text-white" />
+              <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">
+                Getting Started
+              </h3>
+            </div>
+            <p className="text-neutral-600 dark:text-neutral-300">
+              <strong className="text-neutral-900 dark:text-white">
+                Converter
+              </strong>{' '}
+              is designed for all files in &rarr; all files out:
+            </p>
+            <ol className="list-decimal pl-6 mt-4 space-y-2 text-neutral-700 dark:text-neutral-300">
+              <li>Paste any content or upload any file into the left editor panel.</li>
+              <li>Select your input mode (Auto-Detect, LLM Stream, Markdown, HTML, LaTeX, Text, JSON).</li>
+              <li>Watch the live preview appear on the right in your chosen format (Rich Preview, Markdown, HTML, LaTeX, Text, or JSON AST).</li>
+              <li>Copy to clipboard or export directly as Word (.doc), PDF, HTML, or LaTeX.</li>
+            </ol>
+          </div>
+
+          {/* Side by side: File Upload & Copying Rich Text */}
+          <div className="grid md:grid-cols-2 gap-6 mb-6">
+            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs">
+              <div className="flex items-center gap-2 mb-2">
+                <FileCode className="w-5 h-5 text-blue-600 dark:text-white" />
+                <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">
+                  Universal File Ingestion
+                </h3>
+              </div>
+              <p className="text-neutral-600 dark:text-neutral-300">
+                You can upload or drop virtually any document or code file:
+              </p>
+              <ul className="list-disc pl-6 mt-3 space-y-1.5 text-neutral-700 dark:text-neutral-300 text-sm">
+                <li>Markdown (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.md</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.markdown</code>)</li>
+                <li>HTML documents (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.html</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.htm</code>)</li>
+                <li>LaTeX papers (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.tex</code>)</li>
+                <li>Data &amp; Code (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.json</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.py</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.ts</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.txt</code>)</li>
+                <li>Images: automatically embedded as data-URL Markdown</li>
+              </ul>
+            </div>
+
+            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs">
+              <div className="flex items-center gap-2 mb-2">
+                <Bot className="w-5 h-5 text-purple-600 dark:text-white" />
+                <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">
+                  LLM Stream Parsing
+                </h3>
+              </div>
+              <p className="text-neutral-600 dark:text-neutral-300">
+                AI chatbots return mixed responses that traditional parsers break on:
+              </p>
+              <ul className="list-disc pl-6 mt-3 space-y-1.5 text-neutral-700 dark:text-neutral-300 text-sm">
+                <li>Automatic conversion of ASCII tables (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">|---|</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">+---+</code>) to formatted grids</li>
+                <li>Support for <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">\[...\]</code> and <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">$$...$$</code> KaTeX math display</li>
+                <li>Self-healing of unclosed code blocks and HTML fragments</li>
+                <li>One-click copy formatted directly for Google Docs and Microsoft Word</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Export Options Reference */}
+          <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 sm:p-8 bg-white dark:bg-[#0a0a0a] shadow-xs">
+            <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-3">
+              Export Destinations
+            </h3>
+            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
+                <h4 className="font-semibold text-neutral-900 dark:text-white">Word (.doc)</h4>
+                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Native Microsoft Word file with styled typography and equations.</p>
+              </div>
+              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
+                <h4 className="font-semibold text-neutral-900 dark:text-white">PDF Document</h4>
+                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Print-ready document rendering via browser print engine.</p>
+              </div>
+              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
+                <h4 className="font-semibold text-neutral-900 dark:text-white">HTML / Markdown</h4>
+                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Clean semantic markup for web publishing.</p>
+              </div>
+              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
+                <h4 className="font-semibold text-neutral-900 dark:text-white">LaTeX / JSON AST</h4>
+                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Academic papers and machine-readable AST trees.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ================= ABOUT THIS TOOL ================= */}
       <section id="about" className="scroll-mt-20">
         <div className="max-w-5xl mx-auto px-4">
@@ -47,113 +146,6 @@ export const EditorialSections: React.FC = () => {
         </div>
       </section>
 
-      {/* ================= USER GUIDE ================= */}
-      <section id="guide" className="scroll-mt-20">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-neutral-900 dark:text-white tracking-tight">
-              User Guide
-            </h2>
-            <div className="w-12 h-1 bg-neutral-900 dark:bg-white mx-auto mt-3 rounded-full" />
-          </div>
-
-          {/* Getting Started */}
-          <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 sm:p-8 bg-white dark:bg-[#0a0a0a] shadow-xs mb-6">
-            <div className="flex items-center gap-2.5 mb-3">
-              <BookOpen className="w-5 h-5 text-neutral-900 dark:text-white" />
-              <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">
-                Getting Started
-              </h3>
-            </div>
-            <p className="text-neutral-600 dark:text-neutral-300">
-              <strong className="text-neutral-900 dark:text-white">
-                Converter
-              </strong>{' '}
-              is designed for all files in $\to$ all files out:
-            </p>
-            <ol className="list-decimal pl-6 mt-4 space-y-2 text-neutral-700 dark:text-neutral-300">
-              <li>Paste any content or upload any file into the left editor panel.</li>
-              <li>Select your input mode (Auto-Detect, LLM Stream, Markdown, HTML, LaTeX, Text, JSON).</li>
-              <li>Watch the live preview appear on the right in your chosen format (Rich Preview, Markdown, HTML, LaTeX, Text, or JSON AST).</li>
-              <li>Copy to clipboard or export directly as Word (.doc), PDF, HTML, or LaTeX.</li>
-            </ol>
-          </div>
-
-          {/* Side by side: File Upload & Copying Rich Text */}
-          <div className="grid md:grid-cols-2 gap-6 mb-6">
-            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs">
-              <div className="flex items-center gap-2 mb-2">
-                <FileCode className="w-5 h-5 text-blue-600 dark:text-white" />
-                <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">
-                  Universal File Ingestion
-                </h3>
-              </div>
-              <p className="text-neutral-600 dark:text-neutral-300">
-                You can upload or drop virtually any document or code file:
-              </p>
-              <ul className="list-disc pl-6 mt-3 space-y-1.5 text-neutral-700 dark:text-neutral-300 text-sm">
-                <li>Markdown (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.md</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.markdown</code>)</li>
-                <li>HTML documents (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.html</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.htm</code>)</li>
-                <li>LaTeX papers (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.tex</code>)</li>
-                <li>Data &amp; Code (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.json</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.py</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.ts</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.txt</code>)</li>
-                <li>Images: automatically embedded as data-URL Markdown</li>
-              </ul>
-            </div>
-
-            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs">
-              <div className="flex items-center gap-2 mb-2">
-                <Bot className="w-5 h-5 text-purple-600 dark:text-white" />
-                <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">
-                  LLM Mixed Stream Slot
-                </h3>
-              </div>
-              <p className="text-neutral-600 dark:text-neutral-300">
-                Switch to the <strong>“LLM Stream (Mixed)”</strong> mode to handle messy AI responses:
-              </p>
-              <div className="mt-3 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
-                <p>
-                  • Resolves unclosed code blocks and mixed LaTeX notation (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">\[...\]</code> and <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">\(...\)</code>).
-                </p>
-                <p>
-                  • Translates ASCII tables (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">+---+---+</code>) and raw HTML tags into native document blocks.
-                </p>
-                <p>
-                  • Perfect for copying directly out of ChatGPT, Claude, DeepSeek, or Gemini into professional formats.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Export Options */}
-          <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs mb-6">
-            <h3 className="text-xl font-semibold mb-3 text-neutral-900 dark:text-white">
-              Export Options
-            </h3>
-            <p className="text-neutral-600 dark:text-neutral-300 mb-4">
-              Export your converted document in any standard format with a single click:
-            </p>
-            <div className="grid md:grid-cols-4 gap-4 text-sm">
-              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
-                <h4 className="font-semibold text-neutral-900 dark:text-white">Word (.doc)</h4>
-                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Native Microsoft Word &amp; Google Docs document.</p>
-              </div>
-              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
-                <h4 className="font-semibold text-neutral-900 dark:text-white">PDF Document</h4>
-                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Printable high-resolution portable document.</p>
-              </div>
-              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
-                <h4 className="font-semibold text-neutral-900 dark:text-white">HTML / Markdown</h4>
-                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Clean semantic markup for web publishing.</p>
-              </div>
-              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
-                <h4 className="font-semibold text-neutral-900 dark:text-white">LaTeX / JSON AST</h4>
-                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Academic papers and machine-readable AST trees.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ================= FREQUENTLY ASKED QUESTIONS ================= */}
       <section id="faq" className="scroll-mt-20">
         <div className="max-w-6xl mx-auto px-4">
@@ -167,16 +159,16 @@ export const EditorialSections: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
               <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                What makes Converter different from other tools?
+                How does Converter handle formulas &amp; math?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                Converter translates everything through a normalized Document AST rather than brittle string regexes. This enables all-file input to all-file output, including mixed LLM responses with math formulas and tables.
+                Formulas enclosed in <code className="text-xs font-mono">$...$</code>, <code className="text-xs font-mono">$$...$$</code>, <code className="text-xs font-mono">\(...\)</code>, or <code className="text-xs font-mono">\[...\]</code> are compiled using KaTeX. When copying to Word or Google Docs, formulas are translated into high-fidelity scalable image representations or MathML so they paste natively without raw code.
               </p>
             </div>
 
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
               <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                How does the LLM Mixed Stream slot work?
+                What makes the LLM Stream mode special?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
                 It specifically addresses LLM output quirks: fixing unclosed code fences, normalizing LaTeX delimiters (<code className="text-xs font-mono">\[...\]</code>), converting ASCII tables (<code className="text-xs font-mono">+---+</code>), and harmonizing inline HTML tags into clean AST blocks.
@@ -210,20 +202,24 @@ export const EditorialSections: React.FC = () => {
       {/* ================= FOOTER ================= */}
       <footer className="border-t border-[#E5DDD0] dark:border-white/10 pt-8 pb-12 text-center">
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 text-sm text-neutral-500 dark:text-neutral-400">
-          <a href="#about" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
-            About
+          <a href="#converter" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
+            Converter
           </a>
           <span className="hidden sm:inline">•</span>
           <a href="#guide" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
             User Guide
           </a>
           <span className="hidden sm:inline">•</span>
-          <a href="#issues" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
-            Report Issue
+          <a href="#about" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
+            About
           </a>
           <span className="hidden sm:inline">•</span>
           <a href="#faq" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
             FAQ
+          </a>
+          <span className="hidden sm:inline">•</span>
+          <a href="#issues" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
+            Report Issue
           </a>
           <span className="hidden sm:inline">•</span>
           <a
