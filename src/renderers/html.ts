@@ -1,0 +1,180 @@
+import DOMPurify from 'dompurify'
+import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
+
+// Escape basic HTML entities for safety
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+// Sanitize URLs to prevent javascript: or data: injection
+function sanitizeUrl(url: string): string {
+  const clean = url.trim()
+  if (/^(javascript|vbscript|data):/i.test(clean)) {
+    return '#blocked-unsafe-url'
+  }
+  return clean
+}
+
+function renderInlineToHtml(node: InlineNode): string {
+  switch (node.type) {
+    case 'text':
+      return escapeHtml(node.value)
+    case 'strong':
+      return `<strong>${node.children.map(renderInlineToHtml).join('')}</strong>`
+    case 'emphasis':
+      return `<em>${node.children.map(renderInlineToHtml).join('')}</em>`
+    case 'strikethrough':
+      return `<del>${node.children.map(renderInlineToHtml).join('')}</del>`
+    case 'inlineCode':
+      return `<code>${escapeHtml(node.value)}</code>`
+    case 'inlineMath':
+      return `<span class="math-inline" data-math="${escapeHtml(node.value)}">$${escapeHtml(node.value)}$</span>`
+    case 'link':
+      return `<a href="${escapeHtml(sanitizeUrl(node.url))}" target="_blank" rel="noopener noreferrer">${node.children.map(renderInlineToHtml).join('')}</a>`
+    case 'image':
+      return `<img src="${escapeHtml(sanitizeUrl(node.url))}" alt="${escapeHtml(node.alt || '')}" />`
+    default:
+      return ''
+  }
+}
+
+function renderBlockToHtml(block: BlockNode): string {
+  switch (block.type) {
+    case 'heading': {
+      const tag = `h${block.level}`
+      const content = block.children.map(renderInlineToHtml).join('')
+      return `<${tag}>${content}</${tag}>`
+    }
+
+    case 'paragraph': {
+      const content = block.children.map(renderInlineToHtml).join('')
+      return `<p>${content}</p>`
+    }
+
+    case 'blockquote': {
+      const inner = block.children.map(renderBlockToHtml).join('\n')
+      return `<blockquote>${inner}</blockquote>`
+    }
+
+    case 'codeBlock': {
+      const langClass = block.language ? ` class="language-${escapeHtml(block.language)}"` : ''
+      return `<pre><code${langClass}>${escapeHtml(block.value)}</code></pre>`
+    }
+
+    case 'mathBlock': {
+      return `<div class="math-block" data-math="${escapeHtml(block.value)}">$$\n${escapeHtml(block.value)}\n$$</div>`
+    }
+
+    case 'list': {
+      const tag = block.ordered ? 'ol' : 'ul'
+      const startAttr = block.ordered && block.start && block.start !== 1 ? ` start="${block.start}"` : ''
+      const items = block.items
+        .map(item => {
+          const content = item.children
+            .map(child => {
+              if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
+                return child.children.map(renderInlineToHtml).join('')
+              }
+              if ('type' in child && child.type === 'list') {
+                return renderBlockToHtml(child)
+              }
+              return ''
+            })
+            .join(' ')
+          return `<li>${content}</li>`
+        })
+        .join('\n')
+      return `<${tag}${startAttr}>\n${items}\n</${tag}>`
+    }
+
+    case 'table': {
+      if (!block.headers || block.headers.length === 0) return ''
+
+      const ths = block.headers
+        .map((cell, idx) => {
+          const align = block.alignments[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
+          return `<th${align}>${cell.children.map(renderInlineToHtml).join('')}</th>`
+        })
+        .join('')
+
+      const rows = block.rows
+        .map(row => {
+          const tds = row.cells
+            .map((cell, idx) => {
+              const align = block.alignments[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
+              return `<td${align}>${cell.children.map(renderInlineToHtml).join('')}</td>`
+            })
+            .join('')
+          return `<tr>${tds}</tr>`
+        })
+        .join('\n')
+
+      return `<table>\n<thead><tr>${ths}</tr></thead>\n<tbody>\n${rows}\n</tbody>\n</table>`
+    }
+
+    case 'thematicBreak':
+      return '<hr />'
+
+    case 'rawBlock':
+      return `<div>${escapeHtml(block.content)}</div>`
+
+    default:
+      return ''
+  }
+}
+
+export interface HtmlRenderOptions {
+  includeWrapper?: boolean
+  title?: string
+}
+
+export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions = {}): string {
+  const rawHtml = doc.children.map(renderBlockToHtml).join('\n')
+  // Strict sanitization with DOMPurify
+  const sanitizedBody = DOMPurify.sanitize(rawHtml, {
+    ALLOWED_TAGS: [
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'strong', 'em', 'del', 'code', 'pre',
+      'blockquote', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
+      'a', 'img', 'hr', 'div', 'span',
+    ],
+    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'start', 'target', 'rel', 'data-math'],
+  })
+
+  if (!options.includeWrapper) {
+    return sanitizedBody
+  }
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHtml(options.title || 'Converted Document')}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      color: #1e293b;
+      max-width: 860px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #cbd5e1; padding: 10px 14px; }
+    th { background: #f8fafc; font-weight: 600; }
+    pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 8px; overflow-x: auto; }
+    code { font-family: monospace; font-size: 0.9em; }
+    blockquote { border-left: 4px solid #3b82f6; margin: 20px 0; padding-left: 16px; color: #64748b; }
+  </style>
+</head>
+<body>
+${sanitizedBody}
+</body>
+</html>`
+}
