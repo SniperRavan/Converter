@@ -457,7 +457,7 @@ export const Workspace: React.FC = () => {
                 <button
                   onClick={handleCopy}
                   disabled={!inputContent.trim()}
-                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium bg-neutral-900 hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black disabled:pointer-events-none disabled:opacity-40 h-8 sm:h-9 rounded-md px-3.5 shadow-xs transition-all active:scale-95 cursor-pointer font-sans"
+                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium bg-neutral-900 hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black disabled:pointer-events-none disabled:opacity-40 h-8 sm:h-9 rounded-md px-2.5 sm:px-3.5 shadow-xs transition-all active:scale-95 cursor-pointer font-sans"
                 >
                   {copiedRichText ? (
                     <>
@@ -467,7 +467,8 @@ export const Workspace: React.FC = () => {
                   ) : (
                     <>
                       <Copy className="h-3.5 w-3.5 mr-1.5" />
-                      <span>{selectedFormat === 'preview' ? 'Copy Rich Text' : 'Copy Output'}</span>
+                      <span className="hidden sm:inline">{selectedFormat === 'preview' ? 'Copy Rich Text' : 'Copy Output'}</span>
+                      <span className="sm:hidden">{selectedFormat === 'preview' ? 'Copy Rich' : 'Copy'}</span>
                     </>
                   )}
                 </button>

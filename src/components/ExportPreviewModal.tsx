@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
+import { createPortal } from 'react-dom'
 import {
   X,
   Download,
@@ -179,29 +180,29 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
     }
   }
 
-  if (!isOpen) return null
+  if (!isOpen || typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/60 backdrop-blur-xs animate-in fade-in-50 duration-150"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-xs animate-in fade-in-50 duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="relative w-full max-w-5xl h-[88vh] max-h-[850px] flex flex-col rounded-2xl border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0] dark:bg-[#0c0c0c] text-neutral-900 dark:text-neutral-100 shadow-2xl overflow-hidden">
+      <div className="relative w-full sm:max-w-5xl h-[100dvh] sm:h-[88vh] sm:max-h-[850px] flex flex-col sm:rounded-2xl border-0 sm:border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0] dark:bg-[#0c0c0c] text-neutral-900 dark:text-neutral-100 shadow-2xl overflow-hidden">
         {/* Top Header */}
-        <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-[#E8E1D3] dark:border-white/10 bg-white/70 dark:bg-[#121212]/80 backdrop-blur-md shrink-0">
-          <div className="flex items-center gap-2.5">
-            <span className="font-semibold text-base sm:text-lg tracking-tight">Export Preview</span>
+        <div className="flex items-center justify-between px-3.5 sm:px-6 py-2.5 sm:py-3 border-b border-[#E8E1D3] dark:border-white/10 bg-white/80 dark:bg-[#121212]/80 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-sm sm:text-lg tracking-tight">Export Preview</span>
             <span
-              className={`text-xs px-2 py-0.5 rounded-full border font-mono font-medium ${activeMeta.badgeColor}`}
+              className={`text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full border font-mono font-medium ${activeMeta.badgeColor}`}
             >
               {activeMeta.ext.toUpperCase()}
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-neutral-500 dark:text-neutral-400 hidden sm:inline-block">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400 hidden sm:inline-block">
               Size: {estimatedSize} · {parsedDocument.stats.words.toLocaleString()} words
             </span>
             <button
@@ -215,14 +216,14 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
         </div>
 
         {/* Toolbar: Format Selector & Filename Config */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-2.5 bg-[#FAF5ED]/70 dark:bg-[#101010] border-b border-[#E8E1D3] dark:border-white/10 shrink-0 text-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-3 sm:px-6 py-2 bg-[#FAF5ED]/80 dark:bg-[#101010] border-b border-[#E8E1D3] dark:border-white/10 shrink-0 text-xs">
           {/* Format Tabs */}
-          <div className="flex items-center gap-1 overflow-x-auto py-0.5 max-w-full">
+          <div className="flex items-center gap-1 overflow-x-auto py-1 max-w-full shrink-0 no-scrollbar touch-pan-x">
             {EXPORT_FORMATS.map((fmt) => (
               <button
                 key={fmt.id}
                 onClick={() => setActiveType(fmt.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md font-medium whitespace-nowrap transition-all cursor-pointer ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-md text-[11px] sm:text-xs font-medium whitespace-nowrap transition-all cursor-pointer shrink-0 ${
                   activeType === fmt.id
                     ? 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-xs font-semibold'
                     : 'bg-[#FFFAF0] dark:bg-[#171717] text-neutral-600 dark:text-neutral-400 border border-[#E5DDD0] dark:border-white/10 hover:text-neutral-900 dark:hover:text-white'
@@ -235,12 +236,12 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
           </div>
 
           {/* Filename Input + HTML Mode Toggle */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between sm:justify-end gap-2 pt-0.5 sm:pt-0">
             {activeType === 'html' && (
-              <div className="flex items-center rounded-md border border-[#E5DDD0] dark:border-white/10 bg-[#FFFAF0] dark:bg-[#171717] p-0.5 mr-2">
+              <div className="flex items-center rounded-md border border-[#E5DDD0] dark:border-white/10 bg-[#FFFAF0] dark:bg-[#171717] p-0.5 mr-1">
                 <button
                   onClick={() => setHtmlViewMode('visual')}
-                  className={`px-2 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                  className={`px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors cursor-pointer ${
                     htmlViewMode === 'visual'
                       ? 'bg-neutral-900 dark:bg-white text-white dark:text-black'
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
@@ -250,102 +251,109 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
                 </button>
                 <button
                   onClick={() => setHtmlViewMode('code')}
-                  className={`px-2 py-1 rounded text-[11px] font-medium transition-colors cursor-pointer ${
+                  className={`px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors cursor-pointer ${
                     htmlViewMode === 'code'
                       ? 'bg-neutral-900 dark:bg-white text-white dark:text-black'
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
                   }`}
                 >
-                  HTML Source
+                  Source
                 </button>
               </div>
             )}
 
-            <div className="flex items-center rounded-md border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#141414] overflow-hidden focus-within:ring-1 focus-within:ring-neutral-400">
-              <input
-                type="text"
-                value={filename}
-                onChange={(e) => setFilename(e.target.value.replace(/[^a-zA-Z0-9_-]/g, ''))}
-                placeholder="filename"
-                className="px-2.5 py-1 text-xs bg-transparent focus:outline-hidden w-28 sm:w-36 text-neutral-800 dark:text-neutral-200"
-              />
-              <span className="px-2 py-1 bg-[#FAF5ED] dark:bg-[#1a1a1a] text-[11px] font-mono text-neutral-500 dark:text-neutral-400 border-l border-[#E5DDD0] dark:border-white/10">
-                {activeMeta.ext}
-              </span>
+            <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
+              <span className="text-[11px] text-neutral-500 font-medium hidden xs:inline">File:</span>
+              <div className="flex items-center rounded-lg border border-[#E2DAD0] dark:border-white/15 bg-white dark:bg-[#181818] overflow-hidden focus-within:ring-2 focus-within:ring-neutral-400">
+                <input
+                  type="text"
+                  value={filename}
+                  onChange={(e) => setFilename(e.target.value)}
+                  className="px-2 py-1 text-xs bg-transparent text-neutral-900 dark:text-white font-medium focus:outline-hidden w-28 sm:w-40"
+                  placeholder="document"
+                />
+                <span className="px-1.5 sm:px-2 py-1 bg-neutral-100 dark:bg-white/10 text-neutral-600 dark:text-neutral-300 font-mono text-[10px] sm:text-[11px] font-semibold border-l border-[#E2DAD0] dark:border-white/10">
+                  {activeMeta.ext}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Center: Live Preview Viewport */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#F5EFEB]/50 dark:bg-[#070707]">
-          {/* Word / Document Sheet Mockup */}
-          {(activeType === 'word' || activeType === 'pdf' || (activeType === 'html' && htmlViewMode === 'visual')) && (
-            <div className="max-w-[760px] mx-auto bg-white dark:bg-[#0e0e0e] border border-[#E5DDD0] dark:border-white/15 rounded-xl shadow-md p-8 sm:p-12 min-h-[500px]">
-              {/* Paginated Sheet Top Banner */}
-              <div className="flex items-center justify-between pb-4 mb-6 border-b border-neutral-100 dark:border-white/10 text-[11px] text-neutral-400">
-                <span>{activeType === 'word' ? 'Word Document Layout' : activeType === 'pdf' ? 'Printable Document Page' : 'HTML Document View'}</span>
-                <span>{filename}{activeMeta.ext}</span>
-              </div>
-
-              {/* Rendered HTML with KaTeX equations, tables, lists */}
+        {/* Center Preview Stage */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-[#F4EDE2]/50 dark:bg-black/50">
+          {/* Word & PDF Realistic Sheet Preview */}
+          {(activeType === 'word' || activeType === 'pdf') && (
+            <div className="max-w-3xl mx-auto rounded-xl border border-[#E0D7C9] dark:border-white/15 bg-white dark:bg-[#0e0e0e] shadow-md p-4 sm:p-10 min-h-[480px]">
               <div
-                className="prose prose-neutral dark:prose-invert max-w-none text-neutral-900 dark:text-neutral-100 leading-relaxed font-sans text-sm sm:text-base space-y-3"
+                className="prose prose-sm sm:prose-base dark:prose-invert max-w-none font-serif leading-relaxed text-neutral-800 dark:text-neutral-200 select-text"
                 dangerouslySetInnerHTML={{ __html: contentHtmlClean }}
               />
             </div>
           )}
 
-          {/* HTML Source Code Mode */}
-          {activeType === 'html' && htmlViewMode === 'code' && (
-            <div className="max-w-4xl mx-auto rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">
-              <code>{contentHtmlFull}</code>
+          {/* HTML Preview: Visual or Source */}
+          {activeType === 'html' && (
+            <div className="max-w-3xl mx-auto">
+              {htmlViewMode === 'visual' ? (
+                <div className="rounded-xl border border-[#E0D7C9] dark:border-white/15 bg-white dark:bg-[#0e0e0e] shadow-md p-4 sm:p-10 min-h-[480px]">
+                  <div
+                    className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-neutral-800 dark:text-neutral-200 select-text"
+                    dangerouslySetInnerHTML={{ __html: contentHtmlClean }}
+                  />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">
+                  <code>{contentHtmlFull}</code>
+                </div>
+              )}
             </div>
           )}
 
           {/* Markdown Code View */}
           {activeType === 'markdown' && (
-            <div className="max-w-4xl mx-auto rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs sm:text-sm text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">
+            <div className="max-w-3xl mx-auto rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs sm:text-sm text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">
               <code>{contentMarkdown}</code>
             </div>
           )}
 
           {/* LaTeX Code View */}
           {activeType === 'latex' && (
-            <div className="max-w-4xl mx-auto rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs sm:text-sm text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">
+            <div className="max-w-3xl mx-auto rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs sm:text-sm text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">
               <code>{contentLatex}</code>
             </div>
           )}
 
           {/* Plain Text View */}
           {activeType === 'text' && (
-            <div className="max-w-4xl mx-auto rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs sm:text-sm text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">
+            <div className="max-w-3xl mx-auto rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs sm:text-sm text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">
               <code>{contentPlainText}</code>
             </div>
           )}
 
           {/* JSON AST View */}
           {activeType === 'json' && (
-            <div className="max-w-4xl mx-auto rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">
+            <div className="max-w-3xl mx-auto rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">
               <code>{contentJson}</code>
             </div>
           )}
         </div>
 
         {/* Bottom Footer Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-6 py-3.5 border-t border-[#E8E1D3] dark:border-white/10 bg-white/70 dark:bg-[#121212]/90 backdrop-blur-md shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 px-3.5 sm:px-6 py-2.5 sm:py-3.5 border-t border-[#E8E1D3] dark:border-white/10 bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-2 justify-between sm:justify-start">
             <button
               onClick={handleCopyContent}
-              className="inline-flex items-center justify-center text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/60 dark:bg-[#1a1a1a] hover:bg-[#FAF5ED] dark:hover:bg-[#222222] text-neutral-800 dark:text-neutral-200 h-9 rounded-lg px-3 transition-colors cursor-pointer shadow-2xs"
+              className="flex-1 sm:flex-none inline-flex items-center justify-center text-xs font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/60 dark:bg-[#1a1a1a] hover:bg-[#FAF5ED] dark:hover:bg-[#222222] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-lg px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
             >
               {copied ? (
                 <>
-                  <Check className="w-4 h-4 mr-1.5 text-emerald-500" />
-                  <span>Copied Content!</span>
+                  <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-500" />
+                  <span>Copied!</span>
                 </>
               ) : (
                 <>
-                  <Copy className="w-4 h-4 mr-1.5 text-neutral-500 dark:text-neutral-400" />
+                  <Copy className="w-3.5 h-3.5 mr-1.5 text-neutral-500 dark:text-neutral-400" />
                   <span>Copy Content</span>
                 </>
               )}
@@ -354,32 +362,35 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
             {activeType === 'pdf' && (
               <button
                 onClick={() => exportToPdf(contentHtmlClean, filename)}
-                className="inline-flex items-center justify-center text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/60 dark:bg-[#1a1a1a] hover:bg-[#FAF5ED] dark:hover:bg-[#222222] text-neutral-800 dark:text-neutral-200 h-9 rounded-lg px-3 transition-colors cursor-pointer shadow-2xs"
+                className="flex-1 sm:flex-none inline-flex items-center justify-center text-xs font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/60 dark:bg-[#1a1a1a] hover:bg-[#FAF5ED] dark:hover:bg-[#222222] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-lg px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
               >
-                <Printer className="w-4 h-4 mr-1.5 text-neutral-500 dark:text-neutral-400" />
-                <span>Print / Save PDF</span>
+                <Printer className="w-3.5 h-3.5 mr-1.5 text-neutral-500 dark:text-neutral-400" />
+                <span>Print / PDF</span>
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <button
               onClick={onClose}
-              className="px-3.5 py-2 text-xs sm:text-sm font-medium rounded-lg text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/10 transition-colors cursor-pointer"
+              className="flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm font-medium rounded-lg text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white hover:bg-neutral-100 dark:hover:bg-white/10 transition-colors cursor-pointer text-center"
             >
               Cancel
             </button>
 
             <button
               onClick={handleDownload}
-              className="inline-flex items-center justify-center text-xs sm:text-sm font-semibold bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black h-9 rounded-lg px-4 shadow-xs transition-colors cursor-pointer"
+              className="flex-2 sm:flex-none inline-flex items-center justify-center text-xs sm:text-sm font-semibold bg-neutral-900 hover:bg-neutral-800 dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black h-8 sm:h-9 rounded-lg px-4 shadow-xs transition-colors cursor-pointer"
             >
-              <Download className="w-4 h-4 mr-1.5" />
-              <span>Download {filename}{activeMeta.ext}</span>
+              <Download className="w-4 h-4 mr-1.5 shrink-0" />
+              <span className="hidden sm:inline">Download {filename}{activeMeta.ext}</span>
+              <span className="sm:inline hidden font-semibold">Download ({activeMeta.ext})</span>
+              <span className="sm:hidden font-semibold">Download {activeMeta.ext}</span>
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

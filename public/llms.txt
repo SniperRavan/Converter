@@ -1,0 +1,37 @@
+# Converter
+
+> The Universal, 100% Client-Side Document & AST Conversion Engine.
+
+Converter is an open-source web application designed to normalize and convert chaotic AI outputs (ChatGPT, Claude, Gemini, DeepSeek), LaTeX documents and resumes, GitHub Flavored Markdown, and HTML into clean, presentation-ready Word (.doc), PDF, Markdown, and HTML documents entirely in the client browser with zero telemetry or data collection.
+
+## Key Capabilities
+
+- **LLM Mixed Stream Engine:** Solves the common problem of AI chatbots mixing raw LaTeX math delimiters ($$...$$, \[...\], \(...\)), broken code fences, and ASCII tables into unformatted text. Converter compiles them into native typography on the fly.
+- **Overleaf & LaTeX Resume Support:** Natively parses academic CV and resume templates (Jake's Resume, sb2nov) into editable Microsoft Word (.doc) and PDF documents with bullet lists, hyperlinks, and contact blocks intact.
+- **Dual-MIME Clipboard:** Direct copy-paste into Microsoft Word, Google Docs, Notion, Obsidian, and Slack with preserved formulas and tables.
+- **Zero Telemetry Privacy:** 100% local execution in browser sandbox. No server uploads, no accounts, no tracking.
+
+## Supported Input Formats
+
+- LLM Mixed Stream (ChatGPT, Claude, DeepSeek)
+- LaTeX Documents, Math, and Overleaf Resumes
+- GitHub Flavored Markdown (GFM)
+- HTML5 Documents
+- Plain Text and Source Code
+- JSON AST
+
+## Supported Output Formats
+
+- Microsoft Word (.doc) with native formulas
+- Print-Ready PDF (.pdf) with KaTeX typography
+- Clean Markdown (.md)
+- Semantic HTML5 (.html)
+- Compilable LaTeX (.tex)
+- Plain Text (.txt)
+- Normalized JSON AST (.json)
+
+## Author
+
+- Akash Das Dhibar (@sniperravan)
+- Repository: https://github.com/sniperravan/Convertion
+- Website: https://sniperravan.github.io/Convertion/
