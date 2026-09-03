@@ -11,27 +11,34 @@ Converter is an open-source web application designed to normalize and convert ch
 - **Dual-MIME Clipboard:** Direct copy-paste into Microsoft Word, Google Docs, Notion, Obsidian, and Slack with preserved formulas and tables.
 - **Zero Telemetry Privacy:** 100% local execution in browser sandbox. No server uploads, no accounts, no tracking.
 
+## Interactive Tools & Resources
+
+- [Converter Web Application](https://converter-sr.vercel.app/): Main interactive converter tool in the browser.
+- [Full LLM Specification & Documentation](https://converter-sr.vercel.app/llms-full.txt): Complete reference manual and schema details for AI agents.
+- [Open Source GitHub Repository](https://github.com/SniperRavan/Converter): Source code, parser architecture, and issue tracker.
+- [Overleaf Resume to Word Guide](https://converter-sr.vercel.app/#guide): Step-by-step tutorial on converting academic resumes to ATS-friendly Word docs.
+- [Report Issues & Contact](https://github.com/SniperRavan/Converter/issues): Submit bug reports or request new parsers.
+
 ## Supported Input Formats
 
-- LLM Mixed Stream (ChatGPT, Claude, DeepSeek)
-- LaTeX Documents, Math, and Overleaf Resumes
-- GitHub Flavored Markdown (GFM)
-- HTML5 Documents
-- Plain Text and Source Code
-- JSON AST
+- [LLM Mixed Stream](https://converter-sr.vercel.app/#converter): Raw streaming output from ChatGPT, Claude, DeepSeek, and Gemini.
+- [LaTeX Documents & Formulas](https://converter-sr.vercel.app/#converter): Overleaf CVs, equations, and mathematical papers.
+- [Markdown](https://converter-sr.vercel.app/#converter): GitHub Flavored Markdown (tables, checklists, footnotes, math).
+- [HTML5 Documents](https://converter-sr.vercel.app/#converter): Clean HTML structures.
+- [JSON AST](https://converter-sr.vercel.app/#converter): Normalized document Abstract Syntax Tree.
 
 ## Supported Output Formats
 
-- Microsoft Word (.doc) with native formulas
-- Print-Ready PDF (.pdf) with KaTeX typography
-- Clean Markdown (.md)
-- Semantic HTML5 (.html)
-- Compilable LaTeX (.tex)
-- Plain Text (.txt)
-- Normalized JSON AST (.json)
+- [Microsoft Word (.doc)](https://converter-sr.vercel.app/#converter): MSOffice XML / HTML Word document with native formula typography.
+- [Print-Ready PDF (.pdf)](https://converter-sr.vercel.app/#converter): High-fidelity PDF with pagination and embedded KaTeX styles.
+- [Clean Markdown (.md)](https://converter-sr.vercel.app/#converter): Normalized standard Markdown.
+- [Semantic HTML5 (.html)](https://converter-sr.vercel.app/#converter): Sanitized HTML ready for web publishing.
+- [LaTeX Source (.tex)](https://converter-sr.vercel.app/#converter): Clean LaTeX markup.
+- [JSON AST (.json)](https://converter-sr.vercel.app/#converter): Document syntax tree.
 
-## Author
+## Author & Project Information
 
-- Akash Das Dhibar (@sniperravan)
-- Repository: https://github.com/sniperravan/Convertion
-- Website: https://sniperravan.github.io/Convertion/
+- Author: [Akash Das Dhibar](https://github.com/sniperravan)
+- Web Application: [Converter](https://converter-sr.vercel.app/)
+- Repository: [GitHub](https://github.com/SniperRavan/Converter)
+- License: MIT License

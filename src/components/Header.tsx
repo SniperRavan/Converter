@@ -113,6 +113,8 @@ export const Header: React.FC = () => {
             <img
               src={heroImg}
               alt="Converter Logo"
+              width={32}
+              height={32}
               className="w-8 h-8 object-contain drop-shadow-[0_2px_8px_rgba(168,85,247,0.35)] group-hover:scale-105 transition-transform"
             />
           </div>

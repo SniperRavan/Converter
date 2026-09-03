@@ -299,9 +299,9 @@ export const Workspace: React.FC = () => {
           <div className="p-4 sm:p-5 border-b border-[#EBE3D6] dark:border-white/10 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <h3 className="tracking-tight text-lg font-bold text-neutral-900 dark:text-white">
+                <h2 className="tracking-tight text-lg font-bold text-neutral-900 dark:text-white">
                   Input
-                </h3>
+                </h2>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-white/10 text-neutral-600 dark:text-neutral-300 font-mono">
                   All Files Supported
                 </span>
@@ -355,7 +355,7 @@ export const Workspace: React.FC = () => {
                 <button
                   key={fmt.id}
                   onClick={() => setInputFormat(fmt.id)}
-                  className={`px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                  className={`px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-colors duration-150 cursor-pointer flex items-center gap-1 shrink-0 ${
                     inputFormat === fmt.id
                       ? 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-xs font-semibold'
                       : 'bg-[#FAF5ED] dark:bg-[#141414] text-neutral-600 dark:text-neutral-400 border border-[#EBE3D6] dark:border-white/10 hover:text-neutral-900 dark:hover:text-white'
@@ -435,9 +435,9 @@ export const Workspace: React.FC = () => {
           <div className="p-4 sm:p-5 border-b border-[#EBE3D6] dark:border-white/10 space-y-3">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <h3 className="tracking-tight text-lg font-bold text-neutral-900 dark:text-white">
+                <h2 className="tracking-tight text-lg font-bold text-neutral-900 dark:text-white">
                   Output
-                </h3>
+                </h2>
                 <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-white/10 text-neutral-600 dark:text-neutral-300 font-mono">
                   All Files Export
                 </span>
@@ -642,7 +642,7 @@ export const Workspace: React.FC = () => {
                 <button
                   key={fmt.id}
                   onClick={() => setSelectedFormat(fmt.id)}
-                  className={`px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                  className={`px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-colors duration-150 cursor-pointer shrink-0 ${
                     selectedFormat === fmt.id
                       ? 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-xs font-semibold'
                       : 'bg-[#FAF5ED] dark:bg-[#141414] text-neutral-600 dark:text-neutral-400 border border-[#EBE3D6] dark:border-white/10 hover:text-neutral-900 dark:hover:text-white'
