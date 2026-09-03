@@ -1,14 +1,14 @@
 import React, { useRef, useState, useMemo } from 'react'
 import {
   Upload,
-  Trash2,
+  RotateCcw,
   Copy,
   Check,
   Download,
-  FileSpreadsheet,
+  FileText,
   Link2,
   Link2Off,
-  Code2,
+  ChevronDown,
 } from 'lucide-react'
 import { useConverterStore } from '../store/useConverterStore'
 import { RichPreview } from './RichPreview'
@@ -18,6 +18,7 @@ import { renderToMarkdown } from '../renderers/markdown'
 import { renderToHtml } from '../renderers/html'
 import { renderToLatex } from '../renderers/latex'
 import { renderToPlainText } from '../renderers/text'
+import { exportToWord, exportToPdf, exportToFile } from '../utils/exporters'
 
 export const Workspace: React.FC = () => {
   const {
@@ -25,10 +26,10 @@ export const Workspace: React.FC = () => {
     setInputContent,
     parsedDocument,
     selectedFormat,
+    setSelectedFormat,
     formatOptions,
     loadSample,
     clearDocument,
-    detectionResult,
     activeLine,
     setActiveLine,
     syncScrollEnabled,
@@ -37,6 +38,7 @@ export const Workspace: React.FC = () => {
 
   const [isDragging, setIsDragging] = useState(false)
   const [copiedRichText, setCopiedRichText] = useState(false)
+  const [showExportMenu, setShowExportMenu] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Scroll sync refs
@@ -83,7 +85,7 @@ export const Workspace: React.FC = () => {
     return Array.from({ length: lineCount }, (_, i) => i + 1)
   }, [lineCount])
 
-  // Track cursor position to determine active line (VS Code style)
+  // Track cursor position for line indicator
   const handleCursorMove = () => {
     const el = textareaRef.current
     if (!el) return
@@ -92,7 +94,7 @@ export const Workspace: React.FC = () => {
     setActiveLine(line)
   }
 
-  // Handle Synchronized Scrolling: Editor -> Preview & Gutter
+  // Handle Synchronized Scrolling: Editor -> Preview
   const handleEditorScroll = () => {
     const textarea = textareaRef.current
     const gutter = gutterRef.current
@@ -100,7 +102,6 @@ export const Workspace: React.FC = () => {
 
     if (!textarea) return
 
-    // Always lock gutter scroll to textarea scroll
     if (gutter) {
       gutter.scrollTop = textarea.scrollTop
     }
@@ -145,7 +146,7 @@ export const Workspace: React.FC = () => {
     }, 50)
   }
 
-  // Smart File Processor: Handles Text and Images cleanly
+  // Smart File Processor
   const processFile = (file: File) => {
     const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name)
 
@@ -163,7 +164,6 @@ export const Workspace: React.FC = () => {
       return
     }
 
-    // Standard markdown/text files
     const reader = new FileReader()
     reader.onload = (event) => {
       const content = event.target?.result as string
@@ -174,13 +174,11 @@ export const Workspace: React.FC = () => {
     reader.readAsText(file)
   }
 
-  // File Upload
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) processFile(file)
   }
 
-  // Drag & Drop
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragging(true)
@@ -197,7 +195,7 @@ export const Workspace: React.FC = () => {
     if (file) processFile(file)
   }
 
-  // Copy Rich Text
+  // Copy Rich Text to Clipboard (Exact formatting for Word, Docs, Notion)
   const handleCopyRichText = async () => {
     try {
       const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false })
@@ -221,256 +219,327 @@ export const Workspace: React.FC = () => {
     }
   }
 
-  // Download Standalone HTML
-  const handleDownloadPreviewHtml = () => {
-    const fullHtml = renderToHtml(parsedDocument, {
-      includeWrapper: true,
-      title: 'Converted Document',
-    })
-    const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'document.html'
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-  }
-
   return (
-    <div className="flex-1 min-h-0 w-full grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch h-full">
-      {/* ================= LEFT COLUMN: Source Editor ================= */}
-      <div className="flex flex-col h-full min-h-0 rounded-2xl border border-slate-200/90 dark:border-white/[0.08] bg-white/95 dark:bg-[#0c0e15]/95 shadow-md overflow-hidden">
-        {/* Editor Top Bar */}
-        <div className="h-11 shrink-0 px-3.5 border-b border-slate-200/80 dark:border-white/[0.06] bg-slate-50/90 dark:bg-white/[0.02] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-blue-500 shadow-xs shadow-blue-500/50" />
-            <span className="font-semibold text-xs tracking-wider uppercase text-slate-800 dark:text-slate-200">
-              Input Markdown
-            </span>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-200/60 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 font-medium">
-              {detectionResult.primaryFormat}
-            </span>
+    <div className="w-full">
+      {/* 2-Column Grid matching markdowntorichtext.com */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* ================= LEFT CARD: Markdown Input ================= */}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 text-slate-900 dark:text-slate-100 shadow-sm flex flex-col transition-colors">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200/80 dark:border-slate-800">
+            <h3 className="tracking-tight text-lg font-semibold text-slate-900 dark:text-white">
+              Markdown Input
+            </h3>
+
+            <div className="flex items-center space-x-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".md,.markdown,.txt,.tex,.html,.json,.png,.jpg,.jpeg,.svg"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 h-9 rounded-md px-3 transition-colors cursor-pointer shadow-2xs"
+                title="Upload Markdown file"
+              >
+                <Upload className="h-4 w-4 mr-1.5 text-slate-500 dark:text-slate-400" />
+                <span>Upload .md</span>
+              </button>
+
+              <button
+                onClick={loadSample}
+                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 h-9 rounded-md px-3 transition-colors cursor-pointer shadow-2xs"
+                title="Load sample Markdown content"
+              >
+                <FileText className="h-4 w-4 mr-1.5 text-slate-500 dark:text-slate-400" />
+                <span>Sample</span>
+              </button>
+
+              <button
+                onClick={clearDocument}
+                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 h-9 rounded-md px-3 transition-colors cursor-pointer shadow-2xs"
+                title="Clear content"
+              >
+                <RotateCcw className="h-4 w-4 mr-1.5 text-slate-500 dark:text-slate-400" />
+                <span>Clear</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".md,.markdown,.txt,.tex,.html,.json,.png,.jpg,.jpeg,.svg,.webp,.gif"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
-              title="Upload file or image (.md, .txt, .png, .svg)"
-            >
-              <Upload className="w-3.5 h-3.5 text-blue-500" />
-              <span>Upload</span>
-            </button>
-
-            <button
-              onClick={loadSample}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
-              title="Load rich sample"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-500" />
-              <span>Sample</span>
-            </button>
-
-            <button
-              onClick={clearDocument}
-              className="p-1 rounded-md text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer"
-              title="Clear text"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Editor Main Content: Line Numbers Gutter + Textarea */}
-        <div
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className="relative flex-1 min-h-0 flex overflow-hidden font-mono text-xs sm:text-sm bg-transparent"
-        >
-          {/* Gutter with Line Numbers (VS Code style) */}
+          {/* Body: Line Numbers + Textarea */}
           <div
-            ref={gutterRef}
-            aria-hidden="true"
-            className="w-12 shrink-0 py-3.5 bg-slate-100/50 dark:bg-black/30 border-r border-slate-200/60 dark:border-white/[0.04] select-none overflow-hidden text-right pr-2 text-slate-400/80 font-mono text-xs"
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className="relative flex-1 flex min-h-[500px] max-h-[620px] bg-slate-50/40 dark:bg-black/20 overflow-hidden font-mono text-sm"
           >
-            {lineNumbers.map((num) => {
-              const isCurrent = activeLine === num
-              return (
+            {/* Gutter with Line Numbers */}
+            <div
+              ref={gutterRef}
+              aria-hidden="true"
+              className="w-12 shrink-0 py-3 bg-slate-100/60 dark:bg-black/30 border-r border-slate-200/80 dark:border-slate-800 select-none overflow-hidden text-right pr-2 text-slate-400/80 font-mono text-xs"
+            >
+              {lineNumbers.map((num) => (
                 <div
                   key={num}
                   className={`h-5 leading-5 transition-colors ${
-                    isCurrent
+                    activeLine === num
                       ? 'text-blue-600 dark:text-blue-400 font-bold bg-blue-500/10 -mr-2 pr-2 border-r-2 border-blue-500'
                       : ''
                   }`}
                 >
                   {num}
                 </div>
-              )
-            })}
-          </div>
-
-          {/* Textarea */}
-          <textarea
-            ref={textareaRef}
-            value={inputContent}
-            onChange={(e) => setInputContent(e.target.value)}
-            onKeyUp={handleCursorMove}
-            onClick={handleCursorMove}
-            onScroll={handleEditorScroll}
-            placeholder="Type or paste markdown here, or drop an image..."
-            className="flex-1 min-h-0 h-full p-3.5 resize-none bg-transparent leading-5 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-600 focus:outline-hidden overflow-y-auto"
-            spellCheck={false}
-          />
-
-          {isDragging && (
-            <div className="absolute inset-2 rounded-xl border-2 border-dashed border-blue-500 bg-blue-500/10 backdrop-blur-xs flex flex-col items-center justify-center text-blue-600 dark:text-blue-400 pointer-events-none">
-              <Upload className="w-8 h-8 mb-2 animate-bounce" />
-              <p className="font-semibold text-xs">Drop file or image to load</p>
+              ))}
             </div>
-          )}
-        </div>
 
-        {/* Editor Bottom Status Strip */}
-        <div className="h-7 shrink-0 px-3.5 border-t border-slate-200/60 dark:border-white/[0.04] bg-slate-50/50 dark:bg-white/[0.01] flex items-center justify-between text-[11px] text-slate-500 font-mono">
-          <span>Ln {activeLine ?? 1}, Col 1</span>
-          <span>{lineCount} lines · {inputContent.length.toLocaleString()} chars</span>
-        </div>
-      </div>
+            {/* Textarea */}
+            <textarea
+              ref={textareaRef}
+              value={inputContent}
+              onChange={(e) => setInputContent(e.target.value)}
+              onKeyUp={handleCursorMove}
+              onClick={handleCursorMove}
+              onScroll={handleEditorScroll}
+              placeholder="Type your Markdown here..."
+              className="flex w-full bg-transparent p-3 ring-offset-background placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none resize-none border-0 font-mono text-sm leading-5 text-slate-800 dark:text-slate-200 overflow-y-auto"
+              spellCheck={false}
+            />
 
-      {/* ================= RIGHT COLUMN: Visual Output ================= */}
-      <div className="flex flex-col h-full min-h-0 rounded-2xl border border-slate-200/90 dark:border-white/[0.08] bg-white/95 dark:bg-[#0c0e15]/95 shadow-md overflow-hidden">
-        {/* Output Top Bar */}
-        <div className="h-11 shrink-0 px-3.5 border-b border-slate-200/80 dark:border-white/[0.06] bg-slate-50/90 dark:bg-white/[0.02] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-xs shadow-emerald-500/50" />
-            <span className="font-semibold text-xs tracking-wider uppercase text-slate-800 dark:text-slate-200">
-              {selectedFormat === 'preview'
-                ? 'Rich Text Preview'
-                : `${selectedFormat.toUpperCase()} Code`}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Sync Scroll Toggle */}
-            {selectedFormat === 'preview' && (
-              <button
-                onClick={() => setSyncScrollEnabled(!syncScrollEnabled)}
-                className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-                  syncScrollEnabled
-                    ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
-                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-                }`}
-                title={syncScrollEnabled ? 'Synchronized Scroll Enabled' : 'Synchronized Scroll Disabled'}
-              >
-                {syncScrollEnabled ? <Link2 className="w-3.5 h-3.5" /> : <Link2Off className="w-3.5 h-3.5" />}
-                <span className="text-[11px] hidden sm:inline">Sync Scroll</span>
-              </button>
-            )}
-
-            {selectedFormat === 'preview' && (
-              <>
-                {/* Copy Rich Text */}
-                <button
-                  onClick={handleCopyRichText}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-all shadow-xs active:scale-95 cursor-pointer"
-                  title="Copy rich formatted text to clipboard"
-                >
-                  {copiedRichText ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedRichText ? 'Copied!' : 'Copy Rich Text'}</span>
-                </button>
-
-                {/* Export HTML */}
-                <button
-                  onClick={handleDownloadPreviewHtml}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-slate-200 dark:border-white/10 bg-slate-100/70 dark:bg-white/[0.04] hover:bg-slate-200/70 dark:hover:bg-white/[0.08] text-slate-700 dark:text-slate-200 text-xs font-medium transition-colors cursor-pointer"
-                  title="Export Standalone HTML"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Export</span>
-                </button>
-              </>
-            )}
-
-            {selectedFormat !== 'preview' && (
-              <div className="flex items-center gap-1 text-[11px] text-slate-400">
-                <Code2 className="w-3.5 h-3.5 text-blue-400" />
-                <span>Synchronized AST</span>
+            {isDragging && (
+              <div className="absolute inset-2 rounded-xl border-2 border-dashed border-blue-500 bg-blue-500/10 backdrop-blur-xs flex flex-col items-center justify-center text-blue-600 dark:text-blue-400 pointer-events-none">
+                <Upload className="w-8 h-8 mb-2 animate-bounce" />
+                <p className="font-semibold text-xs">Drop file or image to load</p>
               </div>
             )}
           </div>
+
+          {/* Bottom Bar: Word & Char Count */}
+          <div className="h-8 px-4 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-xs text-slate-500 font-mono">
+            <span>Ln {activeLine ?? 1}, Col 1</span>
+            <span>{lineCount} lines · {inputContent.length.toLocaleString()} characters</span>
+          </div>
         </div>
 
-        {/* Output Scrollable Canvas */}
-        <div
-          ref={previewContainerRef}
-          onScroll={handlePreviewScroll}
-          className="flex-1 min-h-0 p-5 overflow-y-auto relative"
-        >
-          {selectedFormat === 'preview' && (
-            <CanvasBendCard className="min-h-full">
-              <RichPreview document={parsedDocument} />
-            </CanvasBendCard>
-          )}
+        {/* ================= RIGHT CARD: Rich Text Preview ================= */}
+        <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/80 text-slate-900 dark:text-slate-100 shadow-sm flex flex-col transition-colors">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-slate-200/80 dark:border-slate-800 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <h3 className="tracking-tight text-lg font-semibold text-slate-900 dark:text-white">
+                Rich Text Preview
+              </h3>
 
-          {selectedFormat === 'markdown' && (
-            <CanvasBendCard className="min-h-full">
-              <CodeOutputPreview
-                content={renderedMarkdown}
-                format="markdown"
-                filename="document"
-              />
-            </CanvasBendCard>
-          )}
+              {/* View Switcher Tabs */}
+              <div className="flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-xs">
+                <button
+                  onClick={() => setSelectedFormat('preview')}
+                  className={`px-2 py-1 rounded-md font-medium transition-all ${
+                    selectedFormat === 'preview'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Rich
+                </button>
+                <button
+                  onClick={() => setSelectedFormat('html')}
+                  className={`px-2 py-1 rounded-md font-medium transition-all ${
+                    selectedFormat === 'html'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  HTML
+                </button>
+                <button
+                  onClick={() => setSelectedFormat('latex')}
+                  className={`px-2 py-1 rounded-md font-medium transition-all ${
+                    selectedFormat === 'latex'
+                      ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  LaTeX
+                </button>
+              </div>
+            </div>
 
-          {selectedFormat === 'html' && (
-            <CanvasBendCard className="min-h-full">
-              <CodeOutputPreview
-                content={renderedHtml}
-                format="html"
-                filename="document"
-              />
-            </CanvasBendCard>
-          )}
+            <div className="flex items-center space-x-2">
+              {/* Sync Scroll Toggle */}
+              <button
+                onClick={() => setSyncScrollEnabled(!syncScrollEnabled)}
+                className={`inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-slate-200 dark:border-slate-700 h-9 rounded-md px-2.5 transition-colors cursor-pointer shadow-2xs ${
+                  syncScrollEnabled
+                    ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-800'
+                    : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700'
+                }`}
+                title={syncScrollEnabled ? 'Sync Scroll Enabled' : 'Sync Scroll Disabled'}
+              >
+                {syncScrollEnabled ? <Link2 className="w-4 h-4" /> : <Link2Off className="w-4 h-4" />}
+                <span className="ml-1 text-xs hidden sm:inline">Sync</span>
+              </button>
 
-          {selectedFormat === 'latex' && (
-            <CanvasBendCard className="min-h-full">
-              <CodeOutputPreview
-                content={renderedLatex}
-                format="latex"
-                filename="document"
-              />
-            </CanvasBendCard>
-          )}
+              {/* Copy Rich Text (Primary Blue Button matching markdowntorichtext.com) */}
+              <button
+                onClick={handleCopyRichText}
+                disabled={!inputContent.trim()}
+                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium bg-blue-600 text-white hover:bg-blue-500 disabled:pointer-events-none disabled:opacity-50 h-9 rounded-md px-3.5 shadow-xs transition-all active:scale-95 cursor-pointer font-sans"
+              >
+                {copiedRichText ? (
+                  <>
+                    <Check className="h-4 w-4 mr-1.5 text-emerald-300" />
+                    <span>Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4 mr-1.5" />
+                    <span>Copy Rich Text</span>
+                  </>
+                )}
+              </button>
 
-          {selectedFormat === 'text' && (
-            <CanvasBendCard className="min-h-full">
-              <CodeOutputPreview
-                content={renderedPlainText}
-                format="text"
-                filename="document"
-              />
-            </CanvasBendCard>
-          )}
+              {/* Export Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                  className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 h-9 rounded-md px-3 transition-colors cursor-pointer shadow-2xs"
+                >
+                  <Download className="h-4 w-4 mr-1 text-slate-500 dark:text-slate-400" />
+                  <span className="hidden sm:inline">Export</span>
+                  <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-70" />
+                </button>
+
+                {showExportMenu && (
+                  <div
+                    onMouseLeave={() => setShowExportMenu(false)}
+                    className="absolute right-0 mt-1.5 w-44 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl py-1 z-30 text-xs font-medium animate-in fade-in-50 zoom-in-95"
+                  >
+                    <button
+                      onClick={() => {
+                        exportToWord(renderedHtml, 'document')
+                        setShowExportMenu(false)
+                      }}
+                      className="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-200"
+                    >
+                      <span>Word (.doc)</span>
+                      <span className="text-[10px] text-blue-500 font-mono">MS Word</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportToPdf(renderedHtml, 'document')
+                        setShowExportMenu(false)
+                      }}
+                      className="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-200"
+                    >
+                      <span>PDF Document</span>
+                      <span className="text-[10px] text-red-500 font-mono">.PDF</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportToFile(renderedHtml, 'document.html', 'text/html;charset=utf-8')
+                        setShowExportMenu(false)
+                      }}
+                      className="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-200"
+                    >
+                      <span>HTML Page</span>
+                      <span className="text-[10px] text-emerald-500 font-mono">.HTML</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportToFile(renderedMarkdown, 'document.md', 'text/markdown;charset=utf-8')
+                        setShowExportMenu(false)
+                      }}
+                      className="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-200"
+                    >
+                      <span>Markdown</span>
+                      <span className="text-[10px] text-purple-500 font-mono">.MD</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        exportToFile(renderedLatex, 'document.tex', 'application/x-tex;charset=utf-8')
+                        setShowExportMenu(false)
+                      }}
+                      className="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-200"
+                    >
+                      <span>LaTeX Document</span>
+                      <span className="text-[10px] text-amber-500 font-mono">.TEX</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Body: Rich Preview or Code Preview */}
+          <div
+            ref={previewContainerRef}
+            onScroll={handlePreviewScroll}
+            className="flex-1 p-6 min-h-[500px] max-h-[620px] overflow-y-auto relative bg-white dark:bg-slate-900/40 select-text border-t border-slate-200/80 dark:border-slate-800"
+          >
+            {/* Empty State matching markdowntorichtext.com */}
+            {!inputContent.trim() ? (
+              <div className="flex items-center justify-center h-full min-h-[460px] text-slate-400 dark:text-slate-500">
+                <div className="text-center">
+                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-40 text-slate-400" />
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Your rich text will appear here
+                  </p>
+                  <p className="text-xs mt-1.5 text-slate-500">
+                    Start typing Markdown on the left to see the preview
+                  </p>
+                </div>
+              </div>
+            ) : selectedFormat === 'preview' ? (
+              <CanvasBendCard className="min-h-full">
+                <RichPreview document={parsedDocument} />
+              </CanvasBendCard>
+            ) : selectedFormat === 'html' ? (
+              <CanvasBendCard className="min-h-full">
+                <CodeOutputPreview
+                  content={renderedHtml}
+                  format="html"
+                  filename="document"
+                />
+              </CanvasBendCard>
+            ) : selectedFormat === 'latex' ? (
+              <CanvasBendCard className="min-h-full">
+                <CodeOutputPreview
+                  content={renderedLatex}
+                  format="latex"
+                  filename="document"
+                />
+              </CanvasBendCard>
+            ) : (
+              <CanvasBendCard className="min-h-full">
+                <CodeOutputPreview
+                  content={renderedPlainText}
+                  format="text"
+                  filename="document"
+                />
+              </CanvasBendCard>
+            )}
+          </div>
+
+          {/* Bottom Status Bar */}
+          <div className="h-8 px-4 border-t border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between text-xs text-slate-500 font-mono">
+            <span>{parsedDocument.stats.words} words · {parsedDocument.stats.paragraphs} paragraphs</span>
+            <span className="text-emerald-500 font-medium">100% In-Browser</span>
+          </div>
         </div>
+      </div>
 
-        {/* Output Bottom Status Strip */}
-        <div className="h-7 shrink-0 px-3.5 border-t border-slate-200/60 dark:border-white/[0.04] bg-slate-50/50 dark:bg-white/[0.01] flex items-center justify-between text-[11px] text-slate-500">
-          <span>{parsedDocument.stats.headings} headings · {parsedDocument.stats.mathExpressions} equations · {parsedDocument.stats.tables} tables</span>
-          <span className="text-emerald-500 font-medium">100% In-Browser</span>
-        </div>
+      {/* Pro Tip Box matching markdowntorichtext.com */}
+      <div className="text-center my-6">
+        <p className="text-sm text-slate-500 dark:text-slate-400 max-w-2xl mx-auto bg-slate-100/60 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800/80 py-2.5 px-4 rounded-xl">
+          <strong className="text-slate-700 dark:text-slate-300 font-semibold">Pro Tip:</strong> All conversions happen locally in your browser — no data is uploaded or stored. It’s fast, private, and completely free to use.
+        </p>
       </div>
     </div>
   )
 }
+
+export default Workspace
