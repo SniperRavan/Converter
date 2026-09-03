@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify'
+import katex from 'katex'
 import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
 
 // Escape basic HTML entities for safety
@@ -32,8 +33,18 @@ function renderInlineToHtml(node: InlineNode): string {
       return `<del>${node.children.map(renderInlineToHtml).join('')}</del>`
     case 'inlineCode':
       return `<code>${escapeHtml(node.value)}</code>`
-    case 'inlineMath':
-      return `<span class="math-inline" data-math="${escapeHtml(node.value)}">$${escapeHtml(node.value)}$</span>`
+    case 'inlineMath': {
+      try {
+        const rendered = katex.renderToString(node.value, {
+          displayMode: false,
+          output: 'htmlAndMathml',
+          throwOnError: false,
+        })
+        return `<span class="math-inline" data-math="${escapeHtml(node.value)}">${rendered}</span>`
+      } catch {
+        return `<span class="math-inline" data-math="${escapeHtml(node.value)}">$${escapeHtml(node.value)}$</span>`
+      }
+    }
     case 'link':
       return `<a href="${escapeHtml(sanitizeUrl(node.url))}" target="_blank" rel="noopener noreferrer">${node.children.map(renderInlineToHtml).join('')}</a>`
     case 'image':
@@ -67,7 +78,16 @@ function renderBlockToHtml(block: BlockNode): string {
     }
 
     case 'mathBlock': {
-      return `<div class="math-block" data-math="${escapeHtml(block.value)}">$$\n${escapeHtml(block.value)}\n$$</div>`
+      try {
+        const rendered = katex.renderToString(block.value, {
+          displayMode: true,
+          output: 'htmlAndMathml',
+          throwOnError: false,
+        })
+        return `<div class="math-block" data-math="${escapeHtml(block.value)}">${rendered}</div>`
+      } catch {
+        return `<div class="math-block" data-math="${escapeHtml(block.value)}">$$\n${escapeHtml(block.value)}\n$$</div>`
+      }
     }
 
     case 'list': {
@@ -98,7 +118,8 @@ function renderBlockToHtml(block: BlockNode): string {
       const ths = block.headers
         .map((cell, idx) => {
           const align = block.alignments[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
-          return `<th${align}>${cell.children.map(renderInlineToHtml).join('')}</th>`
+          const content = cell.children.map(renderInlineToHtml).join('')
+          return `<th${align}>${content}</th>`
         })
         .join('')
 
@@ -107,7 +128,8 @@ function renderBlockToHtml(block: BlockNode): string {
           const tds = row.cells
             .map((cell, idx) => {
               const align = block.alignments[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
-              return `<td${align}>${cell.children.map(renderInlineToHtml).join('')}</td>`
+              const content = cell.children.map(renderInlineToHtml).join('')
+              return `<td${align}>${content}</td>`
             })
             .join('')
           return `<tr>${tds}</tr>`
@@ -121,7 +143,7 @@ function renderBlockToHtml(block: BlockNode): string {
       return '<hr />'
 
     case 'rawBlock':
-      return `<div>${escapeHtml(block.content)}</div>`
+      return block.content
 
     default:
       return ''
@@ -135,14 +157,22 @@ export interface HtmlRenderOptions {
 
 export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions = {}): string {
   const rawHtml = doc.children.map(renderBlockToHtml).join('\n')
-  // Strict sanitization with DOMPurify
+
+  // Strict sanitization with DOMPurify while preserving full MathML & SVG
   const sanitizedBody = DOMPurify.sanitize(rawHtml, {
-    ALLOWED_TAGS: [
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'strong', 'em', 'del', 'code', 'pre',
-      'blockquote', 'ul', 'ol', 'li', 'table', 'thead', 'tbody', 'tr', 'th', 'td',
-      'a', 'img', 'hr', 'div', 'span',
+    USE_PROFILES: { html: true, mathMl: true, svg: true },
+    ADD_TAGS: [
+      'math', 'semantics', 'annotation', 'annotation-xml', 'mrow', 'mi', 'mo', 'mn',
+      'mfrac', 'msup', 'msub', 'msubsup', 'munderover', 'munder', 'mover', 'msqrt',
+      'mroot', 'mtable', 'mtr', 'mtd', 'mspace', 'mtext', 'mpadded', 'mphantom',
+      'menclose', 'mstyle',
     ],
-    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'start', 'target', 'rel', 'data-math'],
+    ADD_ATTR: [
+      'xmlns', 'display', 'displaystyle', 'scriptlevel', 'mathvariant', 'columnalign',
+      'rowalign', 'rowlines', 'columnlines', 'linethickness', 'open', 'close',
+      'separators', 'fence', 'stretchy', 'symmetric', 'lspace', 'rspace', 'minsize',
+      'maxsize', 'data-math',
+    ],
   })
 
   if (!options.includeWrapper) {
@@ -171,6 +201,7 @@ export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions
     pre { background: #0f172a; color: #f8fafc; padding: 16px; border-radius: 8px; overflow-x: auto; }
     code { font-family: monospace; font-size: 0.9em; }
     blockquote { border-left: 4px solid #3b82f6; margin: 20px 0; padding-left: 16px; color: #64748b; }
+    .math-block { margin: 18px 0; text-align: center; }
   </style>
 </head>
 <body>

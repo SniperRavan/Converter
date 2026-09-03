@@ -12,6 +12,7 @@ import {
   Sparkles,
   Bot,
 } from 'lucide-react'
+import katex from 'katex'
 import { useConverterStore } from '../store/useConverterStore'
 import { RichPreview } from './RichPreview'
 import { CodeOutputPreview } from './CodeOutputPreview'
@@ -569,6 +570,33 @@ export const Workspace: React.FC = () => {
                       >
                         <span>JSON AST</span>
                         <span className="text-[10px] text-indigo-500 font-mono">.JSON</span>
+                      </button>
+
+                      <div className="my-1 border-t border-[#E5DDD0] dark:border-white/10" />
+
+                      <button
+                        onClick={() => {
+                          const mathmlBlocks = parsedDocument.children
+                            .filter((c) => c.type === 'mathBlock')
+                            .map((b) => (b.type === 'mathBlock' ? b.value : ''))
+                          const mathmlText = mathmlBlocks
+                            .map((eq) => {
+                              try {
+                                return katex.renderToString(eq, { output: 'mathml', displayMode: true })
+                              } catch {
+                                return eq
+                              }
+                            })
+                            .join('\n\n')
+                          navigator.clipboard.writeText(mathmlText)
+                          setCopiedRichText(true)
+                          setTimeout(() => setCopiedRichText(false), 2000)
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                      >
+                        <span>Copy MathML (Word/Office)</span>
+                        <span className="text-[10px] text-emerald-500 font-mono">&lt;math&gt;</span>
                       </button>
                     </div>
                   )}

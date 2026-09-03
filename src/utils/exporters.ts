@@ -4,7 +4,7 @@
 
 export function exportToWord(htmlBody: string, title = 'document') {
   const docHtml = `<!DOCTYPE html>
-<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns:m='http://schemas.microsoft.com/office/2004/12/omml' xmlns='http://www.w3.org/TR/REC-html40'>
 <head>
   <meta charset='utf-8'>
   <title>${title}</title>
@@ -17,6 +17,7 @@ export function exportToWord(htmlBody: string, title = 'document') {
     </w:WordDocument>
   </xml>
   <![endif]-->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <style>
     body {
       font-family: 'Calibri', 'Arial', sans-serif;
@@ -64,6 +65,9 @@ export function exportToWord(htmlBody: string, title = 'document') {
       color: #475569;
       font-style: italic;
     }
+    .math-block, math {
+      margin: 12pt 0;
+    }
   </style>
 </head>
 <body>
@@ -91,6 +95,7 @@ export function exportToPdf(htmlBody: string, title = 'document') {
 <head>
   <meta charset="utf-8">
   <title>${title}</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -109,6 +114,7 @@ export function exportToPdf(htmlBody: string, title = 'document') {
     code { font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
     pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; }
     blockquote { border-left: 4px solid #3b82f6; padding-left: 14px; color: #475569; margin: 16px 0; }
+    .math-block { margin: 20px 0; text-align: center; }
     @media print {
       body { padding: 0; }
     }
