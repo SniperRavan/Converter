@@ -1,59 +1,54 @@
 @import "tailwindcss";
 
+@theme {
+  --font-sans: 'Google Sans', 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Caacupe One', 'Google Sans', sans-serif;
+  --font-accent: 'Black Ops One', cursive;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'JetBrains Mono', monospace;
+}
+
 @layer base {
   :root {
-    --font-sans: 'Google Sans', 'Lato', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    --font-display: 'Caacupe One', 'Google Sans', sans-serif;
-    --font-accent: 'Black Ops One', cursive;
-    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    --font-multilingual: 'Anek Devanagari', 'Hind Siliguri', 'Mina', sans-serif;
-
-    /* Light Theme Palette */
-    --bg-primary: #fafaf9;
+    --bg-base: #f8fafc;
     --bg-surface: #ffffff;
-    --bg-secondary: #f4f4f5;
-    --bg-muted: #e4e4e7;
-    --border-color: #e2e8f0;
-    --border-hover: #cbd5e1;
-    --text-primary: #0f172a;
-    --text-secondary: #475569;
-    --text-muted: #94a3b8;
-    --accent: #2563eb;
-    --accent-hover: #1d4ed8;
-    --accent-light: #eff6ff;
-    --code-bg: #f1f5f9;
+    --bg-glass: rgba(255, 255, 255, 0.75);
+    --border-glass: rgba(0, 0, 0, 0.08);
+    --text-main: #090d16;
+    --text-muted: #526071;
+    --accent-glow: rgba(37, 99, 235, 0.12);
   }
 
   .dark {
-    /* Dark Theme Palette (Sleek Obsidian & Slate) */
-    --bg-primary: #090a0f;
-    --bg-surface: #11131c;
-    --bg-secondary: #171a26;
-    --bg-muted: #232738;
-    --border-color: #222634;
-    --border-hover: #333a4f;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --accent: #3b82f6;
-    --accent-hover: #60a5fa;
-    --accent-light: rgba(59, 130, 246, 0.12);
-    --code-bg: #0d0f16;
-  }
-
-  * {
-    border-color: var(--border-color);
+    --bg-base: #06070a;
+    --bg-surface: #0b0d14;
+    --bg-glass: rgba(11, 13, 20, 0.75);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --text-main: #f8fafc;
+    --text-muted: #8b9bb4;
+    --accent-glow: rgba(59, 130, 246, 0.18);
   }
 
   body {
     margin: 0;
-    background-color: var(--bg-primary);
-    color: var(--text-primary);
+    background-color: var(--bg-base);
+    color: var(--text-main);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     min-height: 100vh;
+    overflow-x: hidden;
   }
+}
+
+/* Background Atmosphere Grid & Mesh */
+.bg-grid-pattern {
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+.light .bg-grid-pattern {
+  background-image: radial-gradient(circle at 1px 1px, rgba(0, 0, 0, 0.04) 1px, transparent 0);
+  background-size: 24px 24px;
 }
 
 /* Reduced / Off Motion Accessibility Overrides */
@@ -63,28 +58,33 @@
   animation-iteration-count: 1 !important;
   transition-duration: 0.001ms !important;
   scroll-behavior: auto !important;
+  transform: none !important;
 }
 
-/* KaTeX custom responsive math overflow styling */
+/* KaTeX custom responsive styling */
 .katex-display {
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 0.5rem 0;
-  margin: 1rem 0;
+  padding: 0.75rem 0;
+  margin: 1.25rem 0;
 }
 
-/* Clean Custom Scrollbar */
+.katex {
+  font-size: 1.08em;
+}
+
+/* Sleek Minimal Scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-color);
-  border-radius: 3px;
+  background: rgba(140, 150, 170, 0.2);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--border-hover);
+  background: rgba(140, 150, 170, 0.4);
 }
