@@ -67,10 +67,13 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     }
   }
 
+  // Strip leading/trailing quote marks if user pasted quoted string
+  const cleanedContent = latexContent.trim().replace(/^["']/, '').replace(/["']$/, '')
+
   // Extract metadata (Title, Author, Date) with balanced brace matching
-  const rawTitle = extractBraced(latexContent, '\\title')
-  const rawAuthor = extractBraced(latexContent, '\\author')
-  const rawDate = extractBraced(latexContent, '\\date')
+  const rawTitle = extractBraced(cleanedContent, '\\title')
+  const rawAuthor = extractBraced(cleanedContent, '\\author')
+  const rawDate = extractBraced(cleanedContent, '\\date')
 
   const titleLines = rawTitle ? cleanLatexMetadata(rawTitle) : []
   const authorLines = rawAuthor ? cleanLatexMetadata(rawAuthor) : []
@@ -80,7 +83,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   const docAuthor = authorLines.length > 0 ? authorLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
 
   // Strip comments
-  let body = latexContent.replace(/%.*$/gm, '')
+  let body = cleanedContent.replace(/%.*$/gm, '')
 
   // Extract body between \begin{document} and \end{document} if present
   if (body.includes('\\begin{document}')) {

@@ -33,7 +33,6 @@ export const Workspace: React.FC = () => {
     setSelectedFormat,
     formatOptions,
     loadSample,
-    loadLlmSample,
     clearDocument,
     activeLine,
     setActiveLine,
@@ -314,20 +313,10 @@ export const Workspace: React.FC = () => {
                   <span>Upload File</span>
                 </button>
 
-                {/* Dedicated LLM Slot Button */}
-                <button
-                  onClick={loadLlmSample}
-                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-md px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
-                  title="Load sample messy LLM output"
-                >
-                  <Bot className="h-3.5 w-3.5 mr-1 text-neutral-500 dark:text-neutral-400" />
-                  <span>LLM Sample</span>
-                </button>
-
                 <button
                   onClick={loadSample}
-                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-md px-2 sm:px-2.5 transition-colors cursor-pointer shadow-2xs"
-                  title="Standard sample"
+                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-md px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
+                  title="Load sample content for active mode"
                 >
                   <FileText className="h-3.5 w-3.5 mr-1 text-neutral-500 dark:text-neutral-400" />
                   <span>Sample</span>

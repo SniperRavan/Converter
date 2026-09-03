@@ -111,6 +111,133 @@ def quantum_step(psi: torch.Tensor, V: torch.Tensor, dt: float, dx: float) -> to
 \`\`\`
 `
 
+export const HTML_SAMPLE_DOCUMENT = `<article>
+  <h1>High-Throughput Distributed Consensus</h1>
+  <p>Modern distributed databases utilize <strong>state machine replication</strong> and leader election protocols to guarantee linearizable consistency under Byzantine fault tolerance.</p>
+  
+  <blockquote>
+    <p>"In distributed consensus, safety is never sacrificed for liveness under asynchronous networks."</p>
+  </blockquote>
+
+  <h2>1. Protocol Latency &amp; Fault Resilience</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Protocol</th>
+        <th>Consensus Rounds</th>
+        <th>Throughput (ops/sec)</th>
+        <th>Fault Tolerance</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Raft</td>
+        <td>2 RTT</td>
+        <td>24,500</td>
+        <td>f &lt; n/2</td>
+      </tr>
+      <tr>
+        <td>PBFT</td>
+        <td>3 RTT</td>
+        <td>8,200</td>
+        <td>f &lt; n/3</td>
+      </tr>
+      <tr>
+        <td>HotStuff</td>
+        <td>Linear View Change</td>
+        <td>32,000</td>
+        <td>f &lt; n/3</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>2. Raft Heartbeat Mechanism</h2>
+  <pre><code class="language-typescript">interface AppendEntriesRPC {
+  term: number;
+  leaderId: string;
+  prevLogIndex: number;
+  prevLogTerm: number;
+  entries: LogEntry[];
+  leaderCommit: number;
+}</code></pre>
+</article>`
+
+export const LATEX_SAMPLE_DOCUMENT = `\\documentclass[12pt,a4paper]{article}
+
+\\title{
+    \\textbf{RECLAIMX: Smart Campus Lost \\& Found Platform} \\\\
+    \\large A Distributed Architecture for Campus Asset Tracking
+}
+\\author{
+    \\textbf{Alisa Yesmine} (Roll No: 15800123050) \\\\
+    Department of Computer Science and Engineering \\\\
+    Mallabhum Institute of Technology
+}
+\\date{July 15, 2026}
+
+\\begin{document}
+
+\\begin{abstract}
+This report introduces RECLAIMX, a privacy-preserving smart campus asset recovery system featuring automated image vector matching and tamper-evident audit trails.
+\\end{abstract}
+
+\\section{Introduction}
+Machine learning objective optimization relies on the linear regression cost function:
+\\begin{equation}
+J(\\theta) = \\frac{1}{2m} \\sum_{i=1}^{m} (h_\\theta(x^{(i)}) - y^{(i)})^2
+\\end{equation}
+Furthermore, the fundamental relativistic formulation $E = mc^2$ establishes thermodynamic computation limits.
+
+\\section{System Architecture}
+The system consists of modular subsystems:
+\\begin{itemize}
+    \\item \\textbf{Ingestion Service:} Real-time asset cataloging and photo classification.
+    \\item \\textbf{Verification Protocol:} Cryptographic student identity confirmation.
+    \\item \\textbf{Audit Trail:} Tamper-evident ledger for claim settlements.
+\\end{itemize}
+
+\\end{document}`
+
+export const TEXT_SAMPLE_DOCUMENT = `System Architecture Diagnostics Report
+Timestamp: 2026-09-03T19:30:00Z
+Status: All Production Systems Operational
+
+Cluster Metrics:
+- Edge Node (us-east): 12ms latency, 99.98% uptime
+- Compute Node (eu-central): 18ms latency, 99.99% uptime
+- Storage Replica (ap-south): 4ms latency, 100.0% uptime
+
+Security Compliance:
+- Mutual TLS 1.3: Active
+- ChaCha20-Poly1305 Encryption: Enforced
+- Zero Knowledge Identity Verification: Passing`
+
+export const JSON_SAMPLE_DOCUMENT = `{
+  "type": "document",
+  "version": 1,
+  "metadata": {
+    "title": "Quantum Compute Benchmark",
+    "author": "Distributed Research Group",
+    "createdAt": "2026-09-03T19:30:00Z",
+    "sourceFormat": "json"
+  },
+  "children": [
+    {
+      "type": "heading",
+      "level": 1,
+      "children": [
+        { "type": "text", "value": "Quantum Compute Benchmark" }
+      ]
+    },
+    {
+      "type": "paragraph",
+      "children": [
+        { "type": "text", "value": "Benchmark report measuring Qubit decoherence times across superconducting circuits." }
+      ]
+    }
+  ]
+}`
+
 interface ConverterStore {
   // Input
   inputContent: string
@@ -228,12 +355,32 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
     })
   },
 
+  // Context-aware sample loader: loads sample matching the active input format
   loadSample: () => {
-    const format = 'markdown'
-    const doc = parseUniversalDocument(SAMPLE_DOCUMENT, format)
-    const detection = detectInputFormat(SAMPLE_DOCUMENT)
+    const currentFormat = get().inputFormat
+    let content = SAMPLE_DOCUMENT
+    let format = currentFormat
+
+    if (currentFormat === 'llm-mixed') {
+      content = LLM_SAMPLE_DOCUMENT
+    } else if (currentFormat === 'html') {
+      content = HTML_SAMPLE_DOCUMENT
+    } else if (currentFormat === 'latex') {
+      content = LATEX_SAMPLE_DOCUMENT
+    } else if (currentFormat === 'text') {
+      content = TEXT_SAMPLE_DOCUMENT
+    } else if (currentFormat === 'json') {
+      content = JSON_SAMPLE_DOCUMENT
+    } else {
+      // 'auto' or 'markdown'
+      content = SAMPLE_DOCUMENT
+      if (currentFormat === 'auto') format = 'markdown'
+    }
+
+    const doc = parseUniversalDocument(content, format)
+    const detection = detectInputFormat(content)
     set({
-      inputContent: SAMPLE_DOCUMENT,
+      inputContent: content,
       inputFormat: format,
       parsedDocument: doc,
       detectionResult: detection,
