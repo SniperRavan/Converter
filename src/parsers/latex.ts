@@ -32,7 +32,8 @@ function extractBraced(str: string, keyword: string): string | null {
  */
 function cleanLatexMetadata(text: string): string[] {
   return text
-    .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|bfseries|itshape|centering|raggedright|noindent)/g, '')
+    .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|centering|raggedright|noindent)/g, '')
+    .replace(/\\color\{[^}]+\}/g, '')
     .replace(/\\vspace\*?\{[^}]+\}/g, '')
     .replace(/\\hspace\*?\{[^}]+\}/g, '')
     .replace(/\\&/g, '&')
@@ -42,7 +43,7 @@ function cleanLatexMetadata(text: string): string[] {
 }
 
 /**
- * Parses LaTeX documents (including multi-file master reports) into the unified AST
+ * Parses LaTeX documents (reports, articles, resumes/CVs) into the unified AST
  */
 export function parseLatex(latexContent: string): NormalizedDocument {
   if (!latexContent.trim()) {
@@ -79,7 +80,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   const authorLines = rawAuthor ? cleanLatexMetadata(rawAuthor) : []
   const dateLines = rawDate ? cleanLatexMetadata(rawDate) : []
 
-  const docTitle = titleLines.length > 0 ? titleLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
+  let docTitle = titleLines.length > 0 ? titleLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
   const docAuthor = authorLines.length > 0 ? authorLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
 
   // Strip comments
@@ -91,6 +92,33 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     if (docMatch) body = docMatch[1]
   }
 
+  // Preprocess FontAwesome icons to universal emojis
+  body = body
+    .replace(/\\faMapMarker\*?~/g, '📍 ')
+    .replace(/\\faPhone\*?~/g, '📞 ')
+    .replace(/\\faEnvelope\*?~/g, '✉️ ')
+    .replace(/\\faGlobe\*?~/g, '🌐 ')
+    .replace(/\\faGithub\*?~/g, '🐙 ')
+    .replace(/\\faLinkedin\*?~/g, '💼 ')
+    .replace(/\\faHeadphones\*?~/g, '🎧 ')
+    .replace(/\\faBookOpen\*?~/g, '📖 ')
+    .replace(/\\faLaptopCode\*?~/g, '💻 ')
+    .replace(/\\fa[A-Z][a-zA-Z0-9]*\*?~?/g, '')
+
+  // Preprocess Resume/CV custom macros (Jake's Resume / sb2nov template standard)
+  body = body
+    .replace(/\\resumeProjectHeading\s*\{([\s\S]*?)\}\s*\{([\s\S]*?)\}/g, (_m, p1, p2) => {
+      return `\n\n### ${p1.trim()} *(${p2.trim()})*\n\n`
+    })
+    .replace(/\\resumeSubheading\s*\{([\s\S]*?)\}\s*\{([\s\S]*?)\}\s*\{([\s\S]*?)\}\s*\{([\s\S]*?)\}/g, (_m, p1, p2, p3, p4) => {
+      return `\n\n### ${p1.trim()} — *${p2.trim()}* *(${p4.trim()})*\n*${p3.trim()}*\n\n`
+    })
+    .replace(/\\resumeSubHeadingListStart\b/g, '')
+    .replace(/\\resumeSubHeadingListEnd\b/g, '')
+    .replace(/\\resumeItemListStart\b/g, '\\begin{itemize}')
+    .replace(/\\resumeItemListEnd\b/g, '\\end{itemize}')
+    .replace(/\\resumeItem\{([\s\S]*?)\}/g, '\\item $1')
+
   const children: BlockNode[] = []
 
   function parseLatexInline(text: string): InlineNode[] {
@@ -100,15 +128,23 @@ export function parseLatex(latexContent: string): NormalizedDocument {
       .replace(/\\textit\{([^}]+)\}/g, '@@ITALIC_$1@@')
       .replace(/\\emph\{([^}]+)\}/g, '@@ITALIC_$1@@')
       .replace(/\\texttt\{([^}]+)\}/g, '@@CODE_$1@@')
+      .replace(/\\href\{([^}]+)\}\{([^}]+)\}/g, '@@LINK_$1@@$2@@ENDLINK@@')
+      .replace(/\\url\{([^}]+)\}/g, '@@LINK_$1@@$1@@ENDLINK@@')
       .replace(/\\&/g, '&')
       .replace(/\\%/g, '%')
       .replace(/\\#/g, '#')
       .replace(/\\_/g, '_')
-      .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|bfseries|itshape|centering|raggedright|noindent)/g, '')
+      .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|centering|raggedright|noindent)/g, '')
+      .replace(/\\color\{[^}]+\}/g, '')
       .replace(/\\vspace\*?\{[^}]+\}/g, '')
       .replace(/\\hspace\*?\{[^}]+\}/g, '')
+      .replace(/\\hfill\b/g, ' · ')
+      .replace(/\\newline\b/g, '\n')
+      .replace(/~/g, ' ')
 
-    const tokens = cursor.split(/(@@BOLD_[^@]+@@|@@ITALIC_[^@]+@@|@@CODE_[^@]+@@|\$[^\$]+\$|\\\([^\)]+\\\))/)
+    const tokens = cursor.split(
+      /(@@BOLD_[^@]+@@|@@ITALIC_[^@]+@@|@@CODE_[^@]+@@|@@LINK_[^@]+@@[\s\S]*?@@ENDLINK@@|\$[^\$]+\$|\\\([^\)]+\\\))/
+    )
 
     for (const token of tokens) {
       if (!token) continue
@@ -121,6 +157,15 @@ export function parseLatex(latexContent: string): NormalizedDocument {
       } else if (token.startsWith('@@CODE_') && token.endsWith('@@')) {
         const val = token.slice(7, -2)
         inlines.push({ type: 'inlineCode', value: val })
+      } else if (token.startsWith('@@LINK_') && token.endsWith('@@ENDLINK@@')) {
+        const linkMatch = token.match(/^@@LINK_([^@]+)@@([\s\S]*?)@@ENDLINK@@$/)
+        if (linkMatch) {
+          inlines.push({
+            type: 'link',
+            url: linkMatch[1].trim(),
+            children: parseLatexInline(linkMatch[2]),
+          })
+        }
       } else if (token.startsWith('$') && token.endsWith('$')) {
         inlines.push({ type: 'inlineMath', value: token.slice(1, -1).trim() })
       } else if (token.startsWith('\\(') && token.endsWith('\\)')) {
@@ -133,16 +178,14 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     return inlines.length > 0 ? inlines : [{ type: 'text', value: text }]
   }
 
-  // 1. Build Cover / Title Page if title metadata is present
+  // 1. Build Cover / Title Page if explicit \title metadata is present
   if (titleLines.length > 0) {
-    // Primary Title
     children.push({
       type: 'heading',
       level: 1,
       children: parseLatexInline(titleLines[0]),
     })
 
-    // Subtitle / Report Purpose
     for (let i = 1; i < titleLines.length; i++) {
       children.push({
         type: 'paragraph',
@@ -150,7 +193,6 @@ export function parseLatex(latexContent: string): NormalizedDocument {
       })
     }
 
-    // Authors & Institutional Affiliation Block
     const metaParagraphs: BlockNode[] = []
     if (authorLines.length > 0) {
       metaParagraphs.push({
@@ -177,7 +219,50 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     })
   }
 
-  // 2. Parse Body Blocks
+  // 2. Detect Resume / CV Header (\begin{center} with candidate name and contact block)
+  const centerHeaderMatch = body.match(/\\begin\{center\}([\s\S]*?)\\end\{center\}/)
+  if (titleLines.length === 0 && centerHeaderMatch) {
+    const rawHeader = centerHeaderMatch[1]
+    const headerLines = rawHeader
+      .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|color\{[^}]+\})/g, '')
+      .split(/\\\\(?:\[[^\]]*\])?|\n\s*\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+
+    if (headerLines.length > 0) {
+      const candidateName = headerLines[0]
+        .replace(/\\textbf\{([^}]+)\}/g, '$1')
+        .replace(/[{}\\]/g, '')
+        .trim()
+
+      if (!docTitle) docTitle = candidateName
+
+      // Heading 1 for Candidate Name
+      children.push({
+        type: 'heading',
+        level: 1,
+        children: [{ type: 'text', value: candidateName }],
+      })
+
+      // Contact & Profile Links
+      const contactInfo = headerLines.slice(1).join(' · ')
+      if (contactInfo) {
+        children.push({
+          type: 'paragraph',
+          children: parseLatexInline(contactInfo),
+        })
+      }
+
+      children.push({
+        type: 'thematicBreak',
+      })
+
+      // Remove the header from body so it's not processed twice
+      body = body.replace(centerHeaderMatch[0], '')
+    }
+  }
+
+  // 3. Parse Body Blocks
   const rawBlocks = body.split(/\n\s*\n/)
 
   for (const block of rawBlocks) {
@@ -185,7 +270,17 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     if (!trimmed) continue
 
     // Skip internal layout commands that don't output text
-    if (/^\\(pagenumbering|clearpage|newpage|onehalfspacing|doublespacing|singlespacing|maketitle|noindent|centering|raggedright)\b/.test(trimmed)) {
+    if (/^\\(pagenumbering|clearpage|newpage|onehalfspacing|doublespacing|singlespacing|maketitle|noindent|centering|raggedright|pagestyle)\b/.test(trimmed)) {
+      continue
+    }
+
+    // Markdown-style Level 3 headings generated from resume macros
+    if (trimmed.startsWith('### ')) {
+      children.push({
+        type: 'heading',
+        level: 3,
+        children: parseLatexInline(trimmed.slice(4)),
+      })
       continue
     }
 
@@ -377,7 +472,11 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     }
 
     // Default Paragraph (strip any trailing \\)
-    const cleanedPara = trimmed.replace(/\\\\$/, '').trim()
+    const cleanedPara = trimmed
+      .replace(/\\\\(?:\[[^\]]*\])?$/, '')
+      .replace(/^\\small\{([\s\S]*?)\}$/, '$1')
+      .trim()
+
     if (cleanedPara) {
       children.push({
         type: 'paragraph',
