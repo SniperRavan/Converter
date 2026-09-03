@@ -1,5 +1,6 @@
 import React from 'react'
 import { BookOpen, Bot, FileCode } from 'lucide-react'
+import { IssueReportSection } from './IssueReportSection'
 
 export const EditorialSections: React.FC = () => {
   return (
@@ -203,6 +204,9 @@ export const EditorialSections: React.FC = () => {
         </div>
       </section>
 
+      {/* ================= ISSUES & COMMUNITY FEEDBACK ================= */}
+      <IssueReportSection />
+
       {/* ================= FOOTER ================= */}
       <footer className="border-t border-[#E5DDD0] dark:border-white/10 pt-8 pb-12 text-center">
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4 text-sm text-neutral-500 dark:text-neutral-400">
@@ -214,14 +218,25 @@ export const EditorialSections: React.FC = () => {
             User Guide
           </a>
           <span className="hidden sm:inline">•</span>
+          <a href="#issues" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
+            Report Issue
+          </a>
+          <span className="hidden sm:inline">•</span>
           <a href="#faq" className="hover:text-neutral-900 dark:hover:text-white transition-colors">
             FAQ
           </a>
           <span className="hidden sm:inline">•</span>
-          <span className="text-neutral-800 dark:text-neutral-200 font-medium">100% Client-Side Engine</span>
+          <a
+            href="https://github.com/sniperravan"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-neutral-900 dark:hover:text-white font-medium transition-colors"
+          >
+            GitHub (@sniperravan)
+          </a>
         </div>
         <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-4">
-          © 2026 Converter. No logins, no paywalls, no tracking. Long live the handmade web.
+          © 2026 Converter · Crafted by <a href="https://github.com/sniperravan" target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-900 dark:hover:text-white">Akash (sniperravan)</a>. No logins, no paywalls, no tracking. Long live the handmade web.
         </p>
       </footer>
     </div>
