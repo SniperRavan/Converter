@@ -496,35 +496,43 @@ export const Workspace: React.FC = () => {
           )}
 
           {selectedFormat === 'markdown' && (
-            <CodeOutputPreview
-              content={renderedMarkdown}
-              format="markdown"
-              filename="document"
-            />
+            <CanvasBendCard className="min-h-full">
+              <CodeOutputPreview
+                content={renderedMarkdown}
+                format="markdown"
+                filename="document"
+              />
+            </CanvasBendCard>
           )}
 
           {selectedFormat === 'html' && (
-            <CodeOutputPreview
-              content={renderedHtml}
-              format="html"
-              filename="document"
-            />
+            <CanvasBendCard className="min-h-full">
+              <CodeOutputPreview
+                content={renderedHtml}
+                format="html"
+                filename="document"
+              />
+            </CanvasBendCard>
           )}
 
           {selectedFormat === 'latex' && (
-            <CodeOutputPreview
-              content={renderedLatex}
-              format="latex"
-              filename="document"
-            />
+            <CanvasBendCard className="min-h-full">
+              <CodeOutputPreview
+                content={renderedLatex}
+                format="latex"
+                filename="document"
+              />
+            </CanvasBendCard>
           )}
 
           {selectedFormat === 'text' && (
-            <CodeOutputPreview
-              content={renderedPlainText}
-              format="text"
-              filename="document"
-            />
+            <CanvasBendCard className="min-h-full">
+              <CodeOutputPreview
+                content={renderedPlainText}
+                format="text"
+                filename="document"
+              />
+            </CanvasBendCard>
           )}
         </div>
 
