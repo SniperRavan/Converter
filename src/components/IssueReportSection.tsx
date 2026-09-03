@@ -9,7 +9,9 @@ import {
 } from 'lucide-react'
 
 // Default Google Sheet Apps Script Webhook URL (can be customized via environment variable or passed in)
-const DEFAULT_WEBHOOK_URL = import.meta.env.VITE_ISSUES_SHEET_URL || ''
+const DEFAULT_WEBHOOK_URL =
+  import.meta.env.VITE_ISSUES_SHEET_URL ||
+  'https://script.google.com/macros/s/AKfycbyRrfgYyPRsXS2qmhzsYd8L5lFJ60ZC0dSWOKdhsrqobET0OfnJpMU7-t6qVScXHk8Fgw/exec'
 
 export const IssueReportSection: React.FC = () => {
   const [title, setTitle] = useState('')
