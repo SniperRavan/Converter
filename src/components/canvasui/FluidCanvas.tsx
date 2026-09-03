@@ -63,7 +63,7 @@ export const FluidCanvas: React.FC = () => {
       ctx.clearRect(0, 0, width, height)
 
       const isDark = themeMode === 'dark'
-      const baseColor = isDark ? '99, 102, 241' : '59, 130, 246' // indigo / blue
+      const baseColor = isDark ? '255, 255, 255' : '150, 140, 130' // white monochrome stars / warm paper particles
 
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i]

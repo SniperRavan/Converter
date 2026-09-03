@@ -19,7 +19,7 @@ function App() {
   }, [themeMode])
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col bg-slate-50 dark:bg-[#06070a] text-slate-900 dark:text-slate-100 selection:bg-blue-500/20 selection:text-blue-500 font-sans transition-colors duration-200">
+    <div className="relative min-h-screen w-full flex flex-col bg-[#FFFAF0] dark:bg-[#000000] text-neutral-900 dark:text-white selection:bg-blue-500/20 selection:text-blue-500 font-sans transition-colors duration-200">
       {/* Subtle Ambient Particle Filament Canvas */}
       <FluidCanvas />
 
