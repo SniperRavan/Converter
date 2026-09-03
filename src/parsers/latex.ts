@@ -1,8 +1,48 @@
-import type { NormalizedDocument, BlockNode, InlineNode } from '../core/types'
+import type {
+  NormalizedDocument,
+  BlockNode,
+  InlineNode,
+  TableCellNode,
+  TableRowNode,
+} from '../core/types'
 import { computeDocumentStats } from '../core/stats'
 
 /**
- * Parses LaTeX documents into the unified NormalizedDocument AST
+ * Helper to extract content from balanced curly braces after a keyword
+ */
+function extractBraced(str: string, keyword: string): string | null {
+  const idx = str.indexOf(keyword)
+  if (idx === -1) return null
+  const braceIdx = str.indexOf('{', idx)
+  if (braceIdx === -1) return null
+  let depth = 1
+  const start = braceIdx + 1
+  for (let i = start; i < str.length; i++) {
+    if (str[i] === '{') depth++
+    else if (str[i] === '}') {
+      depth--
+      if (depth === 0) return str.slice(start, i).trim()
+    }
+  }
+  return null
+}
+
+/**
+ * Strips raw LaTeX typesetting commands from extracted metadata strings
+ */
+function cleanLatexMetadata(text: string): string[] {
+  return text
+    .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|bfseries|itshape|centering|raggedright|noindent)/g, '')
+    .replace(/\\vspace\*?\{[^}]+\}/g, '')
+    .replace(/\\hspace\*?\{[^}]+\}/g, '')
+    .replace(/\\&/g, '&')
+    .split(/\\\\|\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+}
+
+/**
+ * Parses LaTeX documents (including multi-file master reports) into the unified AST
  */
 export function parseLatex(latexContent: string): NormalizedDocument {
   if (!latexContent.trim()) {
@@ -27,12 +67,22 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     }
   }
 
-  // Extract title if present
-  const titleMatch = latexContent.match(/\\title\{([^}]+)\}/)
-  const title = titleMatch ? titleMatch[1].trim() : undefined
+  // Extract metadata (Title, Author, Date) with balanced brace matching
+  const rawTitle = extractBraced(latexContent, '\\title')
+  const rawAuthor = extractBraced(latexContent, '\\author')
+  const rawDate = extractBraced(latexContent, '\\date')
 
-  // Strip preamble and comments
+  const titleLines = rawTitle ? cleanLatexMetadata(rawTitle) : []
+  const authorLines = rawAuthor ? cleanLatexMetadata(rawAuthor) : []
+  const dateLines = rawDate ? cleanLatexMetadata(rawDate) : []
+
+  const docTitle = titleLines.length > 0 ? titleLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
+  const docAuthor = authorLines.length > 0 ? authorLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
+
+  // Strip comments
   let body = latexContent.replace(/%.*$/gm, '')
+
+  // Extract body between \begin{document} and \end{document} if present
   if (body.includes('\\begin{document}')) {
     const docMatch = body.match(/\\begin\{document\}([\s\S]*?)\\end\{document\}/)
     if (docMatch) body = docMatch[1]
@@ -43,13 +93,19 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   function parseLatexInline(text: string): InlineNode[] {
     const inlines: InlineNode[] = []
     let cursor = text
+      .replace(/\\textbf\{([^}]+)\}/g, '@@BOLD_$1@@')
+      .replace(/\\textit\{([^}]+)\}/g, '@@ITALIC_$1@@')
+      .replace(/\\emph\{([^}]+)\}/g, '@@ITALIC_$1@@')
+      .replace(/\\texttt\{([^}]+)\}/g, '@@CODE_$1@@')
+      .replace(/\\&/g, '&')
+      .replace(/\\%/g, '%')
+      .replace(/\\#/g, '#')
+      .replace(/\\_/g, '_')
+      .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|bfseries|itshape|centering|raggedright|noindent)/g, '')
+      .replace(/\\vspace\*?\{[^}]+\}/g, '')
+      .replace(/\\hspace\*?\{[^}]+\}/g, '')
 
-    // Clean inline formatting
-    cursor = cursor.replace(/\\textbf\{([^}]+)\}/g, '@@BOLD_$1@@')
-    cursor = cursor.replace(/\\textit\{([^}]+)\}/g, '@@ITALIC_$1@@')
-    cursor = cursor.replace(/\\texttt\{([^}]+)\}/g, '@@CODE_$1@@')
-
-    const tokens = cursor.split(/(@@BOLD_[^@]+@@|@@ITALIC_[^@]+@@|@@CODE_[^@]+@@|\$[^\$]+\$)/)
+    const tokens = cursor.split(/(@@BOLD_[^@]+@@|@@ITALIC_[^@]+@@|@@CODE_[^@]+@@|\$[^\$]+\$|\\\([^\)]+\\\))/)
 
     for (const token of tokens) {
       if (!token) continue
@@ -63,7 +119,9 @@ export function parseLatex(latexContent: string): NormalizedDocument {
         const val = token.slice(7, -2)
         inlines.push({ type: 'inlineCode', value: val })
       } else if (token.startsWith('$') && token.endsWith('$')) {
-        inlines.push({ type: 'inlineMath', value: token.slice(1, -1) })
+        inlines.push({ type: 'inlineMath', value: token.slice(1, -1).trim() })
+      } else if (token.startsWith('\\(') && token.endsWith('\\)')) {
+        inlines.push({ type: 'inlineMath', value: token.slice(2, -2).trim() })
       } else {
         inlines.push({ type: 'text', value: token })
       }
@@ -72,26 +130,164 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     return inlines.length > 0 ? inlines : [{ type: 'text', value: text }]
   }
 
-  // Split into raw blocks by double newlines or environment blocks
-  const blocks = body.split(/\n\s*\n/)
+  // 1. Build Cover / Title Page if title metadata is present
+  if (titleLines.length > 0) {
+    // Primary Title
+    children.push({
+      type: 'heading',
+      level: 1,
+      children: parseLatexInline(titleLines[0]),
+    })
 
-  for (const block of blocks) {
+    // Subtitle / Report Purpose
+    for (let i = 1; i < titleLines.length; i++) {
+      children.push({
+        type: 'paragraph',
+        children: parseLatexInline(titleLines[i]),
+      })
+    }
+
+    // Authors & Institutional Affiliation Block
+    const metaParagraphs: BlockNode[] = []
+    if (authorLines.length > 0) {
+      metaParagraphs.push({
+        type: 'paragraph',
+        children: parseLatexInline(authorLines.join(' ')),
+      })
+    }
+    for (const dLine of dateLines) {
+      metaParagraphs.push({
+        type: 'paragraph',
+        children: parseLatexInline(dLine),
+      })
+    }
+
+    if (metaParagraphs.length > 0) {
+      children.push({
+        type: 'blockquote',
+        children: metaParagraphs,
+      })
+    }
+
+    children.push({
+      type: 'thematicBreak',
+    })
+  }
+
+  // 2. Parse Body Blocks
+  const rawBlocks = body.split(/\n\s*\n/)
+
+  for (const block of rawBlocks) {
     const trimmed = block.trim()
     if (!trimmed) continue
 
-    // Section headings
-    const sectionMatch = trimmed.match(/^\\(section|subsection|subsubsection)\*?\{([^}]+)\}/)
-    if (sectionMatch) {
-      const level = (sectionMatch[1] === 'section' ? 1 : sectionMatch[1] === 'subsection' ? 2 : 3) as 1 | 2 | 3
+    // Skip internal layout commands that don't output text
+    if (/^\\(pagenumbering|clearpage|newpage|onehalfspacing|doublespacing|singlespacing|maketitle|noindent|centering|raggedright)\b/.test(trimmed)) {
+      continue
+    }
+
+    // Chapters & Parts (Level 1 Heading)
+    const chapterMatch = trimmed.match(/^\\(chapter|part)\*?\{([^}]+)\}/)
+    if (chapterMatch) {
       children.push({
         type: 'heading',
-        level,
-        children: [{ type: 'text', value: sectionMatch[2] }],
+        level: 1,
+        children: parseLatexInline(chapterMatch[2]),
       })
       continue
     }
 
-    // Equations
+    // Sections & Subsections
+    const sectionMatch = trimmed.match(/^\\(section|subsection|subsubsection)\*?\{([^}]+)\}/)
+    if (sectionMatch) {
+      const level = (sectionMatch[1] === 'section' ? 2 : sectionMatch[1] === 'subsection' ? 3 : 4) as 2 | 3 | 4
+      children.push({
+        type: 'heading',
+        level,
+        children: parseLatexInline(sectionMatch[2]),
+      })
+      continue
+    }
+
+    // Master Document Modular Includes: \input{filename} or \include{filename}
+    const inputMatch = trimmed.match(/^\\(input|include)\{([^}]+)\}/)
+    if (inputMatch) {
+      const rawName = inputMatch[2].replace(/\.tex$/, '').trim()
+      const formattedTitle = rawName
+        .split(/[_\-\/]+/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
+
+      children.push({
+        type: 'heading',
+        level: 2,
+        children: [{ type: 'text', value: formattedTitle }],
+      })
+      children.push({
+        type: 'paragraph',
+        children: [
+          { type: 'emphasis', children: [{ type: 'text', value: `[Module: ${rawName}.tex]` }] },
+        ],
+      })
+      continue
+    }
+
+    // Table of Contents / Lists
+    if (/^\\(tableofcontents|listoftables|listoffigures)\b/.test(trimmed)) {
+      const label = trimmed.includes('tableofcontents')
+        ? 'Table of Contents'
+        : trimmed.includes('listoftables')
+        ? 'List of Tables'
+        : 'List of Figures'
+      children.push({
+        type: 'heading',
+        level: 2,
+        children: [{ type: 'text', value: label }],
+      })
+      children.push({
+        type: 'paragraph',
+        children: [
+          {
+            type: 'emphasis',
+            children: [{ type: 'text', value: `(Document index automatically generated in compiled PDF/Word output)` }],
+          },
+        ],
+      })
+      continue
+    }
+
+    // Abstract Environment
+    const abstractMatch = trimmed.match(/\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}/)
+    if (abstractMatch) {
+      children.push({
+        type: 'heading',
+        level: 2,
+        children: [{ type: 'text', value: 'Abstract' }],
+      })
+      children.push({
+        type: 'blockquote',
+        children: [
+          {
+            type: 'paragraph',
+            children: parseLatexInline(abstractMatch[1].trim()),
+          },
+        ],
+      })
+      continue
+    }
+
+    // Code Listings (lstlisting or verbatim)
+    const codeMatch = trimmed.match(/\\begin\{(lstlisting|verbatim)\}([\s\S]*?)\\end\{\1\}/)
+    if (codeMatch) {
+      children.push({
+        type: 'codeBlock',
+        language: 'text',
+        value: codeMatch[2].trim(),
+      })
+      continue
+    }
+
+    // Equations (equation, align, gather)
     const eqMatch = trimmed.match(/\\begin\{(equation|align|gather)\*?\}([\s\S]*?)\\end\{\1\*?\}/)
     if (eqMatch) {
       children.push({
@@ -101,8 +297,15 @@ export function parseLatex(latexContent: string): NormalizedDocument {
       continue
     }
 
-    // Display math with $$
+    // Display math with $$...$$ or \[...\]
     if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
+      children.push({
+        type: 'mathBlock',
+        value: trimmed.slice(2, -2).trim(),
+      })
+      continue
+    }
+    if (trimmed.startsWith('\\[') && trimmed.endsWith('\\]')) {
       children.push({
         type: 'mathBlock',
         value: trimmed.slice(2, -2).trim(),
@@ -133,11 +336,51 @@ export function parseLatex(latexContent: string): NormalizedDocument {
       continue
     }
 
-    // Default paragraph
-    children.push({
-      type: 'paragraph',
-      children: parseLatexInline(trimmed),
-    })
+    // Tabular / Table
+    const tableMatch = trimmed.match(/\\begin\{tabular\}\{[^}]+\}([\s\S]*?)\\end\{tabular\}/)
+    if (tableMatch) {
+      const rawRows = tableMatch[1]
+        .split(/\\\\/)
+        .map((r) => r.trim())
+        .filter((r) => r && !r.startsWith('\\hline') && !r.startsWith('\\toprule') && !r.startsWith('\\bottomrule'))
+
+      if (rawRows.length > 0) {
+        const parsedRows: TableRowNode[] = []
+        let headers: TableCellNode[] = []
+
+        rawRows.forEach((rowStr, rIdx) => {
+          const cells: TableCellNode[] = rowStr.split('&').map((cellStr) => ({
+            type: 'tableCell',
+            children: parseLatexInline(cellStr.trim()),
+          }))
+
+          if (rIdx === 0) {
+            headers = cells
+          } else {
+            parsedRows.push({ type: 'tableRow', cells })
+          }
+        })
+
+        if (headers.length > 0) {
+          children.push({
+            type: 'table',
+            headers,
+            rows: parsedRows,
+            alignments: headers.map(() => null),
+          })
+          continue
+        }
+      }
+    }
+
+    // Default Paragraph (strip any trailing \\)
+    const cleanedPara = trimmed.replace(/\\\\$/, '').trim()
+    if (cleanedPara) {
+      children.push({
+        type: 'paragraph',
+        children: parseLatexInline(cleanedPara),
+      })
+    }
   }
 
   const stats = computeDocumentStats(children)
@@ -146,7 +389,8 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     type: 'document',
     version: 1,
     metadata: {
-      title,
+      title: docTitle,
+      author: docAuthor,
       createdAt: new Date().toISOString(),
       sourceFormat: 'latex',
     },
