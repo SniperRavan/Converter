@@ -1,12 +1,13 @@
 import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
 
-// Escape LaTeX special characters in plain text
 function escapeLatex(text: string): string {
   return text
     .replace(/\\/g, '\\textbackslash{}')
     .replace(/([&%$#_{}])/g, '\\$1')
     .replace(/~/g, '\\textasciitilde{}')
     .replace(/\^/g, '\\textasciicircum{}')
+    .replace(/</g, '\\textless{}')
+    .replace(/>/g, '\\textgreater{}')
 }
 
 function renderInlineToLatex(node: InlineNode): string {
@@ -32,11 +33,12 @@ function renderInlineToLatex(node: InlineNode): string {
   }
 }
 
-function renderBlockToLatex(block: BlockNode): string {
+function renderBlockToLatex(block: BlockNode, levelShift = 0): string {
   switch (block.type) {
     case 'heading': {
       const titles = ['section', 'subsection', 'subsubsection', 'paragraph', 'subparagraph', 'textbf']
-      const cmd = titles[block.level - 1] || 'textbf'
+      const effectiveLevel = Math.max(1, block.level - levelShift)
+      const cmd = titles[effectiveLevel - 1] || 'textbf'
       const content = block.children.map(renderInlineToLatex).join('')
       if (cmd === 'textbf') {
         return `\\noindent\\textbf{${content}}\n`
@@ -50,7 +52,7 @@ function renderBlockToLatex(block: BlockNode): string {
     }
 
     case 'blockquote': {
-      const inner = block.children.map(renderBlockToLatex).join('\n')
+      const inner = block.children.map(c => renderBlockToLatex(c, levelShift)).join('\n')
       return `\\begin{quote}\n${inner.trim()}\n\\end{quote}\n`
     }
 
@@ -120,7 +122,13 @@ export interface LatexRenderOptions {
 }
 
 export function renderToLatex(doc: NormalizedDocument, options: LatexRenderOptions = {}): string {
-  const body = doc.children.map(renderBlockToLatex).join('\n')
+  const headingLevels = doc.children
+    .filter((c): c is BlockNode & { type: 'heading' } => c.type === 'heading')
+    .map(h => h.level)
+  const minHeadingLevel = headingLevels.length > 0 ? Math.min(...headingLevels) : 1
+  const levelShift = minHeadingLevel > 1 ? minHeadingLevel - 1 : 0
+
+  const body = doc.children.map(c => renderBlockToLatex(c, levelShift)).join('\n')
 
   if (!options.includePreamble) {
     return body.trim() + '\n'

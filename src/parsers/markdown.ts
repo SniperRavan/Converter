@@ -190,9 +190,11 @@ function mapMdastBlock(node: any): BlockNode | null {
   }
 }
 
+import { normalizeUniversalInput } from './normalizer'
+
 // Canonical deterministic parser: text -> NormalizedDocument
-export function parseMarkdown(text: string): NormalizedDocument {
-  if (!text || !text.trim()) {
+export function parseMarkdown(rawText: string): NormalizedDocument {
+  if (!rawText || !rawText.trim()) {
     return {
       type: 'document',
       version: 1,
@@ -213,6 +215,8 @@ export function parseMarkdown(text: string): NormalizedDocument {
       },
     }
   }
+
+  const text = normalizeUniversalInput(rawText)
 
   try {
     const mdast = unified()

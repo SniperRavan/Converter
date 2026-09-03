@@ -57,8 +57,12 @@ function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'l
     case 'inlineCode':
       return `<code>${escapeHtml(node.value)}</code>`
     case 'inlineMath': {
+      const trimmed = node.value.trim()
+      if (!trimmed || /^(\.+|…)$/.test(trimmed)) {
+        return `<span>$${escapeHtml(node.value)}$</span>`
+      }
       if (mathMode === 'images') {
-        const encoded = encodeURIComponent(node.value.trim())
+        const encoded = encodeURIComponent(trimmed)
         // Natural DPI (~16-18px height) perfectly matches standard 11pt/12pt document text
         const url = `https://latex.codecogs.com/png.image?${encoded}`
         return `<img src="${url}" class="latex-formula" alt="${escapeHtml(node.value)}" style="vertical-align: -0.25em; display: inline-block; margin: 0 2px;" />`
