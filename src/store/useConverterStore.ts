@@ -165,35 +165,35 @@ export const HTML_SAMPLE_DOCUMENT = `<article>
 export const LATEX_SAMPLE_DOCUMENT = `\\documentclass[12pt,a4paper]{article}
 
 \\title{
-    \\textbf{RECLAIMX: Smart Campus Lost \\& Found Platform} \\\\
-    \\large A Distributed Architecture for Campus Asset Tracking
+    \\textbf{Quantum Phase Coherence in Distributed Lattice Networks} \\\\
+    \\large Error Suppression and Unitary Evolution in Superconducting Circuits
 }
 \\author{
-    \\textbf{Alisa Yesmine} (Roll No: 15800123050) \\\\
-    Department of Computer Science and Engineering \\\\
-    Mallabhum Institute of Technology
+    \\textbf{Dr. Alex Rivera} \\and \\textbf{Dr. Jordan Chen} \\\\
+    Department of Quantum Information Science \\\\
+    Global Institute of Technology
 }
-\\date{July 15, 2026}
+\\date{October 14, 2026}
 
 \\begin{document}
 
 \\begin{abstract}
-This report introduces RECLAIMX, a privacy-preserving smart campus asset recovery system featuring automated image vector matching and tamper-evident audit trails.
+This paper presents an analytical framework for quantifying quantum phase coherence and gate fidelity in multi-qubit fault-tolerant systems under external environmental perturbations.
 \\end{abstract}
 
-\\section{Introduction}
-Machine learning objective optimization relies on the linear regression cost function:
+\\section{Theoretical Formulation}
+The Hamiltonian operator $\\hat{H}$ characterizes the total energy eigenspectrum of the coupled system:
 \\begin{equation}
-J(\\theta) = \\frac{1}{2m} \\sum_{i=1}^{m} (h_\\theta(x^{(i)}) - y^{(i)})^2
+\\hat{H} = \\hbar \\omega_0 \\hat{a}^\\dagger \\hat{a} + \\frac{1}{2} \\sum_{k=1}^{N} g_k (\\hat{\\sigma}_+ \\hat{b}_k + \\hat{\\sigma}_- \\hat{b}_k^\\dagger)
 \\end{equation}
-Furthermore, the fundamental relativistic formulation $E = mc^2$ establishes thermodynamic computation limits.
+The relativistic energy-momentum invariant $E^2 = (pc)^2 + (m_0 c^2)^2$ bounds high-energy state projections.
 
-\\section{System Architecture}
-The system consists of modular subsystems:
+\\section{Experimental Architecture}
+The experimental apparatus comprises three primary cryogenic layers:
 \\begin{itemize}
-    \\item \\textbf{Ingestion Service:} Real-time asset cataloging and photo classification.
-    \\item \\textbf{Verification Protocol:} Cryptographic student identity confirmation.
-    \\item \\textbf{Audit Trail:} Tamper-evident ledger for claim settlements.
+    \\item \\textbf{Dilution Refrigerator:} Multi-stage cryogenic cooling maintaining base temperatures below 15 mK.
+    \\item \\textbf{Pulse Modulators:} Low-noise arbitrary waveform generators operating in the microwave frequency band.
+    \\item \\textbf{Superconducting Interconnects:} High-purity niobium coplanar waveguides designed to mitigate dielectric losses.
 \\end{itemize}
 
 \\end{document}`
