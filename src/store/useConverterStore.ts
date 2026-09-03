@@ -3,6 +3,7 @@ import type { NormalizedDocument, SupportedOutputFormat, FormatOptions } from '.
 import { parseMarkdown } from '../parsers/markdown'
 import { detectInputFormat, type DetectionResult } from '../parsers/detector'
 import { createEmptyDocument } from '../core/stats'
+import heroImg from '../assets/hero.png'
 
 export const SAMPLE_DOCUMENT = `# Machine Learning Fundamentals
 
@@ -83,6 +84,10 @@ interface ConverterStore {
   syncScrollEnabled: boolean
   setSyncScrollEnabled: (enabled: boolean) => void
 
+  // 3D Glass Object Asset
+  glassAssetUrl: string
+  setGlassAssetUrl: (url: string) => void
+
   // Actions
   loadSample: () => void
   clearDocument: () => void
@@ -144,6 +149,9 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
   setActiveLine: (line) => set({ activeLine: line }),
   syncScrollEnabled: true,
   setSyncScrollEnabled: (enabled) => set({ syncScrollEnabled: enabled }),
+
+  glassAssetUrl: heroImg,
+  setGlassAssetUrl: (url) => set({ glassAssetUrl: url }),
 
   setInputContent: (content: string) => {
     const doc = parseMarkdown(content)

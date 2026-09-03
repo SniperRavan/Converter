@@ -1,5 +1,5 @@
 import React from 'react'
-import { Eye, FileCode, Code2, Sigma, FileText } from 'lucide-react'
+import { Eye, FileCode, Code2, Sigma, FileText, Box } from 'lucide-react'
 import { useConverterStore } from '../store/useConverterStore'
 import type { SupportedOutputFormat } from '../core/types'
 
@@ -14,6 +14,7 @@ const FORMATS: {
   { id: 'html', label: 'HTML', ext: '.HTML', icon: Code2 },
   { id: 'latex', label: 'LaTeX', ext: '.TEX', icon: Sigma },
   { id: 'text', label: 'Plain Text', ext: '.TXT', icon: FileText },
+  { id: 'glass', label: '3D Glass', ext: '3D', icon: Box },
 ]
 
 export const FormatSelector: React.FC = () => {
@@ -115,6 +116,13 @@ export const FormatSelector: React.FC = () => {
             <option value="report">report</option>
             <option value="book">book</option>
           </select>
+        </div>
+      )}
+
+      {selectedFormat === 'glass' && (
+        <div className="flex items-center gap-1.5 text-xs bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl px-2.5 py-1">
+          <Box className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-medium">Canvas UI Glass Object · Drag to Orbit 3D</span>
         </div>
       )}
     </div>

@@ -170,7 +170,7 @@ export interface NormalizedDocument {
 }
 
 // Supported Conversion Formats
-export type SupportedOutputFormat = 'preview' | 'markdown' | 'html' | 'latex' | 'text'
+export type SupportedOutputFormat = 'preview' | 'markdown' | 'html' | 'latex' | 'text' | 'glass'
 
 export interface FormatOptions {
   markdown: {
