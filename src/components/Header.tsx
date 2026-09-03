@@ -62,7 +62,7 @@ export const Header: React.FC = () => {
   ]
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[#E8E1D3] dark:border-white/10 bg-[#FFFAF0]/95 dark:bg-[#000000]/95 backdrop-blur-md transition-colors">
+    <header className="sticky top-0 z-50 w-full border-b border-[#E8E1D3]/80 dark:border-white/10 bg-[#FFFAF0]/70 dark:bg-black/65 backdrop-blur-xl backdrop-saturate-180 transition-all duration-200">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Brand & Logo */}
         <a href="#converter" className="flex items-center space-x-2.5 group">
