@@ -10,8 +10,8 @@ interface CanvasBendCardProps {
   maxAngle?: number
 }
 
-// Canvas UI Bend Card with real kinetic 3D scroll bend and edge fold motion
-// Faithful to Canvas UI's Cube Face fold with mobile touch support and reduced-motion compliance
+// Canvas UI Bend Card with kinetic 3D scroll bend and edge fold motion
+// Zero hover tilt on pointer move; dynamic physics only occur during active scrolling or mobile touch
 export const CanvasBendCard: React.FC<CanvasBendCardProps> = ({
   children,
   className = '',
@@ -26,7 +26,6 @@ export const CanvasBendCard: React.FC<CanvasBendCardProps> = ({
 
   const lastScrollYRef = useRef(0)
   const scrollTimeoutRef = useRef<number | null>(null)
-  const isInteractingRef = useRef(false)
 
   // Scroll listener attached to parent scrollable container
   useEffect(() => {
@@ -77,14 +76,12 @@ export const CanvasBendCard: React.FC<CanvasBendCardProps> = ({
       setTopCreaseIntensity(Math.min(Math.max((velocityAngle + topFold) / maxAngle, 0), 0.45))
       setBottomCreaseIntensity(Math.min(Math.max((-velocityAngle + bottomFold) / maxAngle, 0), 0.45))
 
-      // Smooth settling back to resting state
+      // Smooth settling back to resting state when scrolling stops
       if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current)
       scrollTimeoutRef.current = window.setTimeout(() => {
-        if (!isInteractingRef.current) {
-          setBendTransform('perspective(900px) rotateX(0deg) scale(1) translateZ(0px)')
-          setTopCreaseIntensity(0)
-          setBottomCreaseIntensity(0)
-        }
+        setBendTransform('perspective(900px) rotateX(0deg) scale(1) translateZ(0px)')
+        setTopCreaseIntensity(0)
+        setBottomCreaseIntensity(0)
       }, 160)
     }
 
@@ -95,35 +92,9 @@ export const CanvasBendCard: React.FC<CanvasBendCardProps> = ({
     }
   }, [motionMode, zone, maxAngle])
 
-  // Desktop Pointer Movement: Subtle interactive hover tilt
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (motionMode !== 'full') return
-    isInteractingRef.current = true
-    const card = cardRef.current
-    if (!card) return
-    const rect = card.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    const centerX = rect.width / 2
-    const centerY = rect.height / 2
-
-    const rotX = ((y - centerY) / centerY) * -3.5
-    const rotY = ((x - centerX) / centerX) * 3.5
-
-    setBendTransform(`perspective(900px) rotateX(${rotX.toFixed(2)}deg) rotateY(${rotY.toFixed(2)}deg) translateZ(3px)`)
-  }
-
-  const handlePointerLeave = () => {
-    isInteractingRef.current = false
-    setBendTransform('perspective(900px) rotateX(0deg) rotateY(0deg) translateZ(0px)')
-    setTopCreaseIntensity(0)
-    setBottomCreaseIntensity(0)
-  }
-
-  // Mobile Touch Movement: Natural kinetic tipping
+  // Mobile Touch Movement: Natural kinetic tipping on drag
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (motionMode === 'off') return
-    isInteractingRef.current = true
     const touch = e.touches[0]
     const card = cardRef.current
     if (!touch || !card) return
@@ -136,7 +107,6 @@ export const CanvasBendCard: React.FC<CanvasBendCardProps> = ({
   }
 
   const handleTouchEnd = () => {
-    isInteractingRef.current = false
     setBendTransform('perspective(800px) rotateX(0deg) scale(1) translateZ(0px)')
     setTopCreaseIntensity(0)
     setBottomCreaseIntensity(0)
@@ -150,16 +120,12 @@ export const CanvasBendCard: React.FC<CanvasBendCardProps> = ({
   return (
     <div
       ref={cardRef}
-      onPointerMove={handlePointerMove}
-      onPointerLeave={handlePointerLeave}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       style={{
         transform: bendTransform || undefined,
         transformOrigin: 'center center',
-        transition: isInteractingRef.current
-          ? 'transform 0.06s ease-out'
-          : 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+        transition: 'transform 0.25s cubic-bezier(0.32, 0.72, 0, 1)',
         willChange: 'transform',
       }}
       className={`relative will-change-transform ${className}`}

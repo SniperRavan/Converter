@@ -9,15 +9,11 @@ import {
   Link2,
   Link2Off,
   Code2,
-  RotateCcw,
-  Sparkles,
 } from 'lucide-react'
 import { useConverterStore } from '../store/useConverterStore'
 import { RichPreview } from './RichPreview'
 import { CodeOutputPreview } from './CodeOutputPreview'
 import { CanvasBendCard } from './CanvasBendCard'
-import { GlassObject } from './canvasui/GlassObject'
-import heroImg from '../assets/hero.png'
 import { renderToMarkdown } from '../renderers/markdown'
 import { renderToHtml } from '../renderers/html'
 import { renderToLatex } from '../renderers/latex'
@@ -29,7 +25,6 @@ export const Workspace: React.FC = () => {
     setInputContent,
     parsedDocument,
     selectedFormat,
-    setSelectedFormat,
     formatOptions,
     loadSample,
     clearDocument,
@@ -38,9 +33,6 @@ export const Workspace: React.FC = () => {
     setActiveLine,
     syncScrollEnabled,
     setSyncScrollEnabled,
-    glassAssetUrl,
-    setGlassAssetUrl,
-    motionMode,
   } = useConverterStore()
 
   const [isDragging, setIsDragging] = useState(false)
@@ -153,30 +145,21 @@ export const Workspace: React.FC = () => {
     }, 50)
   }
 
-  // Smart File Processor: Handles Text, Images, and 3D Models without binary corruption
+  // Smart File Processor: Handles Text and Images cleanly
   const processFile = (file: File) => {
     const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name)
-    const is3DModel = /\.(glb|gltf)$/i.test(file.name)
 
     if (isImage) {
       const reader = new FileReader()
       reader.onload = (event) => {
         const dataUrl = event.target?.result as string
         if (typeof dataUrl === 'string') {
-          setGlassAssetUrl(dataUrl)
           const cleanName = file.name.replace(/\.[^/.]+$/, '')
           const imageMd = `\n\n![${cleanName}](${dataUrl})\n\n`
           setInputContent(inputContent ? `${inputContent}\n${imageMd}` : imageMd)
         }
       }
       reader.readAsDataURL(file)
-      return
-    }
-
-    if (is3DModel) {
-      const objectUrl = URL.createObjectURL(file)
-      setGlassAssetUrl(objectUrl)
-      setSelectedFormat('glass')
       return
     }
 
@@ -275,7 +258,7 @@ export const Workspace: React.FC = () => {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".md,.markdown,.txt,.tex,.html,.json,.png,.jpg,.jpeg,.svg,.webp,.gif,.glb,.gltf"
+              accept=".md,.markdown,.txt,.tex,.html,.json,.png,.jpg,.jpeg,.svg,.webp,.gif"
               onChange={handleFileUpload}
               className="hidden"
             />
@@ -283,7 +266,7 @@ export const Workspace: React.FC = () => {
             <button
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-white/[0.08] transition-colors cursor-pointer"
-              title="Upload file or image (.md, .txt, .png, .svg, .glb)"
+              title="Upload file or image (.md, .txt, .png, .svg)"
             >
               <Upload className="w-3.5 h-3.5 text-blue-500" />
               <span>Upload</span>
@@ -375,8 +358,6 @@ export const Workspace: React.FC = () => {
             <span className="font-semibold text-xs tracking-wider uppercase text-slate-800 dark:text-slate-200">
               {selectedFormat === 'preview'
                 ? 'Rich Text Preview'
-                : selectedFormat === 'glass'
-                ? '3D Canvas Glass'
                 : `${selectedFormat.toUpperCase()} Code`}
             </span>
           </div>
@@ -422,20 +403,7 @@ export const Workspace: React.FC = () => {
               </>
             )}
 
-            {selectedFormat === 'glass' && (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setGlassAssetUrl(heroImg)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md border border-slate-200 dark:border-white/10 bg-white dark:bg-white/[0.06] hover:bg-slate-100 dark:hover:bg-white/[0.1] text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
-                  title="Reset to Hero Logo"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  <span className="text-[11px]">Reset Logo</span>
-                </button>
-              </div>
-            )}
-
-            {selectedFormat !== 'preview' && selectedFormat !== 'glass' && (
+            {selectedFormat !== 'preview' && (
               <div className="flex items-center gap-1 text-[11px] text-slate-400">
                 <Code2 className="w-3.5 h-3.5 text-blue-400" />
                 <span>Synchronized AST</span>
@@ -454,45 +422,6 @@ export const Workspace: React.FC = () => {
             <CanvasBendCard className="min-h-full">
               <RichPreview document={parsedDocument} />
             </CanvasBendCard>
-          )}
-
-          {selectedFormat === 'glass' && (
-            <div className="w-full h-full min-h-[440px] flex flex-col items-center justify-center rounded-2xl overflow-hidden bg-radial from-slate-900/90 via-[#0a0c12] to-black border border-white/10 relative shadow-2xl">
-              <GlassObject
-                src={glassAssetUrl || heroImg}
-                ior={1.85}
-                thickness={4.5}
-                roughness={0.15}
-                dispersion={1.6}
-                clearcoat={0.6}
-                highlight="#066aff"
-                orbit={true}
-                floatIntensity={motionMode === 'off' ? 0 : 1}
-                rotationIntensity={motionMode === 'off' ? 0 : 1}
-                className="w-full h-full min-h-[420px]"
-              />
-
-              {/* Bottom Interactive HUD */}
-              <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between px-3.5 py-2 rounded-xl bg-black/70 backdrop-blur-md border border-white/10 text-xs text-slate-300">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                  <span className="font-mono text-[11px] text-slate-200">
-                    Drag to Orbit · Drop Image to Extrude Glass
-                  </span>
-                </div>
-
-                <label className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-medium text-[11px] cursor-pointer transition-colors shadow-xs">
-                  <Upload className="w-3 h-3" />
-                  <span>Swap 3D Asset</span>
-                  <input
-                    type="file"
-                    accept=".png,.jpg,.jpeg,.svg,.webp,.gif,.glb,.gltf"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-            </div>
           )}
 
           {selectedFormat === 'markdown' && (
@@ -538,11 +467,7 @@ export const Workspace: React.FC = () => {
 
         {/* Output Bottom Status Strip */}
         <div className="h-7 shrink-0 px-3.5 border-t border-slate-200/60 dark:border-white/[0.04] bg-slate-50/50 dark:bg-white/[0.01] flex items-center justify-between text-[11px] text-slate-500">
-          <span>
-            {selectedFormat === 'glass'
-              ? 'Refractive Three.js & WebGL Shader Pipeline'
-              : `${parsedDocument.stats.headings} headings · ${parsedDocument.stats.mathExpressions} equations · ${parsedDocument.stats.tables} tables`}
-          </span>
+          <span>{parsedDocument.stats.headings} headings · {parsedDocument.stats.mathExpressions} equations · {parsedDocument.stats.tables} tables</span>
           <span className="text-emerald-500 font-medium">100% In-Browser</span>
         </div>
       </div>
