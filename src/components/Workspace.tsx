@@ -9,31 +9,37 @@ import {
   Link2,
   Link2Off,
   ChevronDown,
+  Sparkles,
+  Bot,
 } from 'lucide-react'
 import { useConverterStore } from '../store/useConverterStore'
 import { RichPreview } from './RichPreview'
 import { CodeOutputPreview } from './CodeOutputPreview'
-import { CanvasBendCard } from './CanvasBendCard'
 import { renderToMarkdown } from '../renderers/markdown'
 import { renderToHtml } from '../renderers/html'
 import { renderToLatex } from '../renderers/latex'
 import { renderToPlainText } from '../renderers/text'
 import { exportToWord, exportToPdf, exportToFile } from '../utils/exporters'
+import type { SupportedInputFormat, SupportedOutputFormat } from '../core/types'
 
 export const Workspace: React.FC = () => {
   const {
     inputContent,
     setInputContent,
+    inputFormat,
+    setInputFormat,
     parsedDocument,
     selectedFormat,
     setSelectedFormat,
     formatOptions,
     loadSample,
+    loadLlmSample,
     clearDocument,
     activeLine,
     setActiveLine,
     syncScrollEnabled,
     setSyncScrollEnabled,
+    detectionResult,
   } = useConverterStore()
 
   const [isDragging, setIsDragging] = useState(false)
@@ -73,6 +79,11 @@ export const Workspace: React.FC = () => {
 
   const renderedPlainText = useMemo(
     () => renderToPlainText(parsedDocument),
+    [parsedDocument]
+  )
+
+  const renderedJson = useMemo(
+    () => JSON.stringify(parsedDocument, null, 2),
     [parsedDocument]
   )
 
@@ -146,7 +157,7 @@ export const Workspace: React.FC = () => {
     }, 50)
   }
 
-  // Smart File Processor
+  // Universal File Processor for all files
   const processFile = (file: File) => {
     const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name)
 
@@ -164,11 +175,22 @@ export const Workspace: React.FC = () => {
       return
     }
 
+    // Auto-detect format from extension
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    let detectedFmt: SupportedInputFormat = 'auto'
+    if (ext === 'html' || ext === 'htm') detectedFmt = 'html'
+    else if (ext === 'tex' || ext === 'latex') detectedFmt = 'latex'
+    else if (ext === 'json') detectedFmt = 'json'
+    else if (ext === 'md' || ext === 'markdown') detectedFmt = 'markdown'
+    else if (['py', 'js', 'ts', 'rs', 'cpp', 'c', 'sh', 'txt'].includes(ext || '')) detectedFmt = 'text'
+
+    setInputFormat(detectedFmt)
+
     const reader = new FileReader()
     reader.onload = (event) => {
       const content = event.target?.result as string
       if (typeof content === 'string') {
-        setInputContent(content)
+        setInputContent(content, detectedFmt)
       }
     }
     reader.readAsText(file)
@@ -195,77 +217,161 @@ export const Workspace: React.FC = () => {
     if (file) processFile(file)
   }
 
-  // Copy Rich Text to Clipboard
-  const handleCopyRichText = async () => {
-    try {
-      const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false })
-      const plainSnippet = renderToPlainText(parsedDocument)
-      const blobHtml = new Blob([htmlSnippet], { type: 'text/html' })
-      const blobText = new Blob([plainSnippet], { type: 'text/plain' })
+  // Copy Output Handler
+  const handleCopy = async () => {
+    if (selectedFormat === 'preview') {
+      try {
+        const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false })
+        const plainSnippet = renderToPlainText(parsedDocument)
+        const blobHtml = new Blob([htmlSnippet], { type: 'text/html' })
+        const blobText = new Blob([plainSnippet], { type: 'text/plain' })
 
-      const data = [
-        new ClipboardItem({
-          'text/html': blobHtml,
-          'text/plain': blobText,
-        }),
-      ]
-      await navigator.clipboard.write(data)
-      setCopiedRichText(true)
-      setTimeout(() => setCopiedRichText(false), 2000)
-    } catch {
-      navigator.clipboard.writeText(renderedMarkdown)
+        const data = [
+          new ClipboardItem({
+            'text/html': blobHtml,
+            'text/plain': blobText,
+          }),
+        ]
+        await navigator.clipboard.write(data)
+        setCopiedRichText(true)
+        setTimeout(() => setCopiedRichText(false), 2000)
+      } catch {
+        navigator.clipboard.writeText(renderedMarkdown)
+        setCopiedRichText(true)
+        setTimeout(() => setCopiedRichText(false), 2000)
+      }
+    } else {
+      const contentToCopy =
+        selectedFormat === 'html'
+          ? renderedHtml
+          : selectedFormat === 'latex'
+          ? renderedLatex
+          : selectedFormat === 'json'
+          ? renderedJson
+          : selectedFormat === 'text'
+          ? renderedPlainText
+          : renderedMarkdown
+
+      navigator.clipboard.writeText(contentToCopy)
       setCopiedRichText(true)
       setTimeout(() => setCopiedRichText(false), 2000)
     }
   }
 
+  const inputFormats: { id: SupportedInputFormat; label: string; icon?: React.ReactNode; badge?: string }[] = [
+    { id: 'auto', label: 'Auto-Detect', icon: <Sparkles className="w-3.5 h-3.5" /> },
+    { id: 'llm-mixed', label: 'LLM Stream (Mixed)', icon: <Bot className="w-3.5 h-3.5" />, badge: 'Universal' },
+    { id: 'markdown', label: 'Markdown' },
+    { id: 'html', label: 'HTML' },
+    { id: 'latex', label: 'LaTeX' },
+    { id: 'text', label: 'Text / Code' },
+    { id: 'json', label: 'JSON AST' },
+  ]
+
+  const outputFormats: { id: SupportedOutputFormat; label: string }[] = [
+    { id: 'preview', label: 'Rich Preview' },
+    { id: 'markdown', label: 'Markdown' },
+    { id: 'html', label: 'HTML' },
+    { id: 'latex', label: 'LaTeX' },
+    { id: 'text', label: 'Plain Text' },
+    { id: 'json', label: 'JSON AST' },
+  ]
+
   return (
     <div className="w-full">
-      {/* 2-Column Grid */}
+      {/* 2-Column Side-by-Side Converter Studio */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {/* ================= LEFT CARD: Markdown Input ================= */}
+        {/* ================= LEFT CARD: Universal All-Files Input ================= */}
         <div className="rounded-xl border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#0a0a0a] text-neutral-900 dark:text-neutral-100 shadow-sm flex flex-col transition-colors">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#EBE3D6] dark:border-white/10">
-            <h3 className="tracking-tight text-lg font-semibold text-neutral-900 dark:text-white">
-              Markdown Input
-            </h3>
+          <div className="p-4 sm:p-5 border-b border-[#EBE3D6] dark:border-white/10 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <h3 className="tracking-tight text-lg font-bold text-neutral-900 dark:text-white">
+                  Input
+                </h3>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-white/10 text-neutral-600 dark:text-neutral-300 font-mono">
+                  All Files Supported
+                </span>
+              </div>
 
-            <div className="flex items-center space-x-2">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".md,.markdown,.txt,.tex,.html,.json,.png,.jpg,.jpeg,.svg"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
+              {/* Action Buttons */}
+              <div className="flex items-center space-x-1.5 sm:space-x-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="*/*"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
 
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-9 rounded-md px-3 transition-colors cursor-pointer shadow-2xs"
-                title="Upload Markdown file"
-              >
-                <Upload className="h-4 w-4 mr-1.5 text-neutral-500 dark:text-neutral-400" />
-                <span>Upload .md</span>
-              </button>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-md px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
+                  title="Upload any file (.md, .html, .tex, .json, .txt, .py, images)"
+                >
+                  <Upload className="h-3.5 w-3.5 mr-1 text-neutral-500 dark:text-neutral-400" />
+                  <span>Upload File</span>
+                </button>
 
-              <button
-                onClick={loadSample}
-                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-9 rounded-md px-3 transition-colors cursor-pointer shadow-2xs"
-                title="Load sample Markdown content"
-              >
-                <FileText className="h-4 w-4 mr-1.5 text-neutral-500 dark:text-neutral-400" />
-                <span>Sample</span>
-              </button>
+                {/* Dedicated LLM Slot Button */}
+                <button
+                  onClick={loadLlmSample}
+                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-blue-400/40 dark:border-blue-500/40 bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 h-8 sm:h-9 rounded-md px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
+                  title="Load sample messy LLM output (Markdown + LaTeX Math + HTML + Tables + Code)"
+                >
+                  <Bot className="h-3.5 w-3.5 mr-1 text-blue-600 dark:text-blue-400" />
+                  <span>LLM Sample</span>
+                </button>
 
-              <button
-                onClick={clearDocument}
-                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-9 rounded-md px-3 transition-colors cursor-pointer shadow-2xs"
-                title="Clear content"
-              >
-                <RotateCcw className="h-4 w-4 mr-1.5 text-neutral-500 dark:text-neutral-400" />
-                <span>Clear</span>
-              </button>
+                <button
+                  onClick={loadSample}
+                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-md px-2 sm:px-2.5 transition-colors cursor-pointer shadow-2xs"
+                  title="Standard sample"
+                >
+                  <FileText className="h-3.5 w-3.5 mr-1 text-neutral-500 dark:text-neutral-400" />
+                  <span>Sample</span>
+                </button>
+
+                <button
+                  onClick={clearDocument}
+                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-md px-2 sm:px-2.5 transition-colors cursor-pointer shadow-2xs"
+                  title="Clear input"
+                >
+                  <RotateCcw className="h-3.5 w-3.5 mr-1 text-neutral-500 dark:text-neutral-400" />
+                  <span>Clear</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Input Format Selector Pills & LLM Dedicated Slot */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+              <span className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mr-1 uppercase tracking-wider shrink-0">
+                Mode:
+              </span>
+              {inputFormats.map((fmt) => (
+                <button
+                  key={fmt.id}
+                  onClick={() => setInputFormat(fmt.id)}
+                  className={`px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-all cursor-pointer flex items-center gap-1 shrink-0 ${
+                    inputFormat === fmt.id
+                      ? fmt.id === 'llm-mixed'
+                        ? 'bg-blue-600 text-white shadow-xs font-semibold'
+                        : 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-xs font-semibold'
+                      : fmt.id === 'llm-mixed'
+                      ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 hover:bg-blue-100 dark:hover:bg-blue-900/60'
+                      : 'bg-[#FAF5ED] dark:bg-[#141414] text-neutral-600 dark:text-neutral-400 border border-[#EBE3D6] dark:border-white/10 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                >
+                  {fmt.icon}
+                  <span>{fmt.label}</span>
+                  {fmt.badge && (
+                    <span className="text-[9px] px-1 rounded bg-white/20 uppercase font-bold tracking-tight">
+                      {fmt.badge}
+                    </span>
+                  )}
+                </button>
+              ))}
             </div>
           </div>
 
@@ -304,177 +410,194 @@ export const Workspace: React.FC = () => {
               onKeyUp={handleCursorMove}
               onClick={handleCursorMove}
               onScroll={handleEditorScroll}
-              placeholder="Type your Markdown here..."
+              placeholder={
+                inputFormat === 'llm-mixed'
+                  ? 'Paste mixed LLM output here (Markdown + LaTeX Math + HTML + Tables + Code fences)...'
+                  : 'Type or paste any document, code, LaTeX, or HTML here...'
+              }
               className="flex w-full bg-transparent p-3 ring-offset-background placeholder:text-neutral-400 dark:placeholder:text-neutral-600 focus:outline-none resize-none border-0 font-mono text-sm leading-5 text-neutral-900 dark:text-white overflow-y-auto"
               spellCheck={false}
             />
 
             {isDragging && (
-              <div className="absolute inset-2 rounded-xl border-2 border-dashed border-neutral-900 dark:border-white bg-neutral-900/10 dark:bg-white/10 backdrop-blur-xs flex flex-col items-center justify-center text-neutral-900 dark:text-white pointer-events-none">
+              <div className="absolute inset-2 rounded-xl border-2 border-dashed border-neutral-900 dark:border-white bg-neutral-900/10 dark:bg-white/10 backdrop-blur-xs flex flex-col items-center justify-center text-neutral-900 dark:text-white pointer-events-none z-20">
                 <Upload className="w-8 h-8 mb-2 animate-bounce" />
-                <p className="font-semibold text-xs">Drop file or image to load</p>
+                <p className="font-semibold text-xs">Drop any file to convert instantly</p>
               </div>
             )}
           </div>
 
-          {/* Bottom Bar: Word & Char Count */}
+          {/* Bottom Bar: Input Details */}
           <div className="h-8 px-4 border-t border-[#EBE3D6] dark:border-white/10 bg-[#FAF5ED] dark:bg-[#070707] flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 font-mono">
             <span>Ln {activeLine ?? 1}, Col 1</span>
-            <span>{lineCount} lines · {inputContent.length.toLocaleString()} characters</span>
+            <span>
+              Detected: <strong className="text-neutral-700 dark:text-neutral-200">{detectionResult.summary}</strong> · {lineCount} lines · {inputContent.length.toLocaleString()} chars
+            </span>
           </div>
         </div>
 
-        {/* ================= RIGHT CARD: Rich Text Preview ================= */}
+        {/* ================= RIGHT CARD: Universal All-Files Output ================= */}
         <div className="rounded-xl border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#0a0a0a] text-neutral-900 dark:text-neutral-100 shadow-sm flex flex-col transition-colors">
           {/* Header */}
-          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[#EBE3D6] dark:border-white/10 flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <h3 className="tracking-tight text-lg font-semibold text-neutral-900 dark:text-white">
-                Rich Text Preview
-              </h3>
+          <div className="p-4 sm:p-5 border-b border-[#EBE3D6] dark:border-white/10 space-y-3">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <h3 className="tracking-tight text-lg font-bold text-neutral-900 dark:text-white">
+                  Output
+                </h3>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-neutral-100 dark:bg-white/10 text-neutral-600 dark:text-neutral-300 font-mono">
+                  All Files Export
+                </span>
+              </div>
 
-              {/* View Switcher Tabs */}
-              <div className="flex items-center p-0.5 rounded-lg bg-[#FAF5ED] dark:bg-[#141414] border border-[#EBE3D6] dark:border-white/10 text-xs">
+              <div className="flex items-center space-x-2">
+                {/* Sync Scroll Toggle */}
                 <button
-                  onClick={() => setSelectedFormat('preview')}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-all ${
-                    selectedFormat === 'preview'
-                      ? 'bg-white dark:bg-white/15 text-neutral-900 dark:text-white shadow-2xs font-semibold'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                  onClick={() => setSyncScrollEnabled(!syncScrollEnabled)}
+                  className={`inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 h-8 sm:h-9 rounded-md px-2.5 transition-colors cursor-pointer shadow-2xs ${
+                    syncScrollEnabled
+                      ? 'bg-[#FAF5ED] dark:bg-white/10 text-neutral-900 dark:text-white border-neutral-400 dark:border-white/30'
+                      : 'bg-white dark:bg-[#141414] text-neutral-500 dark:text-neutral-400 hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f]'
                   }`}
+                  title={syncScrollEnabled ? 'Sync Scroll Enabled' : 'Sync Scroll Disabled'}
                 >
-                  Rich
+                  {syncScrollEnabled ? <Link2 className="w-3.5 h-3.5" /> : <Link2Off className="w-3.5 h-3.5" />}
+                  <span className="ml-1 text-xs hidden sm:inline">Sync</span>
                 </button>
+
+                {/* Copy Button */}
                 <button
-                  onClick={() => setSelectedFormat('html')}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-all ${
-                    selectedFormat === 'html'
-                      ? 'bg-white dark:bg-white/15 text-neutral-900 dark:text-white shadow-2xs font-semibold'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
-                  }`}
+                  onClick={handleCopy}
+                  disabled={!inputContent.trim()}
+                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium bg-neutral-900 hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black disabled:pointer-events-none disabled:opacity-40 h-8 sm:h-9 rounded-md px-3.5 shadow-xs transition-all active:scale-95 cursor-pointer font-sans"
                 >
-                  HTML
+                  {copiedRichText ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-400 dark:text-emerald-600" />
+                      <span>Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="h-3.5 w-3.5 mr-1.5" />
+                      <span>{selectedFormat === 'preview' ? 'Copy Rich Text' : 'Copy Output'}</span>
+                    </>
+                  )}
                 </button>
-                <button
-                  onClick={() => setSelectedFormat('latex')}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-all ${
-                    selectedFormat === 'latex'
-                      ? 'bg-white dark:bg-white/15 text-neutral-900 dark:text-white shadow-2xs font-semibold'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
-                  }`}
-                >
-                  LaTeX
-                </button>
+
+                {/* Export Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-white dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-white h-8 sm:h-9 rounded-md px-3 transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1 text-neutral-500 dark:text-neutral-400" />
+                    <span className="hidden sm:inline">Export</span>
+                    <ChevronDown className="h-3 w-3 ml-1 opacity-70" />
+                  </button>
+
+                  {showExportMenu && (
+                    <div
+                      onMouseLeave={() => setShowExportMenu(false)}
+                      className="absolute right-0 mt-1.5 w-48 rounded-xl border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#121212] shadow-xl py-1 z-30 text-xs font-medium animate-in fade-in-50 zoom-in-95"
+                    >
+                      <button
+                        onClick={() => {
+                          exportToWord(renderedHtml, 'document')
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                      >
+                        <span>Word Document</span>
+                        <span className="text-[10px] text-blue-500 font-mono">.DOC</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToPdf(renderedHtml, 'document')
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                      >
+                        <span>PDF Document</span>
+                        <span className="text-[10px] text-red-500 font-mono">.PDF</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToFile(renderedHtml, 'document.html', 'text/html;charset=utf-8')
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                      >
+                        <span>HTML Page</span>
+                        <span className="text-[10px] text-emerald-500 font-mono">.HTML</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToFile(renderedMarkdown, 'document.md', 'text/markdown;charset=utf-8')
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                      >
+                        <span>Markdown</span>
+                        <span className="text-[10px] text-purple-500 font-mono">.MD</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToFile(renderedLatex, 'document.tex', 'application/x-tex;charset=utf-8')
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                      >
+                        <span>LaTeX Document</span>
+                        <span className="text-[10px] text-amber-500 font-mono">.TEX</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToFile(renderedPlainText, 'document.txt', 'text/plain;charset=utf-8')
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                      >
+                        <span>Plain Text</span>
+                        <span className="text-[10px] text-cyan-500 font-mono">.TXT</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          exportToFile(renderedJson, 'document.json', 'application/json;charset=utf-8')
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                      >
+                        <span>JSON AST</span>
+                        <span className="text-[10px] text-indigo-500 font-mono">.JSON</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              {/* Sync Scroll Toggle */}
-              <button
-                onClick={() => setSyncScrollEnabled(!syncScrollEnabled)}
-                className={`inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-[#E2DAD0] dark:border-white/15 h-9 rounded-md px-2.5 transition-colors cursor-pointer shadow-2xs ${
-                  syncScrollEnabled
-                    ? 'bg-[#FAF5ED] dark:bg-white/10 text-neutral-900 dark:text-white border-neutral-400 dark:border-white/30'
-                    : 'bg-white dark:bg-[#141414] text-neutral-500 dark:text-neutral-400 hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f]'
-                }`}
-                title={syncScrollEnabled ? 'Sync Scroll Enabled' : 'Sync Scroll Disabled'}
-              >
-                {syncScrollEnabled ? <Link2 className="w-4 h-4" /> : <Link2Off className="w-4 h-4" />}
-                <span className="ml-1 text-xs hidden sm:inline">Sync</span>
-              </button>
-
-              {/* Copy Rich Text (High-contrast primary action button) */}
-              <button
-                onClick={handleCopyRichText}
-                disabled={!inputContent.trim()}
-                className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium bg-neutral-900 hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black disabled:pointer-events-none disabled:opacity-40 h-9 rounded-md px-4 shadow-xs transition-all active:scale-95 cursor-pointer font-sans"
-              >
-                {copiedRichText ? (
-                  <>
-                    <Check className="h-4 w-4 mr-1.5 text-emerald-400 dark:text-emerald-600" />
-                    <span>Copied!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4 mr-1.5" />
-                    <span>Copy Rich Text</span>
-                  </>
-                )}
-              </button>
-
-              {/* Export Dropdown */}
-              <div className="relative">
+            {/* Output Format Switcher Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+              <span className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mr-1 uppercase tracking-wider shrink-0">
+                Format:
+              </span>
+              {outputFormats.map((fmt) => (
                 <button
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                  className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-white dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-white h-9 rounded-md px-3 transition-colors cursor-pointer shadow-2xs"
+                  key={fmt.id}
+                  onClick={() => setSelectedFormat(fmt.id)}
+                  className={`px-2.5 py-1 rounded-md font-medium whitespace-nowrap transition-all cursor-pointer shrink-0 ${
+                    selectedFormat === fmt.id
+                      ? 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-xs font-semibold'
+                      : 'bg-[#FAF5ED] dark:bg-[#141414] text-neutral-600 dark:text-neutral-400 border border-[#EBE3D6] dark:border-white/10 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
                 >
-                  <Download className="h-4 w-4 mr-1 text-neutral-500 dark:text-neutral-400" />
-                  <span className="hidden sm:inline">Export</span>
-                  <ChevronDown className="h-3.5 w-3.5 ml-1 opacity-70" />
+                  {fmt.label}
                 </button>
-
-                {showExportMenu && (
-                  <div
-                    onMouseLeave={() => setShowExportMenu(false)}
-                    className="absolute right-0 mt-1.5 w-44 rounded-xl border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#121212] shadow-xl py-1 z-30 text-xs font-medium animate-in fade-in-50 zoom-in-95"
-                  >
-                    <button
-                      onClick={() => {
-                        exportToWord(renderedHtml, 'document')
-                        setShowExportMenu(false)
-                      }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
-                    >
-                      <span>Word (.doc)</span>
-                      <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-mono">MS Word</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        exportToPdf(renderedHtml, 'document')
-                        setShowExportMenu(false)
-                      }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
-                    >
-                      <span>PDF Document</span>
-                      <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-mono">.PDF</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        exportToFile(renderedHtml, 'document.html', 'text/html;charset=utf-8')
-                        setShowExportMenu(false)
-                      }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
-                    >
-                      <span>HTML Page</span>
-                      <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-mono">.HTML</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        exportToFile(renderedMarkdown, 'document.md', 'text/markdown;charset=utf-8')
-                        setShowExportMenu(false)
-                      }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
-                    >
-                      <span>Markdown</span>
-                      <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-mono">.MD</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        exportToFile(renderedLatex, 'document.tex', 'application/x-tex;charset=utf-8')
-                        setShowExportMenu(false)
-                      }}
-                      className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
-                    >
-                      <span>LaTeX Document</span>
-                      <span className="text-[10px] text-neutral-500 dark:text-neutral-400 font-mono">.TEX</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              ))}
             </div>
           </div>
 
-          {/* Body: Rich Preview or Code Preview */}
+          {/* Body: Clean Flat Rendering with ZERO CanvasBendCard slop */}
           <div
             ref={previewContainerRef}
             onScroll={handlePreviewScroll}
@@ -486,48 +609,66 @@ export const Workspace: React.FC = () => {
                 <div className="text-center">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-40 text-neutral-400 dark:text-neutral-600" />
                   <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                    Your rich text will appear here
+                    Your converted document will appear here
                   </p>
                   <p className="text-xs mt-1.5 text-neutral-500 dark:text-neutral-500">
-                    Start typing Markdown on the left to see the preview
+                    Paste any content, mixed LLM output, or upload a file on the left
                   </p>
                 </div>
               </div>
             ) : selectedFormat === 'preview' ? (
-              <CanvasBendCard className="min-h-full">
+              <div className="min-h-full">
                 <RichPreview document={parsedDocument} />
-              </CanvasBendCard>
+              </div>
+            ) : selectedFormat === 'markdown' ? (
+              <div className="min-h-full">
+                <CodeOutputPreview
+                  content={renderedMarkdown}
+                  format="markdown"
+                  filename="document"
+                />
+              </div>
             ) : selectedFormat === 'html' ? (
-              <CanvasBendCard className="min-h-full">
+              <div className="min-h-full">
                 <CodeOutputPreview
                   content={renderedHtml}
                   format="html"
                   filename="document"
                 />
-              </CanvasBendCard>
+              </div>
             ) : selectedFormat === 'latex' ? (
-              <CanvasBendCard className="min-h-full">
+              <div className="min-h-full">
                 <CodeOutputPreview
                   content={renderedLatex}
                   format="latex"
                   filename="document"
                 />
-              </CanvasBendCard>
+              </div>
+            ) : selectedFormat === 'json' ? (
+              <div className="min-h-full">
+                <CodeOutputPreview
+                  content={renderedJson}
+                  format="json"
+                  filename="document"
+                />
+              </div>
             ) : (
-              <CanvasBendCard className="min-h-full">
+              <div className="min-h-full">
                 <CodeOutputPreview
                   content={renderedPlainText}
                   format="text"
                   filename="document"
                 />
-              </CanvasBendCard>
+              </div>
             )}
           </div>
 
           {/* Bottom Status Bar */}
           <div className="h-8 px-4 border-t border-[#EBE3D6] dark:border-white/10 bg-[#FAF5ED] dark:bg-[#070707] flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 font-mono">
-            <span>{parsedDocument.stats.words} words · {parsedDocument.stats.paragraphs} paragraphs</span>
-            <span className="text-neutral-800 dark:text-neutral-300 font-medium">100% In-Browser</span>
+            <span>
+              {parsedDocument.stats.words} words · {parsedDocument.stats.headings} headings · {parsedDocument.stats.tables} tables · {parsedDocument.stats.mathExpressions} math expressions
+            </span>
+            <span className="text-neutral-800 dark:text-neutral-300 font-medium">100% In-Browser Engine</span>
           </div>
         </div>
       </div>
@@ -535,7 +676,7 @@ export const Workspace: React.FC = () => {
       {/* Pro Tip Box */}
       <div className="text-center my-6">
         <p className="text-sm text-neutral-600 dark:text-neutral-300 max-w-2xl mx-auto bg-white/70 dark:bg-[#0d0d0d] border border-[#E5DDD0] dark:border-white/10 py-2.5 px-4 rounded-xl shadow-2xs">
-          <strong className="text-neutral-900 dark:text-white font-semibold">Pro Tip:</strong> All conversions happen locally in your browser — no data is uploaded or stored. It’s fast, private, and completely free to use.
+          <strong className="text-neutral-900 dark:text-white font-semibold">Pro Tip:</strong> All conversions happen locally in your browser — no data is uploaded or stored. Supports all file types and LLM mixed outputs seamlessly.
         </p>
       </div>
     </div>

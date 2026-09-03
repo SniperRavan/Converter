@@ -3,7 +3,7 @@ import { Copy, Check, Download, FileCode } from 'lucide-react'
 
 interface CodeOutputPreviewProps {
   content: string
-  format: 'markdown' | 'html' | 'latex' | 'text'
+  format: 'markdown' | 'html' | 'latex' | 'text' | 'json'
   filename?: string
 }
 
@@ -19,6 +19,7 @@ export const CodeOutputPreview: React.FC<CodeOutputPreviewProps> = ({
     html: 'html',
     latex: 'tex',
     text: 'txt',
+    json: 'json',
   }
 
   const mimeMap = {
@@ -26,6 +27,7 @@ export const CodeOutputPreview: React.FC<CodeOutputPreviewProps> = ({
     html: 'text/html;charset=utf-8',
     latex: 'application/x-tex;charset=utf-8',
     text: 'text/plain;charset=utf-8',
+    json: 'application/json;charset=utf-8',
   }
 
   const ext = extensionMap[format]

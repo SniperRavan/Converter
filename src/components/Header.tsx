@@ -25,7 +25,7 @@ export const Header: React.FC = () => {
             />
           </div>
           <span className="font-bold text-xl tracking-tight text-neutral-900 dark:text-white">
-            Markdown<span className="text-blue-600 dark:text-white underline decoration-blue-500/40 underline-offset-4">Converter</span>
+            Converter
           </span>
         </a>
 

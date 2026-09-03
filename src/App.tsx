@@ -4,6 +4,7 @@ import { HeroSection } from './components/HeroSection'
 import { Workspace } from './components/Workspace'
 import { EditorialSections } from './components/EditorialSections'
 import { FluidCanvas } from './components/canvasui/FluidCanvas'
+import { MobilePageBend } from './components/MobilePageBend'
 import { useConverterStore } from './store/useConverterStore'
 
 function App() {
@@ -23,22 +24,25 @@ function App() {
       {/* Subtle Ambient Particle Filament Canvas */}
       <FluidCanvas />
 
-      {/* Sticky Header matching markdowntorichtext.com */}
+      {/* Sticky Header */}
       <Header />
 
-      {/* Main Page Container */}
-      <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Hero Section */}
-        <HeroSection />
+      {/* Mobile Whole-Page Bend Wrapper (Active ONLY on mobile view < 768px, zero bend slop on desktop) */}
+      <MobilePageBend>
+        {/* Main Page Container */}
+        <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Hero Section */}
+          <HeroSection />
 
-        {/* 2-Column Side-by-Side Converter Studio */}
-        <div className="mt-2 mb-10">
-          <Workspace />
-        </div>
+          {/* 2-Column Side-by-Side Converter Studio */}
+          <div className="mt-2 mb-10">
+            <Workspace />
+          </div>
 
-        {/* Editorial Sections: About, User Guide, Supported Syntax, FAQ & Footer */}
-        <EditorialSections />
-      </main>
+          {/* Editorial Sections: About, User Guide, Supported Syntax, FAQ & Footer */}
+          <EditorialSections />
+        </main>
+      </MobilePageBend>
     </div>
   )
 }

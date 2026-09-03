@@ -1,5 +1,5 @@
 import React from 'react'
-import { BookOpen } from 'lucide-react'
+import { BookOpen, Bot, FileCode } from 'lucide-react'
 
 export const EditorialSections: React.FC = () => {
   return (
@@ -9,7 +9,7 @@ export const EditorialSections: React.FC = () => {
         <div className="max-w-5xl mx-auto px-4">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold text-neutral-900 dark:text-white tracking-tight">
-              About This Tool
+              About Converter
             </h2>
             <div className="w-12 h-1 bg-neutral-900 dark:bg-white mx-auto mt-3 rounded-full" />
           </div>
@@ -17,41 +17,30 @@ export const EditorialSections: React.FC = () => {
           <div className="space-y-6 text-neutral-700 dark:text-neutral-300 leading-relaxed text-base bg-white dark:bg-[#0a0a0a] p-8 sm:p-10 rounded-2xl border border-[#E5DDD0] dark:border-white/10 shadow-xs">
             <p>
               <strong className="text-neutral-900 dark:text-white font-semibold">
-                Markdown to Rich Text Converter
+                Converter
               </strong>{' '}
-              is a lightweight, privacy-first web tool designed to instantly transform your Markdown content into rich, formatted text. It helps writers, developers, and teams quickly prepare documents for publishing or sharing across modern text editors and platforms.{' '}
+              is a universal, privacy-first document engine designed to transform any document, mixed LLM response, code file, or table into any target format. Built on a normalized Document Object Model (AST), it eliminates the complexity of point-to-point translation by decomposing inputs into a unified intermediate representation.{' '}
               <strong className="text-neutral-900 dark:text-white font-semibold">
                 It’s lightning fast
-              </strong>, providing real-time previews as you type.
+              </strong>, providing real-time AST compilation as you type.
             </p>
             <p>
-              The converter works with all major platforms and applications that support rich text formatting, making it{' '}
               <strong className="text-neutral-900 dark:text-white font-semibold">
-                universally compatible
-              </strong>. Whether you’re using Microsoft Word, Google Docs, Notion, or Apple Pages, your converted content maintains structure and formatting accurately.
+                Universal Compatibility:
+              </strong>{' '}
+              Input anything — Markdown, HTML, LaTeX, plain text, code, JSON, or images — and output directly to formatted Rich Text (for Microsoft Word, Google Docs, Notion, Apple Pages), clean Markdown, structured HTML, compilable LaTeX, Word (.doc), or PDF.
+            </p>
+            <p>
+              <strong className="text-neutral-900 dark:text-white font-semibold">
+                Dedicated LLM Mixed Stream Engine:
+              </strong>{' '}
+              Large Language Models (ChatGPT, Claude, DeepSeek, Gemini) frequently produce mixed outputs combining LaTeX formulas (<code className="px-1.5 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">\[...\]</code> and <code className="px-1.5 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">$$...$$</code>), embedded HTML tags, ASCII box tables, and code fences. Converter normalizes this chaotic mix instantly into a clean document structure without breaking formulas or tables.
             </p>
             <p>
               All processing happens locally in your browser —{' '}
               <strong className="text-neutral-900 dark:text-white font-semibold">
                 privacy first
-              </strong>. Your content never leaves your device, ensuring security and confidentiality. Even large Markdown files are processed quickly without sending data to external servers.
-            </p>
-            <p>
-              The converter supports{' '}
-              <strong className="text-neutral-900 dark:text-white font-semibold">
-                GitHub Flavored Markdown (GFM)
-              </strong>, handling headings, lists, links, images, code blocks, tables, math equations, and other common Markdown syntax elements. You can also{' '}
-              <strong className="text-neutral-900 dark:text-white font-semibold">
-                export your converted text
-              </strong>{' '}
-              as HTML, Word (.docx), PDF, or LaTeX — perfect for web publishing, documentation, or printing. The tool preserves structure and formatting to match the original Markdown as closely as possible.
-            </p>
-            <p>
-              Whether you’re preparing blog posts, documentation, or team notes,{' '}
-              <strong className="text-neutral-900 dark:text-white font-semibold">
-                Markdown to Rich Text Converter
-              </strong>{' '}
-              saves time, ensures consistent formatting, and works seamlessly across all your tools. No installation, no sign-up, completely free to use.
+              </strong>. Your documents and AI conversations never leave your device, ensuring zero data collection, zero telemetry, and complete offline capability.
             </p>
           </div>
         </div>
@@ -77,63 +66,58 @@ export const EditorialSections: React.FC = () => {
             </div>
             <p className="text-neutral-600 dark:text-neutral-300">
               <strong className="text-neutral-900 dark:text-white">
-                Markdown to Rich Text Converter
+                Converter
               </strong>{' '}
-              is designed to be simple and intuitive. Follow these quick steps to get started:
+              is designed for all files in $\to$ all files out:
             </p>
             <ol className="list-decimal pl-6 mt-4 space-y-2 text-neutral-700 dark:text-neutral-300">
-              <li>Paste your Markdown content into the left editor panel.</li>
-              <li>See the formatted rich text preview appear instantly on the right.</li>
-              <li>Copy the output or export it in your preferred format.</li>
-              <li>
-                <strong>Exporting:</strong> After converting your Markdown, you can export the content as:
-                <ul className="list-disc pl-6 mt-2 space-y-1.5 text-sm">
-                  <li>
-                    <strong className="text-neutral-900 dark:text-white">HTML:</strong> Clean HTML for web pages or emails.
-                  </li>
-                  <li>
-                    <strong className="text-neutral-900 dark:text-white">Word (.docx):</strong> Ready-to-use document compatible with Microsoft Word and other editors.
-                  </li>
-                  <li>
-                    <strong className="text-neutral-900 dark:text-white">PDF:</strong> Portable PDF format for easy sharing or printing.
-                  </li>
-                </ul>
-              </li>
+              <li>Paste any content or upload any file into the left editor panel.</li>
+              <li>Select your input mode (Auto-Detect, LLM Stream, Markdown, HTML, LaTeX, Text, JSON).</li>
+              <li>Watch the live preview appear on the right in your chosen format (Rich Preview, Markdown, HTML, LaTeX, Text, or JSON AST).</li>
+              <li>Copy to clipboard or export directly as Word (.doc), PDF, HTML, or LaTeX.</li>
             </ol>
           </div>
 
           {/* Side by side: File Upload & Copying Rich Text */}
           <div className="grid md:grid-cols-2 gap-6 mb-6">
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs">
-              <h3 className="text-xl font-semibold mb-3 text-neutral-900 dark:text-white">
-                File Upload
-              </h3>
+              <div className="flex items-center gap-2 mb-2">
+                <FileCode className="w-5 h-5 text-blue-600 dark:text-white" />
+                <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">
+                  Universal File Ingestion
+                </h3>
+              </div>
               <p className="text-neutral-600 dark:text-neutral-300">
-                You can upload Markdown files directly instead of pasting text:
+                You can upload or drop virtually any document or code file:
               </p>
               <ul className="list-disc pl-6 mt-3 space-y-1.5 text-neutral-700 dark:text-neutral-300 text-sm">
-                <li>Click the <strong>“Upload .md”</strong> button in the editor.</li>
-                <li>Select your <code className="px-1.5 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.md</code> or <code className="px-1.5 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.markdown</code> file.</li>
-                <li>Or drag and drop the file directly into the editor.</li>
+                <li>Markdown (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.md</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.markdown</code>)</li>
+                <li>HTML documents (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.html</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.htm</code>)</li>
+                <li>LaTeX papers (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.tex</code>)</li>
+                <li>Data &amp; Code (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.json</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.py</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.ts</code>, <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.txt</code>)</li>
+                <li>Images: automatically embedded as data-URL Markdown</li>
               </ul>
-              <p className="mt-4 text-xs text-neutral-500 dark:text-neutral-400 font-mono">
-                <strong>Supported formats:</strong> .md, .markdown, .txt, .png, .svg
-              </p>
             </div>
 
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs">
-              <h3 className="text-xl font-semibold mb-3 text-neutral-900 dark:text-white">
-                Copying Rich Text
-              </h3>
+              <div className="flex items-center gap-2 mb-2">
+                <Bot className="w-5 h-5 text-purple-600 dark:text-white" />
+                <h3 className="text-xl font-semibold text-neutral-900 dark:text-white">
+                  LLM Mixed Stream Slot
+                </h3>
+              </div>
               <p className="text-neutral-600 dark:text-neutral-300">
-                The <strong>“Copy Rich Text”</strong> button preserves all Markdown formatting when pasting into:
+                Switch to the <strong>“LLM Stream (Mixed)”</strong> mode to handle messy AI responses:
               </p>
               <div className="mt-3 space-y-2 text-sm text-neutral-700 dark:text-neutral-300">
                 <p>
-                  <strong className="text-neutral-900 dark:text-white">Text Editors:</strong> Microsoft Word, Google Docs, Apple Pages
+                  • Resolves unclosed code blocks and mixed LaTeX notation (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">\[...\]</code> and <code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">\(...\)</code>).
                 </p>
                 <p>
-                  <strong className="text-neutral-900 dark:text-white">Online Platforms:</strong> Notion, Slack, Discord, Gmail, Outlook
+                  • Translates ASCII tables (<code className="px-1 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">+---+---+</code>) and raw HTML tags into native document blocks.
+                </p>
+                <p>
+                  • Perfect for copying directly out of ChatGPT, Claude, DeepSeek, or Gemini into professional formats.
                 </p>
               </div>
             </div>
@@ -145,108 +129,24 @@ export const EditorialSections: React.FC = () => {
               Export Options
             </h3>
             <p className="text-neutral-600 dark:text-neutral-300 mb-4">
-              Export your converted rich text in multiple formats, perfect for sharing or documentation:
+              Export your converted document in any standard format with a single click:
             </p>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <h4 className="font-semibold mb-1 text-neutral-900 dark:text-white">HTML Export</h4>
-                <p className="text-neutral-600 dark:text-neutral-400 text-sm">
-                  Clean HTML with inline styles — ideal for embedding in web pages or email templates.
-                </p>
+            <div className="grid md:grid-cols-4 gap-4 text-sm">
+              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
+                <h4 className="font-semibold text-neutral-900 dark:text-white">Word (.doc)</h4>
+                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Native Microsoft Word &amp; Google Docs document.</p>
               </div>
-              <div>
-                <h4 className="font-semibold mb-1 text-neutral-900 dark:text-white">Word Export</h4>
-                <p className="text-neutral-600 dark:text-neutral-400 text-sm">
-                  Native <code className="px-1.5 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">.docx</code> format that opens perfectly in Microsoft Word and compatible editors.
-                </p>
+              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
+                <h4 className="font-semibold text-neutral-900 dark:text-white">PDF Document</h4>
+                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Printable high-resolution portable document.</p>
               </div>
-              <div>
-                <h4 className="font-semibold mb-1 text-neutral-900 dark:text-white">PDF Export</h4>
-                <p className="text-neutral-600 dark:text-neutral-400 text-sm">
-                  Portable PDF format for easy sharing or printing of your converted Markdown.
-                </p>
+              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
+                <h4 className="font-semibold text-neutral-900 dark:text-white">HTML / Markdown</h4>
+                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Clean semantic markup for web publishing.</p>
               </div>
-            </div>
-          </div>
-
-          {/* Supported Markdown Syntax (Exact 7 blocks) */}
-          <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 sm:p-8 bg-white dark:bg-[#0a0a0a] shadow-xs">
-            <h3 className="text-xl font-semibold mb-3 text-neutral-900 dark:text-white">
-              Supported Markdown Syntax
-            </h3>
-            <p className="text-neutral-600 dark:text-neutral-300 mb-6">
-              The converter supports standard Markdown syntax. Here are some commonly used elements:
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h4 className="font-semibold mb-1.5 text-neutral-900 dark:text-white text-sm">Headers (H1-H6)</h4>
-                <div className="bg-[#FAF5ED] dark:bg-[#050505] p-3.5 rounded-xl text-xs font-mono border border-[#EAE2D5] dark:border-white/5 space-y-1 text-neutral-800 dark:text-neutral-200">
-                  <div># H1 Header</div>
-                  <div>## H2 Header</div>
-                  <div>### H3 Header</div>
-                  <div>#### H4 Header</div>
-                  <div>##### H5 Header</div>
-                  <div>###### H6 Header</div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-1.5 text-neutral-900 dark:text-white text-sm">Ordered &amp; Unordered Lists</h4>
-                <div className="bg-[#FAF5ED] dark:bg-[#050505] p-3.5 rounded-xl text-xs font-mono border border-[#EAE2D5] dark:border-white/5 space-y-1 text-neutral-800 dark:text-neutral-200">
-                  <div>- Unordered list item</div>
-                  <div>* Another item</div>
-                  <div>+ Yet another item</div>
-                  <div className="pt-1">1. Ordered list item</div>
-                  <div>2. Second item</div>
-                  <div>3. Third item</div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-1.5 text-neutral-900 dark:text-white text-sm">Bold &amp; Italic Text</h4>
-                <div className="bg-[#FAF5ED] dark:bg-[#050505] p-3.5 rounded-xl text-xs font-mono border border-[#EAE2D5] dark:border-white/5 space-y-1 text-neutral-800 dark:text-neutral-200">
-                  <div>**Bold text** or __Bold text__</div>
-                  <div>*Italic text* or _Italic text_</div>
-                  <div>~~Strikethrough text~~</div>
-                  <div>`Inline code`</div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-1.5 text-neutral-900 dark:text-white text-sm">Code Blocks &amp; Inline Code</h4>
-                <div className="bg-[#FAF5ED] dark:bg-[#050505] p-3.5 rounded-xl text-xs font-mono border border-[#EAE2D5] dark:border-white/5 space-y-1 text-neutral-800 dark:text-neutral-200">
-                  <div>```javascript</div>
-                  <div>function hello() &#123; console.log('Hello!'); &#125;</div>
-                  <div>```</div>
-                  <div>`your_code_here`</div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-1.5 text-neutral-900 dark:text-white text-sm">Links &amp; Images</h4>
-                <div className="bg-[#FAF5ED] dark:bg-[#050505] p-3.5 rounded-xl text-xs font-mono border border-[#EAE2D5] dark:border-white/5 space-y-1 text-neutral-800 dark:text-neutral-200">
-                  <div>[Link text](https://example.com)</div>
-                  <div>![Alt text](image-url.jpg)</div>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-1.5 text-neutral-900 dark:text-white text-sm">Blockquotes</h4>
-                <div className="bg-[#FAF5ED] dark:bg-[#050505] p-3.5 rounded-xl text-xs font-mono border border-[#EAE2D5] dark:border-white/5 space-y-1 text-neutral-800 dark:text-neutral-200">
-                  <div>&gt; This is a blockquote</div>
-                  <div>&gt; It can span multiple lines</div>
-                </div>
-              </div>
-
-              <div className="md:col-span-2">
-                <h4 className="font-semibold mb-1.5 text-neutral-900 dark:text-white text-sm">Tables</h4>
-                <div className="bg-[#FAF5ED] dark:bg-[#050505] p-3.5 rounded-xl text-xs font-mono border border-[#EAE2D5] dark:border-white/5 space-y-1 text-neutral-800 dark:text-neutral-200 overflow-x-auto">
-                  <div>| Header 1 | Header 2 |</div>
-                  <div>|----------|----------|</div>
-                  <div>| Cell 1   | Cell 2   |</div>
-                  <div>| Cell 3   | Cell 4   |</div>
-                </div>
+              <div className="p-3.5 rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-[#FAF5ED]/50 dark:bg-white/[0.02]">
+                <h4 className="font-semibold text-neutral-900 dark:text-white">LaTeX / JSON AST</h4>
+                <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1">Academic papers and machine-readable AST trees.</p>
               </div>
             </div>
           </div>
@@ -266,10 +166,19 @@ export const EditorialSections: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
               <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                Is this tool completely free?
+                What makes Converter different from other tools?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                Yes! <strong>Markdown to Rich Text Converter</strong> is completely free to use — with no hidden costs, subscriptions, or premium tiers. It’s 100% free forever.
+                Converter translates everything through a normalized Document AST rather than brittle string regexes. This enables all-file input to all-file output, including mixed LLM responses with math formulas and tables.
+              </p>
+            </div>
+
+            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
+              <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
+                How does the LLM Mixed Stream slot work?
+              </h3>
+              <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
+                It specifically addresses LLM output quirks: fixing unclosed code fences, normalizing LaTeX delimiters (<code className="text-xs font-mono">\[...\]</code>), converting ASCII tables (<code className="text-xs font-mono">+---+</code>), and harmonizing inline HTML tags into clean AST blocks.
               </p>
             </div>
 
@@ -278,72 +187,19 @@ export const EditorialSections: React.FC = () => {
                 Does this tool store or upload my content?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                No. Your Markdown is processed entirely in your browser, never uploaded to any server. This ensures full <strong>privacy, security, and data ownership</strong>.
+                No. All parsing, rendering, and exporting run 100% locally in your browser sandbox. No servers, no APIs, no tracking, and no data retention forever.
               </p>
             </div>
 
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
               <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                Which applications support the copied rich text?
-              </h3>
-              <div className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed space-y-1">
-                <p>The rich text output works with nearly all major platforms, including:</p>
-                <p><strong>Office Suites:</strong> Microsoft Word, Google Docs, Apple Pages, LibreOffice Writer</p>
-                <p><strong>Online Platforms:</strong> Notion, Slack, Discord, Gmail, Outlook</p>
-              </div>
-            </div>
-
-            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                Which Markdown syntax is supported?
+                Can I copy directly into Word or Google Docs?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                We support GitHub Flavored Markdown (GFM), including headers, lists, links, images, code blocks, blockquotes, tables, and math equations. All Markdown structures are preserved accurately when converted.
-              </p>
-            </div>
-
-            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                Why does formatting look different in Word or Notion?
-              </h3>
-              <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                Visual styles may vary slightly because each editor renders text spacing differently. The structure of your Markdown remains intact — only the default styling differs across platforms.
-              </p>
-            </div>
-
-            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                Can I use this converter offline?
-              </h3>
-              <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                Yes! Once the page has loaded, you can continue using it even without an internet connection. All conversion logic runs locally in your browser, making it both fast and private.
-              </p>
-            </div>
-
-            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                Is it safe for confidential or work-related documents?
-              </h3>
-              <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                Absolutely. No data ever leaves your device. This makes the tool suitable for personal, academic, or professional use — including private or internal files.
-              </p>
-            </div>
-
-            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                How can I report a bug or suggest a feature?
-              </h3>
-              <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                We welcome feedback! You can submit issues or ideas on our GitHub page or through the site’s feedback form. Your input helps us make Markdown to Rich Text Converter better for everyone.
+                Yes! The <strong>“Copy Rich Text”</strong> button creates a dual-mime clipboard item (<code className="text-xs font-mono">text/html</code> + <code className="text-xs font-mono">text/plain</code>), allowing seamless pasting into Word, Google Docs, Notion, Slack, and Apple Pages with full table and formula formatting.
               </p>
             </div>
           </div>
-
-          <p className="text-center text-neutral-500 dark:text-neutral-400 text-sm mt-12 max-w-2xl mx-auto">
-            Still have questions about Markdown conversion, export options, or privacy?
-            <br />
-            We’re constantly improving <strong>Markdown to Rich Text Converter</strong> to make it more reliable, private, and easy to use.
-          </p>
         </div>
       </section>
 
@@ -365,7 +221,7 @@ export const EditorialSections: React.FC = () => {
           <span className="text-neutral-800 dark:text-neutral-200 font-medium">100% Client-Side Engine</span>
         </div>
         <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-4">
-          © 2026 MarkdownConverter. No logins, no paywalls, no tracking. Long live the handmade web.
+          © 2026 Converter. No logins, no paywalls, no tracking. Long live the handmade web.
         </p>
       </footer>
     </div>

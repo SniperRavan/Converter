@@ -1,7 +1,12 @@
 import { create } from 'zustand'
-import type { NormalizedDocument, SupportedOutputFormat, FormatOptions } from '../core/types'
-import { parseMarkdown } from '../parsers/markdown'
-import { detectInputFormat, type DetectionResult } from '../parsers/detector'
+import type {
+  NormalizedDocument,
+  SupportedInputFormat,
+  SupportedOutputFormat,
+  FormatOptions,
+} from '../core/types'
+import { parseUniversalDocument, detectInputFormat } from '../parsers'
+import type { DetectionResult } from '../parsers/detector'
 import { createEmptyDocument } from '../core/stats'
 
 export const SAMPLE_DOCUMENT = `# Machine Learning Fundamentals
@@ -54,10 +59,64 @@ print(f"Parameters: {sum(p.numel() for p in model.parameters())}")
 - **Zero Latency:** Live real-time parsing.
 `
 
+export const LLM_SAMPLE_DOCUMENT = `# AI Model Reasoning Output: Quantum Wave Equation
+
+Here is the exact derivation combining differential geometry, statistical physics, and discrete grid simulation.
+
+> [!NOTE]
+> The Hamiltonian operator $\\hat{H}$ governs state progression across unitary Hilbert space $\\mathcal{H}$.
+
+### 1. Relativistic Dispersion & Action Principle
+
+The relativistic energy-momentum invariant is written as:
+
+\\[
+E^2 = (pc)^2 + (m_0 c^2)^2
+\\]
+
+In field path integral formulation, the transition amplitude between initial $|\\psi_i\\rangle$ and final $|\\psi_f\\rangle$ states is:
+
+$$
+\\mathcal{Z} = \\int \\mathcal{D}\\phi \\, \\exp\\left( \\frac{i}{\\hbar} \\int d^4x \\, \\mathcal{L}[\\phi, \\partial_\\mu \\phi] \\right)
+$$
+
+### 2. Numerical Convergence Benchmark
++-------------------+------------+-------------+---------------+
+| Solver Engine     | Grid Nodes | Error (L2)  | GPU Time (ms) |
++===================+============+=============+===============+
+| Runge-Kutta 4th   | 256x256    | 1.42e-5     | 18.4          |
+| Symplectic Verlet | 512x512    | 8.19e-7     | 42.1          |
+| Spectral Fourier  | 1024x1024  | 3.05e-9     | 67.8          |
++-------------------+------------+-------------+---------------+
+
+<div style="padding: 10px; border-left: 3px solid #10b981;">
+  <strong>Performance Note:</strong> The spectral Fourier solver achieves <em>exponential spectral convergence</em> when periodic boundary conditions are strictly enforced.
+</div>
+
+### 3. Simulation Kernel (PyTorch CUDA)
+
+\`\`\`python
+import torch
+
+@torch.compile
+def quantum_step(psi: torch.Tensor, V: torch.Tensor, dt: float, dx: float) -> torch.Tensor:
+    # Split-step Fourier kinetic propagation
+    k = 2 * torch.pi * torch.fft.fftfreq(psi.shape[-1], d=dx, device=psi.device)
+    kinetic_phase = torch.exp(-1j * (k ** 2) * dt / 2.0)
+    potential_phase = torch.exp(-1j * V * dt / 2.0)
+    
+    psi = psi * potential_phase
+    psi = torch.fft.ifft(torch.fft.fft(psi) * kinetic_phase)
+    return psi * potential_phase
+\`\`\`
+`
+
 interface ConverterStore {
   // Input
   inputContent: string
-  setInputContent: (content: string) => void
+  setInputContent: (content: string, format?: SupportedInputFormat) => void
+  inputFormat: SupportedInputFormat
+  setInputFormat: (format: SupportedInputFormat) => void
 
   // Parsing & State
   parsedDocument: NormalizedDocument
@@ -85,14 +144,16 @@ interface ConverterStore {
 
   // Actions
   loadSample: () => void
+  loadLlmSample: () => void
   clearDocument: () => void
 }
 
-const initialDoc = parseMarkdown(SAMPLE_DOCUMENT)
+const initialDoc = parseUniversalDocument(SAMPLE_DOCUMENT, 'auto')
 const initialDetection = detectInputFormat(SAMPLE_DOCUMENT)
 
 export const useConverterStore = create<ConverterStore>((set, get) => ({
   inputContent: SAMPLE_DOCUMENT,
+  inputFormat: 'auto',
   parsedDocument: initialDoc,
   detectionResult: initialDetection,
 
@@ -145,8 +206,20 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
   syncScrollEnabled: true,
   setSyncScrollEnabled: (enabled) => set({ syncScrollEnabled: enabled }),
 
-  setInputContent: (content: string) => {
-    const doc = parseMarkdown(content)
+  setInputFormat: (format: SupportedInputFormat) => {
+    const content = get().inputContent
+    const doc = parseUniversalDocument(content, format)
+    const detection = detectInputFormat(content)
+    set({
+      inputFormat: format,
+      parsedDocument: doc,
+      detectionResult: detection,
+    })
+  },
+
+  setInputContent: (content: string, format?: SupportedInputFormat) => {
+    const currentFormat = format || get().inputFormat
+    const doc = parseUniversalDocument(content, currentFormat)
     const detection = detectInputFormat(content)
     set({
       inputContent: content,
@@ -156,10 +229,24 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
   },
 
   loadSample: () => {
-    const doc = parseMarkdown(SAMPLE_DOCUMENT)
+    const format = 'markdown'
+    const doc = parseUniversalDocument(SAMPLE_DOCUMENT, format)
     const detection = detectInputFormat(SAMPLE_DOCUMENT)
     set({
       inputContent: SAMPLE_DOCUMENT,
+      inputFormat: format,
+      parsedDocument: doc,
+      detectionResult: detection,
+    })
+  },
+
+  loadLlmSample: () => {
+    const format = 'llm-mixed'
+    const doc = parseUniversalDocument(LLM_SAMPLE_DOCUMENT, format)
+    const detection = detectInputFormat(LLM_SAMPLE_DOCUMENT)
+    set({
+      inputContent: LLM_SAMPLE_DOCUMENT,
+      inputFormat: format,
       parsedDocument: doc,
       detectionResult: detection,
     })

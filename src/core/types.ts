@@ -169,8 +169,26 @@ export interface NormalizedDocument {
   stats: DocumentStats
 }
 
+// Supported Input Formats
+export type SupportedInputFormat =
+  | 'auto'
+  | 'llm-mixed'
+  | 'markdown'
+  | 'html'
+  | 'latex'
+  | 'text'
+  | 'json'
+
 // Supported Conversion Formats
-export type SupportedOutputFormat = 'preview' | 'markdown' | 'html' | 'latex' | 'text'
+export type SupportedOutputFormat =
+  | 'preview'
+  | 'markdown'
+  | 'html'
+  | 'latex'
+  | 'text'
+  | 'word'
+  | 'pdf'
+  | 'json'
 
 export interface FormatOptions {
   markdown: {
