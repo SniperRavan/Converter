@@ -8,23 +8,76 @@ import type {
 import { computeDocumentStats } from '../core/stats'
 
 /**
- * Helper to extract content from balanced curly braces after a keyword
+ * Extracts content within balanced curly braces starting from startIdx
  */
-function extractBraced(str: string, keyword: string): string | null {
-  const idx = str.indexOf(keyword)
-  if (idx === -1) return null
-  const braceIdx = str.indexOf('{', idx)
-  if (braceIdx === -1) return null
+function extractBalancedBraces(str: string, startIdx: number): { content: string; endIdx: number } | null {
   let depth = 1
-  const start = braceIdx + 1
-  for (let i = start; i < str.length; i++) {
+  for (let i = startIdx; i < str.length; i++) {
     if (str[i] === '{') depth++
     else if (str[i] === '}') {
       depth--
-      if (depth === 0) return str.slice(start, i).trim()
+      if (depth === 0) return { content: str.slice(startIdx, i), endIdx: i }
     }
   }
   return null
+}
+
+/**
+ * Helper to extract content from balanced curly braces after an exact command name
+ */
+function extractBracedCommand(str: string, cmd: string): string | null {
+  const regex = new RegExp(`\\\\${cmd}\\s*\\{`, 'm')
+  const match = str.match(regex)
+  if (!match || match.index === undefined) return null
+  const start = match.index + match[0].length
+  const res = extractBalancedBraces(str, start)
+  return res ? res.content.trim() : null
+}
+
+/**
+ * Extracts N consecutive balanced-braced arguments: {arg1}{arg2}...{argN}
+ */
+function extractNBracedArgs(str: string, startIdx: number, count: number): { args: string[]; endIdx: number } | null {
+  const args: string[] = []
+  let cursor = startIdx
+  for (let c = 0; c < count; c++) {
+    const openBrace = str.indexOf('{', cursor)
+    if (openBrace === -1) return null
+    let depth = 1
+    let closeBrace = -1
+    for (let i = openBrace + 1; i < str.length; i++) {
+      if (str[i] === '{') depth++
+      else if (str[i] === '}') {
+        depth--
+        if (depth === 0) {
+          closeBrace = i
+          break
+        }
+      }
+    }
+    if (closeBrace === -1) return null
+    args.push(str.slice(openBrace + 1, closeBrace).trim())
+    cursor = closeBrace + 1
+  }
+  return { args, endIdx: cursor }
+}
+
+/**
+ * Unwraps font-sizing and style wrapper commands like \small{text} into bare text
+ */
+function unwrapSizingCommands(input: string): string {
+  let result = input
+  const regex = /\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape)\s*\{/
+  while (true) {
+    const match = result.match(regex)
+    if (!match || match.index === undefined) break
+    const startIdx = match.index
+    const openBrace = match.index + match[0].length - 1
+    const res = extractNBracedArgs(result, openBrace, 1)
+    if (!res) break
+    result = result.slice(0, startIdx) + ' ' + res.args[0] + ' ' + result.slice(res.endIdx)
+  }
+  return result
 }
 
 /**
@@ -40,6 +93,167 @@ function cleanLatexMetadata(text: string): string[] {
     .split(/\\\\|\n/)
     .map((l) => l.trim())
     .filter(Boolean)
+}
+
+/**
+ * Robust balanced inline LaTeX parser with zero placeholder token leaks
+ */
+export function parseLatexInline(text: string): InlineNode[] {
+  const cleaned = text
+    .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|centering|raggedright|noindent)/g, '')
+    .replace(/\\color\{[^}]+\}/g, '')
+    .replace(/\\vspace\*?\{[^}]+\}/g, '')
+    .replace(/\\hspace\*?\{[^}]+\}/g, '')
+    .replace(/\\hfill\b/g, ' · ')
+    .replace(/\\\\(?:\[[^\]]*\])?/g, '\n')
+    .replace(/~/g, ' ')
+    .replace(/\s*\$\\\|\$\s*/g, ' | ')
+    .replace(/\s*\$\|\$\s*/g, ' | ')
+    .replace(/\\&/g, '&')
+    .replace(/\\%/g, '%')
+    .replace(/\\#/g, '#')
+    .replace(/\\_/g, '_')
+
+  const nodes: InlineNode[] = []
+  let i = 0
+  let textBuf = ''
+
+  function flushText() {
+    if (textBuf) {
+      nodes.push({ type: 'text', value: textBuf })
+      textBuf = ''
+    }
+  }
+
+  while (i < cleaned.length) {
+    // Check \href{url}{label}
+    if (cleaned.startsWith('\\href', i)) {
+      const uStart = cleaned.indexOf('{', i)
+      if (uStart !== -1) {
+        const uRes = extractBalancedBraces(cleaned, uStart + 1)
+        if (uRes) {
+          const tStart = cleaned.indexOf('{', uRes.endIdx)
+          if (tStart !== -1) {
+            const tRes = extractBalancedBraces(cleaned, tStart + 1)
+            if (tRes) {
+              flushText()
+              nodes.push({
+                type: 'link',
+                url: uRes.content.trim(),
+                children: parseLatexInline(tRes.content.trim()),
+              })
+              i = tRes.endIdx + 1
+              continue
+            }
+          }
+        }
+      }
+    }
+
+    // Check \url{url}
+    if (cleaned.startsWith('\\url', i)) {
+      const uStart = cleaned.indexOf('{', i)
+      if (uStart !== -1) {
+        const uRes = extractBalancedBraces(cleaned, uStart + 1)
+        if (uRes) {
+          flushText()
+          const url = uRes.content.trim()
+          nodes.push({
+            type: 'link',
+            url,
+            children: [{ type: 'text', value: url }],
+          })
+          i = uRes.endIdx + 1
+          continue
+        }
+      }
+    }
+
+    // Check \textbf{...}
+    if (cleaned.startsWith('\\textbf', i)) {
+      const bStart = cleaned.indexOf('{', i)
+      if (bStart !== -1) {
+        const bRes = extractBalancedBraces(cleaned, bStart + 1)
+        if (bRes) {
+          flushText()
+          nodes.push({
+            type: 'strong',
+            children: parseLatexInline(bRes.content),
+          })
+          i = bRes.endIdx + 1
+          continue
+        }
+      }
+    }
+
+    // Check \textit{...} or \emph{...}
+    if (cleaned.startsWith('\\textit', i) || cleaned.startsWith('\\emph', i)) {
+      const bStart = cleaned.indexOf('{', i)
+      if (bStart !== -1) {
+        const bRes = extractBalancedBraces(cleaned, bStart + 1)
+        if (bRes) {
+          flushText()
+          nodes.push({
+            type: 'emphasis',
+            children: parseLatexInline(bRes.content),
+          })
+          i = bRes.endIdx + 1
+          continue
+        }
+      }
+    }
+
+    // Check \texttt{...}
+    if (cleaned.startsWith('\\texttt', i)) {
+      const bStart = cleaned.indexOf('{', i)
+      if (bStart !== -1) {
+        const bRes = extractBalancedBraces(cleaned, bStart + 1)
+        if (bRes) {
+          flushText()
+          nodes.push({
+            type: 'inlineCode',
+            value: bRes.content,
+          })
+          i = bRes.endIdx + 1
+          continue
+        }
+      }
+    }
+
+    // Check $...$ inline math
+    if (cleaned[i] === '$' && cleaned[i + 1] !== '$') {
+      const nextDollar = cleaned.indexOf('$', i + 1)
+      if (nextDollar !== -1) {
+        flushText()
+        nodes.push({
+          type: 'inlineMath',
+          value: cleaned.slice(i + 1, nextDollar).trim(),
+        })
+        i = nextDollar + 1
+        continue
+      }
+    }
+
+    // Check \(...\) inline math
+    if (cleaned.startsWith('\\(', i)) {
+      const endParen = cleaned.indexOf('\\)', i + 2)
+      if (endParen !== -1) {
+        flushText()
+        nodes.push({
+          type: 'inlineMath',
+          value: cleaned.slice(i + 2, endParen).trim(),
+        })
+        i = endParen + 2
+        continue
+      }
+    }
+
+    textBuf += cleaned[i]
+    i++
+  }
+
+  flushText()
+  return nodes.length > 0 ? nodes : [{ type: 'text', value: text }]
 }
 
 /**
@@ -71,10 +285,10 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   // Strip leading/trailing quote marks if user pasted quoted string
   const cleanedContent = latexContent.trim().replace(/^["']/, '').replace(/["']$/, '')
 
-  // Extract metadata (Title, Author, Date) with balanced brace matching
-  const rawTitle = extractBraced(cleanedContent, '\\title')
-  const rawAuthor = extractBraced(cleanedContent, '\\author')
-  const rawDate = extractBraced(cleanedContent, '\\date')
+  // Extract metadata (Title, Author, Date) with balanced brace matching (avoid matching \titleformat)
+  const rawTitle = extractBracedCommand(cleanedContent, 'title')
+  const rawAuthor = extractBracedCommand(cleanedContent, 'author')
+  const rawDate = extractBracedCommand(cleanedContent, 'date')
 
   const titleLines = rawTitle ? cleanLatexMetadata(rawTitle) : []
   const authorLines = rawAuthor ? cleanLatexMetadata(rawAuthor) : []
@@ -105,78 +319,47 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     .replace(/\\faLaptopCode\*?~/g, '💻 ')
     .replace(/\\fa[A-Z][a-zA-Z0-9]*\*?~?/g, '')
 
-  // Preprocess Resume/CV custom macros (Jake's Resume / sb2nov template standard)
+  // Expand Resume/CV custom macros with balanced brace arguments
+  while (true) {
+    const idx = body.indexOf('\\resumeSubheading')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 17, 4)
+    if (!res) break
+    const [p1, p2, p3, p4] = res.args
+    const replacement = `\n\n### ${p1.trim()} — *${p2.trim()}* *(${p4.trim()})*\n*${p3.trim()}*\n\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
+  while (true) {
+    const idx = body.indexOf('\\resumeProjectHeading')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 21, 2)
+    if (!res) break
+    const [p1, p2] = res.args
+    const replacement = `\n\n### ${p1.trim()} *(${p2.trim()})*\n\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
+  while (true) {
+    const idx = body.indexOf('\\resumeItem')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 11, 1)
+    if (!res) break
+    const [p1] = res.args
+    const replacement = `\n\\item ${p1.trim()}\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
   body = body
-    .replace(/\\resumeProjectHeading\s*\{([\s\S]*?)\}\s*\{([\s\S]*?)\}/g, (_m, p1, p2) => {
-      return `\n\n### ${p1.trim()} *(${p2.trim()})*\n\n`
-    })
-    .replace(/\\resumeSubheading\s*\{([\s\S]*?)\}\s*\{([\s\S]*?)\}\s*\{([\s\S]*?)\}\s*\{([\s\S]*?)\}/g, (_m, p1, p2, p3, p4) => {
-      return `\n\n### ${p1.trim()} — *${p2.trim()}* *(${p4.trim()})*\n*${p3.trim()}*\n\n`
-    })
     .replace(/\\resumeSubHeadingListStart\b/g, '')
     .replace(/\\resumeSubHeadingListEnd\b/g, '')
-    .replace(/\\resumeItemListStart\b/g, '\\begin{itemize}')
-    .replace(/\\resumeItemListEnd\b/g, '\\end{itemize}')
-    .replace(/\\resumeItem\{([\s\S]*?)\}/g, '\\item $1')
+    .replace(/\\resumeItemListStart\b/g, '\n\\begin{itemize}\n')
+    .replace(/\\resumeItemListEnd\b/g, '\n\\end{itemize}\n')
+
+  // Unwrap sizing commands (\small{...})
+  body = unwrapSizingCommands(body)
 
   const children: BlockNode[] = []
-
-  function parseLatexInline(text: string): InlineNode[] {
-    const inlines: InlineNode[] = []
-    let cursor = text
-      .replace(/\\textbf\{([^}]+)\}/g, '@@BOLD_$1@@')
-      .replace(/\\textit\{([^}]+)\}/g, '@@ITALIC_$1@@')
-      .replace(/\\emph\{([^}]+)\}/g, '@@ITALIC_$1@@')
-      .replace(/\\texttt\{([^}]+)\}/g, '@@CODE_$1@@')
-      .replace(/\\href\{([^}]+)\}\{([^}]+)\}/g, '@@LINK_$1@@$2@@ENDLINK@@')
-      .replace(/\\url\{([^}]+)\}/g, '@@LINK_$1@@$1@@ENDLINK@@')
-      .replace(/\\&/g, '&')
-      .replace(/\\%/g, '%')
-      .replace(/\\#/g, '#')
-      .replace(/\\_/g, '_')
-      .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|centering|raggedright|noindent)/g, '')
-      .replace(/\\color\{[^}]+\}/g, '')
-      .replace(/\\vspace\*?\{[^}]+\}/g, '')
-      .replace(/\\hspace\*?\{[^}]+\}/g, '')
-      .replace(/\\hfill\b/g, ' · ')
-      .replace(/\\newline\b/g, '\n')
-      .replace(/~/g, ' ')
-
-    const tokens = cursor.split(
-      /(@@BOLD_[^@]+@@|@@ITALIC_[^@]+@@|@@CODE_[^@]+@@|@@LINK_[^@]+@@[\s\S]*?@@ENDLINK@@|\$[^$]+\$|\\\([^)]+\\\))/
-    )
-
-    for (const token of tokens) {
-      if (!token) continue
-      if (token.startsWith('@@BOLD_') && token.endsWith('@@')) {
-        const val = token.slice(7, -2)
-        inlines.push({ type: 'strong', children: [{ type: 'text', value: val }] })
-      } else if (token.startsWith('@@ITALIC_') && token.endsWith('@@')) {
-        const val = token.slice(9, -2)
-        inlines.push({ type: 'emphasis', children: [{ type: 'text', value: val }] })
-      } else if (token.startsWith('@@CODE_') && token.endsWith('@@')) {
-        const val = token.slice(7, -2)
-        inlines.push({ type: 'inlineCode', value: val })
-      } else if (token.startsWith('@@LINK_') && token.endsWith('@@ENDLINK@@')) {
-        const linkMatch = token.match(/^@@LINK_([^@]+)@@([\s\S]*?)@@ENDLINK@@$/)
-        if (linkMatch) {
-          inlines.push({
-            type: 'link',
-            url: linkMatch[1].trim(),
-            children: parseLatexInline(linkMatch[2]),
-          })
-        }
-      } else if (token.startsWith('$') && token.endsWith('$')) {
-        inlines.push({ type: 'inlineMath', value: token.slice(1, -1).trim() })
-      } else if (token.startsWith('\\(') && token.endsWith('\\)')) {
-        inlines.push({ type: 'inlineMath', value: token.slice(2, -2).trim() })
-      } else {
-        inlines.push({ type: 'text', value: token })
-      }
-    }
-
-    return inlines.length > 0 ? inlines : [{ type: 'text', value: text }]
-  }
 
   // 1. Build Cover / Title Page if explicit \title metadata is present
   if (titleLines.length > 0) {
@@ -223,18 +406,23 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   const centerHeaderMatch = body.match(/\\begin\{center\}([\s\S]*?)\\end\{center\}/)
   if (titleLines.length === 0 && centerHeaderMatch) {
     const rawHeader = centerHeaderMatch[1]
-    const headerLines = rawHeader
-      .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|color\{[^}]+\})/g, '')
-      .split(/\\\\(?:\[[^\]]*\])?|\n\s*\n/)
-      .map((l) => l.trim())
-      .filter(Boolean)
+    const bIdx = rawHeader.indexOf('\\textbf{')
+    let candidateName = ''
+    let withoutName = rawHeader
 
-    if (headerLines.length > 0) {
-      const candidateName = headerLines[0]
-        .replace(/\\textbf\{([^}]+)\}/g, '$1')
-        .replace(/[{}\\]/g, '')
-        .trim()
+    if (bIdx !== -1) {
+      const bRes = extractBalancedBraces(rawHeader, bIdx + 8)
+      if (bRes) {
+        candidateName = bRes.content
+          .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape)/g, '')
+          .replace(/\\color\{[^}]+\}/g, '')
+          .replace(/[\\{}]/g, '')
+          .trim()
+        withoutName = rawHeader.slice(0, bIdx) + rawHeader.slice(bRes.endIdx + 1)
+      }
+    }
 
+    if (candidateName) {
       if (!docTitle) docTitle = candidateName
 
       // Heading 1 for Candidate Name
@@ -243,34 +431,46 @@ export function parseLatex(latexContent: string): NormalizedDocument {
         level: 1,
         children: [{ type: 'text', value: candidateName }],
       })
-
-      // Contact & Profile Links
-      const contactInfo = headerLines.slice(1).join(' · ')
-      if (contactInfo) {
-        children.push({
-          type: 'paragraph',
-          children: parseLatexInline(contactInfo),
-        })
-      }
-
-      children.push({
-        type: 'thematicBreak',
-      })
-
-      // Remove the header from body so it's not processed twice
-      body = body.replace(centerHeaderMatch[0], '')
     }
+
+    // Contact & Profile Links
+    const contactLines = withoutName
+      .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape)/g, '')
+      .replace(/\\color\{[^}]+\}/g, '')
+      .split(/\\\\(?:\[[^\]]*\])?|\n\s*\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+
+    for (const line of contactLines) {
+      children.push({
+        type: 'paragraph',
+        children: parseLatexInline(line),
+      })
+    }
+
+    children.push({
+      type: 'thematicBreak',
+    })
+
+    // Remove the center header from body so it is not processed twice
+    body = body.replace(centerHeaderMatch[0], '')
   }
 
-  // 3. Parse Body Blocks
+  // 3. Normalize sections and environments into clean distinct blocks
+  body = body
+    .replace(/(\\section\*?\{[^}]+\}|\\subsection\*?\{[^}]+\}|\\subsubsection\*?\{[^}]+\}|\\chapter\*?\{[^}]+\})/g, '\n\n$1\n\n')
+    .replace(/(\\begin\{(?:itemize|enumerate|tabular|tabular\*|lstlisting|verbatim|equation|align|gather|abstract)\*?(?:\{[^}]*\})*)/g, '\n\n$1\n\n')
+    .replace(/(\\end\{(?:itemize|enumerate|tabular|tabular\*|lstlisting|verbatim|equation|align|gather|abstract)\*?\})/g, '\n\n$1\n\n')
+
+  // 4. Parse Body Blocks
   const rawBlocks = body.split(/\n\s*\n/)
 
   for (const block of rawBlocks) {
     const trimmed = block.trim()
     if (!trimmed) continue
 
-    // Skip internal layout commands that don't output text
-    if (/^\\(pagenumbering|clearpage|newpage|onehalfspacing|doublespacing|singlespacing|maketitle|noindent|centering|raggedright|pagestyle)\b/.test(trimmed)) {
+    // Skip layout commands or empty vspace blocks that don't output text
+    if (/^(\\vspace\*?\{[^}]*\}|\\hspace\*?\{[^}]*\}|\\noindent|\\pagestyle\{[^}]*\}|\\pagenumbering\{[^}]*\}|\\clearpage|\\newpage|\\onehalfspacing|\\doublespacing|\\singlespacing|\\maketitle|\\centering|\\raggedright|\s*)+$/.test(trimmed)) {
       continue
     }
 
@@ -435,7 +635,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     }
 
     // Tabular / Table
-    const tableMatch = trimmed.match(/\\begin\{tabular\}\{[^}]+\}([\s\S]*?)\\end\{tabular\}/)
+    const tableMatch = trimmed.match(/\\begin\{tabular\*?\}\{[^}]+\}(?:\[[^\]]*\])?(?:\{[^}]*\})?([\s\S]*?)\\end\{tabular\*?\}/)
     if (tableMatch) {
       const rawRows = tableMatch[1]
         .split(/\\\\/)
