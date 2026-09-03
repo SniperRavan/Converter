@@ -69,8 +69,8 @@ export const Header: React.FC = () => {
           <div className="relative flex items-center justify-center">
             <img
               src={heroImg}
-              alt="Logo"
-              className="w-7 h-7 object-contain rounded-md shadow-xs group-hover:scale-105 transition-transform"
+              alt="Converter Logo"
+              className="w-8 h-8 object-contain drop-shadow-[0_2px_8px_rgba(168,85,247,0.35)] group-hover:scale-105 transition-transform"
             />
           </div>
           <span className="font-bold text-xl tracking-tight text-neutral-900 dark:text-white">
