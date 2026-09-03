@@ -6,6 +6,13 @@ import heroImg from '../assets/hero.png'
 export const Header: React.FC = () => {
   const { themeMode, toggleThemeMode, motionMode, setMotionMode } = useConverterStore()
   const [activeSection, setActiveSection] = useState<string>('converter')
+  const [pillStyle, setPillStyle] = useState<{ left: number; width: number; ready: boolean }>({
+    left: 0,
+    width: 0,
+    ready: false,
+  })
+  const navRefs = React.useRef<Record<string, HTMLAnchorElement | null>>({})
+  const scrollTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const cycleMotion = () => {
     if (motionMode === 'full') setMotionMode('reduced')
@@ -13,45 +20,69 @@ export const Header: React.FC = () => {
     else setMotionMode('full')
   }
 
-  // Active scrollspy to track current in-view section
+  // Active scrollspy to track current in-view section with smooth hysteresis
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPosition = window.scrollY + 180
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
 
-      // Near bottom edge of page -> activate issues
-      if (
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - 100
-      ) {
-        setActiveSection('issues')
-        return
-      }
+      scrollTimerRef.current = setTimeout(() => {
+        const scrollPosition = window.scrollY + 200
 
-      const sections = [
-        { id: 'issues', el: document.getElementById('issues') },
-        { id: 'faq', el: document.getElementById('faq') },
-        { id: 'about', el: document.getElementById('about') },
-        { id: 'guide', el: document.getElementById('guide') },
-        { id: 'converter', el: document.getElementById('converter') },
-      ]
+        // Near bottom edge of page -> activate issues
+        if (
+          window.innerHeight + window.scrollY >=
+          document.documentElement.scrollHeight - 100
+        ) {
+          setActiveSection('issues')
+          return
+        }
 
-      for (const section of sections) {
-        if (section.el) {
-          const top = section.el.offsetTop
-          if (scrollPosition >= top) {
-            setActiveSection(section.id)
-            return
+        const sections = [
+          { id: 'issues', el: document.getElementById('issues') },
+          { id: 'faq', el: document.getElementById('faq') },
+          { id: 'about', el: document.getElementById('about') },
+          { id: 'guide', el: document.getElementById('guide') },
+          { id: 'converter', el: document.getElementById('converter') },
+        ]
+
+        for (const section of sections) {
+          if (section.el) {
+            const top = section.el.offsetTop
+            if (scrollPosition >= top) {
+              setActiveSection(section.id)
+              return
+            }
           }
         }
-      }
 
-      setActiveSection('converter')
+        setActiveSection('converter')
+      }, 40)
     }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
     handleScroll()
-    return () => window.removeEventListener('scroll', handleScroll)
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
+    }
   }, [])
+
+  // Smoothly reposition the sliding active pill
+  useEffect(() => {
+    const updatePill = () => {
+      const el = navRefs.current[activeSection]
+      if (el) {
+        setPillStyle({
+          left: el.offsetLeft,
+          width: el.offsetWidth,
+          ready: true,
+        })
+      }
+    }
+    updatePill()
+    window.addEventListener('resize', updatePill, { passive: true })
+    return () => window.removeEventListener('resize', updatePill)
+  }, [activeSection])
 
   const navItems = [
     { id: 'converter', label: 'Converter', href: '#converter' },
@@ -78,18 +109,32 @@ export const Header: React.FC = () => {
           </span>
         </a>
 
-        {/* Center Nav Links in Requested Order with Scrollspy */}
-        <nav className="hidden md:flex items-center space-x-1.5 text-xs font-medium">
+        {/* Center Nav Links with Smooth Gliding Indicator Pill */}
+        <nav className="relative hidden md:flex items-center p-1 rounded-xl bg-black/[0.03] dark:bg-white/[0.04] border border-black/5 dark:border-white/10 text-xs font-medium">
+          {/* Sliding Active Pill */}
+          <div
+            aria-hidden="true"
+            className="absolute top-1 bottom-1 rounded-lg bg-neutral-900/10 dark:bg-white/15 shadow-2xs transition-all duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] pointer-events-none"
+            style={{
+              transform: `translateX(${pillStyle.left}px)`,
+              width: `${pillStyle.width}px`,
+              opacity: pillStyle.ready ? 1 : 0,
+            }}
+          />
+
           {navItems.map((item) => {
             const isActive = activeSection === item.id
             return (
               <a
                 key={item.id}
+                ref={(el) => {
+                  navRefs.current[item.id] = el
+                }}
                 href={item.href}
-                className={`px-3 py-1.5 rounded-lg transition-all ${
+                className={`relative z-10 px-3 py-1.5 rounded-lg transition-colors duration-200 cursor-pointer ${
                   isActive
-                    ? 'bg-neutral-900/10 dark:bg-white/15 text-neutral-950 dark:text-white font-semibold shadow-2xs'
-                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
+                    ? 'text-neutral-950 dark:text-white font-semibold'
+                    : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-950 dark:hover:text-white'
                 }`}
               >
                 {item.label}
