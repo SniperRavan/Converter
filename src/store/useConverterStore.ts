@@ -278,6 +278,8 @@ interface ConverterStore {
 const initialDoc = parseUniversalDocument(SAMPLE_DOCUMENT, 'auto')
 const initialDetection = detectInputFormat(SAMPLE_DOCUMENT)
 
+let parseTimer: ReturnType<typeof setTimeout> | null = null
+
 export const useConverterStore = create<ConverterStore>((set, get) => ({
   inputContent: SAMPLE_DOCUMENT,
   inputFormat: 'auto',
@@ -334,6 +336,7 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
   setSyncScrollEnabled: (enabled) => set({ syncScrollEnabled: enabled }),
 
   setInputFormat: (format: SupportedInputFormat) => {
+    if (parseTimer) clearTimeout(parseTimer)
     const content = get().inputContent
     const doc = parseUniversalDocument(content, format)
     const detection = detectInputFormat(content)
@@ -346,13 +349,31 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
 
   setInputContent: (content: string, format?: SupportedInputFormat) => {
     const currentFormat = format || get().inputFormat
-    const doc = parseUniversalDocument(content, currentFormat)
-    const detection = detectInputFormat(content)
-    set({
-      inputContent: content,
-      parsedDocument: doc,
-      detectionResult: detection,
-    })
+    // Instantly update text buffer for 0-latency typing
+    set({ inputContent: content })
+
+    if (parseTimer) clearTimeout(parseTimer)
+
+    // Immediate parse for short inputs (< 40 chars) to prevent lag feel
+    if (content.length < 40) {
+      const doc = parseUniversalDocument(content, currentFormat)
+      const detection = detectInputFormat(content)
+      set({
+        parsedDocument: doc,
+        detectionResult: detection,
+      })
+      return
+    }
+
+    // 120ms debounce for continuous typing
+    parseTimer = setTimeout(() => {
+      const doc = parseUniversalDocument(content, currentFormat)
+      const detection = detectInputFormat(content)
+      set({
+        parsedDocument: doc,
+        detectionResult: detection,
+      })
+    }, 120)
   },
 
   // Context-aware sample loader: loads sample matching the active input format

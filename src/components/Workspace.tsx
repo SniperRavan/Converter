@@ -60,47 +60,52 @@ export const Workspace: React.FC = () => {
   const previewContainerRef = useRef<HTMLDivElement>(null)
   const isSyncingScrollRef = useRef<'editor' | 'preview' | null>(null)
 
-  // Rendered export formats
+  // Rendered export formats - LAZY rendering: only compute what is currently selected!
   const renderedMarkdown = useMemo(
-    () => renderToMarkdown(parsedDocument),
-    [parsedDocument]
+    () => (selectedFormat === 'markdown' || showExportMenu ? renderToMarkdown(parsedDocument) : ''),
+    [parsedDocument, selectedFormat, showExportMenu]
   )
 
   const renderedHtml = useMemo(
     () =>
-      renderToHtml(parsedDocument, {
-        includeWrapper: formatOptions.html.includeWrapper,
-        title: parsedDocument.metadata.title || 'Converted Document',
-      }),
-    [parsedDocument, formatOptions.html.includeWrapper]
+      selectedFormat === 'html'
+        ? renderToHtml(parsedDocument, {
+            includeWrapper: formatOptions.html.includeWrapper,
+            title: parsedDocument.metadata.title || 'Converted Document',
+          })
+        : '',
+    [parsedDocument, selectedFormat, formatOptions.html.includeWrapper]
   )
 
   const renderedLatex = useMemo(
     () =>
-      renderToLatex(parsedDocument, {
-        includePreamble: formatOptions.latex.includePreamble,
-        documentClass: formatOptions.latex.documentClass,
-      }),
-    [parsedDocument, formatOptions.latex]
+      selectedFormat === 'latex'
+        ? renderToLatex(parsedDocument, {
+            includePreamble: formatOptions.latex.includePreamble,
+            documentClass: formatOptions.latex.documentClass,
+          })
+        : '',
+    [parsedDocument, selectedFormat, formatOptions.latex]
   )
 
   const renderedPlainText = useMemo(
-    () => renderToPlainText(parsedDocument),
-    [parsedDocument]
+    () => (selectedFormat === 'text' ? renderToPlainText(parsedDocument) : ''),
+    [parsedDocument, selectedFormat]
   )
 
   const renderedJson = useMemo(
-    () => JSON.stringify(parsedDocument, null, 2),
-    [parsedDocument]
+    () => (selectedFormat === 'json' ? JSON.stringify(parsedDocument, null, 2) : ''),
+    [parsedDocument, selectedFormat]
   )
 
-  // Line calculations for line numbers gutter
+  // Line calculations for line numbers gutter: capped to 600 nodes to prevent memory bloat on large documents
   const lineCount = useMemo(() => {
     return Math.max(inputContent.split('\n').length, 1)
   }, [inputContent])
 
   const lineNumbers = useMemo(() => {
-    return Array.from({ length: lineCount }, (_, i) => i + 1)
+    const count = Math.min(lineCount, 600)
+    return Array.from({ length: count }, (_, i) => i + 1)
   }, [lineCount])
 
   // Track cursor position for line indicator

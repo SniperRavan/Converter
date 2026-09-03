@@ -61,6 +61,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
   })
   const [copied, setCopied] = useState<boolean>(false)
   const [htmlViewMode, setHtmlViewMode] = useState<'visual' | 'code'>('visual')
+  const [paperView, setPaperView] = useState<'theme' | 'paper'>('theme')
 
   // Close on Escape key
   useEffect(() => {
@@ -235,8 +236,35 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
             ))}
           </div>
 
-          {/* Filename Input + HTML Mode Toggle */}
+          {/* Filename Input + HTML/Paper Mode Toggle */}
           <div className="flex items-center justify-between sm:justify-end gap-2 pt-0.5 sm:pt-0">
+            {(activeType === 'word' || activeType === 'pdf') && (
+              <div className="flex items-center rounded-md border border-[#E5DDD0] dark:border-white/10 bg-[#FFFAF0] dark:bg-[#171717] p-0.5 mr-1">
+                <button
+                  onClick={() => setPaperView('theme')}
+                  className={`px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors cursor-pointer ${
+                    paperView === 'theme'
+                      ? 'bg-neutral-900 dark:bg-white text-white dark:text-black'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                  title="Dark / Match App Theme"
+                >
+                  Dark
+                </button>
+                <button
+                  onClick={() => setPaperView('paper')}
+                  className={`px-2 py-0.5 rounded text-[10px] sm:text-[11px] font-medium transition-colors cursor-pointer ${
+                    paperView === 'paper'
+                      ? 'bg-neutral-900 dark:bg-white text-white dark:text-black'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                  title="White Printed Paper Mockup"
+                >
+                  Paper
+                </button>
+              </div>
+            )}
+
             {activeType === 'html' && (
               <div className="flex items-center rounded-md border border-[#E5DDD0] dark:border-white/10 bg-[#FFFAF0] dark:bg-[#171717] p-0.5 mr-1">
                 <button
@@ -284,9 +312,17 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-[#F4EDE2]/50 dark:bg-black/50">
           {/* Word & PDF Realistic Sheet Preview */}
           {(activeType === 'word' || activeType === 'pdf') && (
-            <div className="max-w-3xl mx-auto rounded-xl border border-[#E0D7C9] dark:border-white/15 bg-white dark:bg-[#0e0e0e] shadow-md p-4 sm:p-10 min-h-[480px]">
+            <div className={`max-w-3xl mx-auto rounded-xl border shadow-md p-4 sm:p-10 min-h-[480px] transition-colors ${
+              paperView === 'paper'
+                ? 'border-neutral-300 bg-white text-neutral-900'
+                : 'border-[#E0D7C9] dark:border-white/15 bg-white dark:bg-[#0e0e0e] text-neutral-800 dark:text-neutral-200'
+            }`}>
               <div
-                className="prose prose-sm sm:prose-base dark:prose-invert max-w-none font-serif leading-relaxed text-neutral-800 dark:text-neutral-200 select-text"
+                className={`prose prose-sm sm:prose-base max-w-none font-serif leading-relaxed select-text ${
+                  paperView === 'paper'
+                    ? 'prose-neutral text-neutral-900 [&_img]:filter-none'
+                    : 'dark:prose-invert text-neutral-800 dark:text-neutral-200'
+                }`}
                 dangerouslySetInnerHTML={{ __html: contentHtmlClean }}
               />
             </div>

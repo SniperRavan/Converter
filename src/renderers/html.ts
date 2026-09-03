@@ -61,7 +61,7 @@ function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'l
         const encoded = encodeURIComponent(node.value.trim())
         // Natural DPI (~16-18px height) perfectly matches standard 11pt/12pt document text
         const url = `https://latex.codecogs.com/png.image?${encoded}`
-        return `<img src="${url}" alt="${escapeHtml(node.value)}" style="vertical-align: -0.25em; display: inline-block; margin: 0 2px;" />`
+        return `<img src="${url}" class="latex-formula" alt="${escapeHtml(node.value)}" style="vertical-align: -0.25em; display: inline-block; margin: 0 2px;" />`
       }
       if (mathMode === 'mathml') {
         return renderMathToMathMl(node.value, false)
@@ -105,7 +105,7 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
         const encoded = encodeURIComponent(block.value.trim())
         // 110 DPI renders a crisp, proportional equation block (~50px height) rather than oversized 300 DPI
         const url = `https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D${encoded}`
-        return `<p align="center" style="text-align: center; margin: 12px 0;"><img src="${url}" alt="${escapeHtml(block.value)}" style="display: inline-block; max-height: 60px;" /></p>`
+        return `<p align="center" style="text-align: center; margin: 12px 0;"><img src="${url}" class="latex-formula" alt="${escapeHtml(block.value)}" style="display: inline-block; max-height: 60px;" /></p>`
       }
       if (mathMode === 'mathml') {
         return `<div class="math-block" align="center">\n${renderMathToMathMl(block.value, true)}\n</div>`

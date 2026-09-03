@@ -144,3 +144,10 @@
   font-weight: 600;
   background: rgba(150, 150, 150, 0.05);
 }
+
+/* Math Formula Dark Mode Inversion: automatically renders transparent black-ink LaTeX formulas in crisp white text */
+.dark img[src*="latex.codecogs.com"],
+.dark .latex-formula,
+.dark img[src*="png.image"] {
+  filter: invert(1) hue-rotate(180deg) contrast(1.1) brightness(1.2);
+}
