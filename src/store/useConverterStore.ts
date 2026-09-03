@@ -114,7 +114,7 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
       },
     })),
 
-  themeMode: 'dark',
+  themeMode: (typeof window !== 'undefined' && (localStorage.getItem('convertion_theme') as 'dark' | 'light')) || 'dark',
   toggleThemeMode: () => {
     const next = get().themeMode === 'dark' ? 'light' : 'dark'
     if (typeof document !== 'undefined') {
@@ -123,6 +123,9 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
       } else {
         document.documentElement.classList.remove('dark')
       }
+      try {
+        localStorage.setItem('convertion_theme', next)
+      } catch {}
     }
     set({ themeMode: next })
   },
