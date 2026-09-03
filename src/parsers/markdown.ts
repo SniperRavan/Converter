@@ -77,6 +77,8 @@ function mapMdastInline(node: any): InlineNode | null {
 // Map MDAST block nodes to our Normalized Document Model
 function mapMdastBlock(node: any): BlockNode | null {
   if (!node) return null
+  const startLine = node.position?.start?.line
+  const endLine = node.position?.end?.line
 
   switch (node.type) {
     case 'heading': {
@@ -84,6 +86,8 @@ function mapMdastBlock(node: any): BlockNode | null {
       return {
         type: 'heading',
         level,
+        startLine,
+        endLine,
         children: (node.children || []).map(mapMdastInline).filter(Boolean) as InlineNode[],
       }
     }
@@ -91,12 +95,16 @@ function mapMdastBlock(node: any): BlockNode | null {
     case 'paragraph':
       return {
         type: 'paragraph',
+        startLine,
+        endLine,
         children: (node.children || []).map(mapMdastInline).filter(Boolean) as InlineNode[],
       }
 
     case 'blockquote':
       return {
         type: 'blockquote',
+        startLine,
+        endLine,
         children: (node.children || []).map(mapMdastBlock).filter(Boolean) as BlockNode[],
       }
 
@@ -105,6 +113,8 @@ function mapMdastBlock(node: any): BlockNode | null {
         type: 'list',
         ordered: Boolean(node.ordered),
         start: node.start || 1,
+        startLine,
+        endLine,
         items: (node.children || []).map((item: any) => ({
           type: 'listItem' as const,
           children: (item.children || []).map(mapMdastBlock).filter(Boolean) as BlockNode[],
@@ -117,6 +127,8 @@ function mapMdastBlock(node: any): BlockNode | null {
         type: 'codeBlock',
         language: node.lang || 'text',
         value: node.value || '',
+        startLine,
+        endLine,
       }
 
     case 'math':
@@ -124,6 +136,8 @@ function mapMdastBlock(node: any): BlockNode | null {
         type: 'mathBlock',
         value: node.value || '',
         source: `$$\n${node.value || ''}\n$$`,
+        startLine,
+        endLine,
       }
 
     case 'table': {
@@ -159,12 +173,14 @@ function mapMdastBlock(node: any): BlockNode | null {
         headers,
         rows,
         alignments,
+        startLine,
+        endLine,
       }
       return tableNode
     }
 
     case 'thematicBreak':
-      return { type: 'thematicBreak' }
+      return { type: 'thematicBreak', startLine, endLine }
 
     default:
       if (node.value) {

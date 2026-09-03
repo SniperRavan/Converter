@@ -77,6 +77,12 @@ interface ConverterStore {
   motionMode: 'full' | 'reduced' | 'off'
   setMotionMode: (mode: 'full' | 'reduced' | 'off') => void
 
+  // Line Tracking & Sync Scroll
+  activeLine: number | null
+  setActiveLine: (line: number | null) => void
+  syncScrollEnabled: boolean
+  setSyncScrollEnabled: (enabled: boolean) => void
+
   // Actions
   loadSample: () => void
   clearDocument: () => void
@@ -123,16 +129,18 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
 
   motionMode: 'full',
   setMotionMode: (mode) => {
+    set({ motionMode: mode })
     if (typeof document !== 'undefined') {
       document.documentElement.classList.remove('motion-off', 'motion-reduced')
-      if (mode === 'off') {
-        document.documentElement.classList.add('motion-off')
-      } else if (mode === 'reduced') {
-        document.documentElement.classList.add('motion-reduced')
-      }
+      if (mode === 'off') document.documentElement.classList.add('motion-off')
+      if (mode === 'reduced') document.documentElement.classList.add('motion-reduced')
     }
-    set({ motionMode: mode })
   },
+
+  activeLine: 1,
+  setActiveLine: (line) => set({ activeLine: line }),
+  syncScrollEnabled: true,
+  setSyncScrollEnabled: (enabled) => set({ syncScrollEnabled: enabled }),
 
   setInputContent: (content: string) => {
     const doc = parseMarkdown(content)

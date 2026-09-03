@@ -5,6 +5,8 @@ export type Alignment = 'left' | 'center' | 'right' | null
 
 export interface BaseNode {
   id?: string
+  startLine?: number
+  endLine?: number
 }
 
 // Inline Nodes

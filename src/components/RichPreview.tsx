@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import katex from 'katex'
 import { Copy, Check, Terminal, ExternalLink } from 'lucide-react'
 import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
+import { useConverterStore } from '../store/useConverterStore'
 
 interface InlineRendererProps {
   node: InlineNode
@@ -41,7 +42,7 @@ export const InlineRenderer: React.FC<InlineRendererProps> = ({ node }) => {
 
     case 'inlineCode':
       return (
-        <code className="px-1.5 py-0.5 mx-0.5 rounded-md bg-slate-200/60 dark:bg-white/[0.08] font-mono text-[0.88em] text-blue-600 dark:text-blue-400 border border-slate-300/40 dark:border-white/[0.08]">
+        <code className="px-1.5 py-0.5 mx-0.5 rounded bg-slate-200/60 dark:bg-white/[0.08] font-mono text-[0.88em] text-blue-600 dark:text-blue-400 border border-slate-300/40 dark:border-white/[0.08]">
           {node.value}
         </code>
       )
@@ -101,8 +102,8 @@ const CodeBlockRenderer: React.FC<CodeBlockProps> = ({ language, value }) => {
   }
 
   return (
-    <div className="relative my-4 rounded-2xl overflow-hidden border border-slate-200 dark:border-white/10 bg-[#0a0c13] text-slate-100 shadow-lg">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-white/[0.06] bg-white/[0.02] text-xs text-slate-400">
+    <div className="relative my-3 rounded-xl overflow-hidden border border-slate-200 dark:border-white/10 bg-[#0a0c13] text-slate-100 shadow-md">
+      <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/[0.06] bg-white/[0.02] text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5 text-blue-400" />
           <span className="font-mono uppercase font-semibold text-[11px] tracking-wider text-slate-300">
@@ -111,7 +112,7 @@ const CodeBlockRenderer: React.FC<CodeBlockProps> = ({ language, value }) => {
         </div>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white transition-all active:scale-95"
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/[0.06] hover:bg-white/[0.12] text-slate-300 hover:text-white transition-all active:scale-95"
           title="Copy code snippet"
         >
           {copied ? (
@@ -127,7 +128,7 @@ const CodeBlockRenderer: React.FC<CodeBlockProps> = ({ language, value }) => {
           )}
         </button>
       </div>
-      <pre className="p-4 overflow-x-auto text-xs sm:text-sm font-mono leading-relaxed text-slate-200">
+      <pre className="p-3.5 overflow-x-auto text-xs sm:text-sm font-mono leading-relaxed text-slate-200">
         <code>{value}</code>
       </pre>
     </div>
@@ -145,147 +146,155 @@ const MathBlockRenderer: React.FC<MathBlockProps> = ({ value }) => {
       throwOnError: false,
     })
     return (
-      <div className="my-5 p-5 rounded-2xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.08] overflow-x-auto text-center shadow-xs">
+      <div className="my-3.5 p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.08] overflow-x-auto text-center shadow-xs">
         <div dangerouslySetInnerHTML={{ __html: html }} className="py-1 text-slate-900 dark:text-slate-100" />
       </div>
     )
   } catch {
     return (
-      <div className="my-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-500 font-mono text-xs">
+      <div className="my-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-500 font-mono text-xs">
         {value}
       </div>
     )
   }
 }
 
-export const BlockRenderer: React.FC<{ block: BlockNode }> = ({ block }) => {
-  switch (block.type) {
-    case 'heading': {
-      const content = block.children.map((c, i) => <InlineRenderer key={i} node={c} />)
-      if (block.level === 1) {
+export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> = ({ block, isActive }) => {
+  const activeClass = isActive
+    ? 'ring-2 ring-blue-500/80 bg-blue-500/[0.06] dark:bg-blue-500/[0.12] rounded-lg p-1.5 -m-1.5 transition-all duration-200 shadow-xs'
+    : 'transition-all duration-200'
+
+  const renderContent = () => {
+    switch (block.type) {
+      case 'heading': {
+        const content = block.children.map((c, i) => <InlineRenderer key={i} node={c} />)
+        if (block.level === 1) {
+          return (
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-5 mb-2.5 text-slate-950 dark:text-white font-sans">
+              {content}
+            </h1>
+          )
+        }
+        if (block.level === 2) {
+          return (
+            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight mt-5 mb-2 pb-1 border-b border-slate-200/60 dark:border-white/[0.06] text-slate-900 dark:text-slate-100 font-sans">
+              {content}
+            </h2>
+          )
+        }
+        if (block.level === 3) {
+          return (
+            <h3 className="text-lg sm:text-xl font-semibold mt-4 mb-1.5 text-slate-800 dark:text-slate-200 font-sans">
+              {content}
+            </h3>
+          )
+        }
         return (
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-6 mb-3 text-slate-950 dark:text-white">
+          <h4 className="text-base font-medium mt-3 mb-1 text-slate-800 dark:text-slate-200 font-sans">
             {content}
-          </h1>
+          </h4>
         )
       }
-      if (block.level === 2) {
+
+      case 'paragraph':
         return (
-          <h2 className="text-xl sm:text-2xl font-semibold tracking-tight mt-6 mb-2.5 pb-1 border-b border-slate-200/60 dark:border-white/[0.06] text-slate-900 dark:text-slate-100">
-            {content}
-          </h2>
+          <p className="my-2.5 leading-relaxed text-slate-700 dark:text-slate-300">
+            {block.children.map((c, i) => (
+              <InlineRenderer key={i} node={c} />
+            ))}
+          </p>
+        )
+
+      case 'blockquote':
+        return (
+          <blockquote className="my-3 pl-4 py-1.5 border-l-3 border-blue-500 bg-blue-50/50 dark:bg-blue-500/[0.04] rounded-r-lg italic text-slate-700 dark:text-slate-300">
+            {block.children.map((child, i) => (
+              <BlockRenderer key={i} block={child} />
+            ))}
+          </blockquote>
+        )
+
+      case 'codeBlock':
+        return <CodeBlockRenderer language={block.language} value={block.value} />
+
+      case 'mathBlock':
+        return <MathBlockRenderer value={block.value} />
+
+      case 'list': {
+        const Tag = block.ordered ? 'ol' : 'ul'
+        const listStyle = block.ordered ? 'list-decimal' : 'list-disc'
+        return (
+          <Tag className={`my-2.5 pl-6 space-y-1 ${listStyle} text-slate-700 dark:text-slate-300`}>
+            {block.items.map((item, idx) => (
+              <li key={idx} className="leading-relaxed">
+                {item.children.map((child, cIdx) => {
+                  if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
+                    return child.children.map((c, i) => <InlineRenderer key={i} node={c} />)
+                  }
+                  if ('type' in child && child.type === 'list') {
+                    return <BlockRenderer key={cIdx} block={child} />
+                  }
+                  return null
+                })}
+              </li>
+            ))}
+          </Tag>
         )
       }
-      if (block.level === 3) {
+
+      case 'table': {
         return (
-          <h3 className="text-lg sm:text-xl font-semibold mt-4 mb-2 text-slate-800 dark:text-slate-200">
-            {content}
-          </h3>
-        )
-      }
-      return (
-        <h4 className="text-base sm:text-lg font-medium mt-3 mb-1.5 text-slate-800 dark:text-slate-200">
-          {content}
-        </h4>
-      )
-    }
-
-    case 'paragraph':
-      return (
-        <p className="my-3 leading-relaxed text-slate-700 dark:text-slate-300">
-          {block.children.map((c, i) => (
-            <InlineRenderer key={i} node={c} />
-          ))}
-        </p>
-      )
-
-    case 'blockquote':
-      return (
-        <blockquote className="my-4 pl-4 py-1.5 border-l-3 border-blue-500 bg-blue-50/50 dark:bg-blue-500/[0.04] rounded-r-xl italic text-slate-700 dark:text-slate-300">
-          {block.children.map((child, i) => (
-            <BlockRenderer key={i} block={child} />
-          ))}
-        </blockquote>
-      )
-
-    case 'codeBlock':
-      return <CodeBlockRenderer language={block.language} value={block.value} />
-
-    case 'mathBlock':
-      return <MathBlockRenderer value={block.value} />
-
-    case 'list': {
-      const Tag = block.ordered ? 'ol' : 'ul'
-      const listStyle = block.ordered ? 'list-decimal' : 'list-disc'
-      return (
-        <Tag className={`my-3 pl-6 space-y-1.5 ${listStyle} text-slate-700 dark:text-slate-300`}>
-          {block.items.map((item, idx) => (
-            <li key={idx} className="leading-relaxed">
-              {item.children.map((child, cIdx) => {
-                if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
-                  return child.children.map((c, i) => <InlineRenderer key={i} node={c} />)
-                }
-                if ('type' in child && child.type === 'list') {
-                  return <BlockRenderer key={cIdx} block={child} />
-                }
-                return null
-              })}
-            </li>
-          ))}
-        </Tag>
-      )
-    }
-
-    case 'table': {
-      return (
-        <div className="my-5 overflow-x-auto rounded-2xl border border-slate-200 dark:border-white/10 shadow-xs">
-          <table className="w-full text-left border-collapse text-xs sm:text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04]">
-                {block.headers.map((cell, idx) => (
-                  <th
-                    key={idx}
-                    className="px-4 py-3 font-semibold text-slate-900 dark:text-white"
-                    style={{ textAlign: cell.align || 'left' }}
-                  >
-                    {cell.children.map((c, i) => (
-                      <InlineRenderer key={i} node={c} />
-                    ))}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200/70 dark:divide-white/[0.04]">
-              {block.rows.map((row, rIdx) => (
-                <tr key={rIdx} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
-                  {row.cells.map((cell, cIdx) => (
-                    <td
-                      key={cIdx}
-                      className="px-4 py-2.5 text-slate-700 dark:text-slate-300"
+          <div className="my-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
+            <table className="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04]">
+                  {block.headers.map((cell, idx) => (
+                    <th
+                      key={idx}
+                      className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white"
                       style={{ textAlign: cell.align || 'left' }}
                     >
                       {cell.children.map((c, i) => (
                         <InlineRenderer key={i} node={c} />
                       ))}
-                    </td>
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )
+              </thead>
+              <tbody className="divide-y divide-slate-200/70 dark:divide-white/[0.04]">
+                {block.rows.map((row, rIdx) => (
+                  <tr key={rIdx} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
+                    {row.cells.map((cell, cIdx) => (
+                      <td
+                        key={cIdx}
+                        className="px-4 py-2 text-slate-700 dark:text-slate-300"
+                        style={{ textAlign: cell.align || 'left' }}
+                      >
+                        {cell.children.map((c, i) => (
+                          <InlineRenderer key={i} node={c} />
+                        ))}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+
+      case 'thematicBreak':
+        return <hr className="my-5 border-slate-200 dark:border-white/10" />
+
+      case 'rawBlock':
+        return <div className="my-2 p-2.5 font-mono text-xs bg-slate-100 dark:bg-white/[0.05] rounded-lg">{block.content}</div>
+
+      default:
+        return null
     }
-
-    case 'thematicBreak':
-      return <hr className="my-6 border-slate-200 dark:border-white/10" />
-
-    case 'rawBlock':
-      return <div className="my-2 p-3 font-mono text-xs bg-slate-100 dark:bg-white/[0.05] rounded-xl">{block.content}</div>
-
-    default:
-      return null
   }
+
+  return <div className={activeClass}>{renderContent()}</div>
 }
 
 interface RichPreviewProps {
@@ -293,27 +302,36 @@ interface RichPreviewProps {
 }
 
 export const RichPreview: React.FC<RichPreviewProps> = ({ document }) => {
+  const { activeLine } = useConverterStore()
+
   if (!document.children || document.children.length === 0) {
     return (
-      <div className="h-full min-h-[400px] flex flex-col items-center justify-center text-center p-8 border border-dashed border-slate-200 dark:border-white/10 rounded-2xl">
+      <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-8 text-slate-400">
         <div className="w-12 h-12 mb-3 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
           ✨
         </div>
-        <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 mb-1">
-          Canvas Awaiting Content
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-1">
+          Visual Preview Ready
         </h3>
-        <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
-          Type or paste any messy LLM output, Markdown, or LaTeX formulas in the input terminal to see them transformed in real time.
+        <p className="text-xs text-slate-500 max-w-sm">
+          Type or paste markdown on the left to see live formatting with synchronized line tracking.
         </p>
       </div>
     )
   }
 
   return (
-    <article className="prose prose-slate dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed font-sans">
-      {document.children.map((block, idx) => (
-        <BlockRenderer key={idx} block={block} />
-      ))}
+    <article className="prose prose-slate dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed font-sans text-sm">
+      {document.children.map((block, idx) => {
+        const isBlockActive =
+          activeLine != null &&
+          block.startLine != null &&
+          block.endLine != null &&
+          activeLine >= block.startLine &&
+          activeLine <= block.endLine
+
+        return <BlockRenderer key={idx} block={block} isActive={isBlockActive} />
+      })}
     </article>
   )
 }

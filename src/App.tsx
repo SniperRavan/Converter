@@ -3,13 +3,13 @@ import { Header } from './components/Header'
 import { FormatSelector } from './components/FormatSelector'
 import { StatusBar } from './components/StatusBar'
 import { Workspace } from './components/Workspace'
-import { Footer } from './components/Footer'
+import { FluidCanvas } from './components/canvasui/FluidCanvas'
 import { useConverterStore } from './store/useConverterStore'
 
 function App() {
   const { themeMode } = useConverterStore()
 
-  // Sync document class for dark mode on initialization & toggles
+  // Sync dark mode class
   useEffect(() => {
     if (themeMode === 'dark') {
       document.documentElement.classList.add('dark')
@@ -19,49 +19,25 @@ function App() {
   }, [themeMode])
 
   return (
-    <div className="relative min-h-screen flex flex-col bg-slate-50 dark:bg-[#06070a] text-slate-900 dark:text-slate-100 selection:bg-blue-500/20 selection:text-blue-500 transition-colors duration-300 font-sans overflow-x-hidden">
-      {/* Ambient Atmospheric Radial Glows */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-40 left-1/2 -translate-x-1/2 w-[1000px] h-[550px] bg-gradient-to-b from-blue-600/10 via-indigo-600/5 to-transparent blur-3xl opacity-70 dark:opacity-40"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none fixed inset-0 bg-grid-pattern opacity-40"
-      />
+    <div className="relative h-screen max-h-screen w-screen overflow-hidden flex flex-col bg-slate-50 dark:bg-[#06070a] text-slate-900 dark:text-slate-100 selection:bg-blue-500/20 selection:text-blue-500 font-sans transition-colors duration-200">
+      {/* Canvas UI Ambient Constellation Shader */}
+      <FluidCanvas />
 
-      {/* Floating Island Navigation */}
+      {/* Compact Studio Header with hero.png logo */}
       <Header />
 
-      {/* Main Workspace Stage */}
-      <main className="relative z-10 flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 sm:pt-10 pb-12 flex flex-col gap-6">
-        {/* Editorial Hero Header */}
-        <section className="text-center max-w-2xl mx-auto space-y-2.5 pt-2 pb-1">
-          <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-slate-950 dark:text-white font-sans">
-            Universal Document Engine
-          </h1>
-          <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-            Paste messy LLM responses, Markdown, LaTeX math, or tables. Converted deterministically into any format inside your browser.
-          </p>
-        </section>
-
-        {/* Format Selector Bar */}
-        <section aria-label="Format Selector">
+      {/* Main Studio Viewport (Zero outer scrolling, full internal scroll) */}
+      <main className="relative z-10 flex-1 min-h-0 w-full flex flex-col px-3 sm:px-5 pt-2 pb-3 gap-2.5 overflow-hidden">
+        {/* Top Control Strip: Format Selector + Live Status */}
+        <div className="shrink-0 flex items-center justify-between flex-wrap gap-2">
           <FormatSelector />
-        </section>
-
-        {/* Live Diagnostics & Privacy Bar */}
-        <section aria-label="Document Diagnostics">
           <StatusBar />
-        </section>
+        </div>
 
-        {/* Core Conversion & Preview Workspace (Double-Bezel Architecture) */}
-        <section aria-label="Main Workspace" className="flex-1">
+        {/* Main Side-by-Side Synchronized Workspace */}
+        <div className="flex-1 min-h-0 w-full">
           <Workspace />
-        </section>
-
-        {/* Manifesto & Architecture Highlights */}
-        <Footer />
+        </div>
       </main>
     </div>
   )
