@@ -47,7 +47,7 @@ export function detectInputFormat(content: string): DetectionResult {
   const isJson = (clean.startsWith('{') && clean.endsWith('}')) || (clean.startsWith('[') && clean.endsWith(']'))
 
   // 4. Markdown features
-  const hasMath = /\$\$[\s\S]*?\$\$|\$[^\$\n]+?\$|\\\[[\s\S]*?\\\]|\\\(.+?\\\)|\\[a-zA-Z]+/.test(clean)
+  const hasMath = /\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|\\\[[\s\S]*?\\\]|\\\(.+?\\\)|\\[a-zA-Z]+/.test(clean)
   const hasTables = /\|(.+)\|[\r\n]+\|[-:\s|]+\|/.test(clean)
   const hasCode = /```[a-zA-Z0-9_-]*[\s\S]*?```/.test(clean)
   const hasHeadings = /^#{1,6}\s+\S+/m.test(clean) || /^\S+[\r\n]+[=-]{2,}\s*$/m.test(clean)

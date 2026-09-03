@@ -19,7 +19,7 @@ import { renderToMarkdown } from '../renderers/markdown'
 import { renderToHtml } from '../renderers/html'
 import { renderToLatex } from '../renderers/latex'
 import { renderToPlainText } from '../renderers/text'
-import { exportToWord, exportToPdf, exportToFile } from '../utils/exporters'
+import { ExportPreviewModal, type ExportType } from './ExportPreviewModal'
 import type { SupportedInputFormat, SupportedOutputFormat } from '../core/types'
 
 export const Workspace: React.FC = () => {
@@ -44,7 +44,15 @@ export const Workspace: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false)
   const [copiedRichText, setCopiedRichText] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [exportPreviewOpen, setExportPreviewOpen] = useState(false)
+  const [exportPreviewType, setExportPreviewType] = useState<ExportType>('word')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleOpenExport = (type: ExportType) => {
+    setExportPreviewType(type)
+    setExportPreviewOpen(true)
+    setShowExportMenu(false)
+  }
 
   // Scroll sync refs
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -464,94 +472,102 @@ export const Workspace: React.FC = () => {
                   )}
                 </button>
 
-                {/* Export Dropdown */}
-                <div className="relative">
+                {/* Export Split Button */}
+                <div className="relative flex items-center">
                   <button
-                    onClick={() => setShowExportMenu(!showExportMenu)}
-                    className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-white dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-white h-8 sm:h-9 rounded-md px-3 transition-colors cursor-pointer shadow-2xs"
+                    onClick={() => {
+                      const defaultType: ExportType =
+                        selectedFormat === 'markdown'
+                          ? 'markdown'
+                          : selectedFormat === 'html'
+                          ? 'html'
+                          : selectedFormat === 'latex'
+                          ? 'latex'
+                          : selectedFormat === 'text'
+                          ? 'text'
+                          : selectedFormat === 'json'
+                          ? 'json'
+                          : 'word'
+                      handleOpenExport(defaultType)
+                    }}
+                    className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-r-0 border-[#E2DAD0] dark:border-white/15 bg-white dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-white h-8 sm:h-9 rounded-l-md px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
+                    title="Preview and export document"
                   >
                     <Download className="h-3.5 w-3.5 mr-1 text-neutral-500 dark:text-neutral-400" />
-                    <span className="hidden sm:inline">Export</span>
-                    <ChevronDown className="h-3 w-3 ml-1 opacity-70" />
+                    <span>Export</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowExportMenu(!showExportMenu)}
+                    className="inline-flex items-center justify-center border border-[#E2DAD0] dark:border-white/15 bg-white dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-white h-8 sm:h-9 rounded-r-md px-1.5 transition-colors cursor-pointer shadow-2xs"
+                    title="Select format to preview"
+                  >
+                    <ChevronDown className="h-3 w-3 opacity-70" />
                   </button>
 
                   {showExportMenu && (
                     <div
                       onMouseLeave={() => setShowExportMenu(false)}
-                      className="absolute right-0 mt-1.5 w-48 rounded-xl border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#121212] shadow-xl py-1 z-30 text-xs font-medium animate-in fade-in-50 zoom-in-95"
+                      className="absolute right-0 top-full mt-1.5 w-52 rounded-xl border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#121212] shadow-xl py-1.5 z-30 text-xs font-medium animate-in fade-in-50 zoom-in-95"
                     >
+                      <div className="px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-neutral-400 dark:text-neutral-500">
+                        Preview &amp; Export
+                      </div>
+
                       <button
-                        onClick={() => {
-                          exportToWord(renderedHtml, 'document')
-                          setShowExportMenu(false)
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                        onClick={() => handleOpenExport('word')}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>Word Document</span>
                         <span className="text-[10px] text-blue-500 font-mono">.DOC</span>
                       </button>
                       <button
-                        onClick={() => {
-                          exportToPdf(renderedHtml, 'document')
-                          setShowExportMenu(false)
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                        onClick={() => handleOpenExport('pdf')}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>PDF Document</span>
                         <span className="text-[10px] text-red-500 font-mono">.PDF</span>
                       </button>
                       <button
-                        onClick={() => {
-                          exportToFile(renderedHtml, 'document.html', 'text/html;charset=utf-8')
-                          setShowExportMenu(false)
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                        onClick={() => handleOpenExport('html')}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>HTML Page</span>
                         <span className="text-[10px] text-emerald-500 font-mono">.HTML</span>
                       </button>
                       <button
-                        onClick={() => {
-                          exportToFile(renderedMarkdown, 'document.md', 'text/markdown;charset=utf-8')
-                          setShowExportMenu(false)
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                        onClick={() => handleOpenExport('markdown')}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>Markdown</span>
                         <span className="text-[10px] text-purple-500 font-mono">.MD</span>
                       </button>
                       <button
-                        onClick={() => {
-                          exportToFile(renderedLatex, 'document.tex', 'application/x-tex;charset=utf-8')
-                          setShowExportMenu(false)
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                        onClick={() => handleOpenExport('latex')}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>LaTeX Document</span>
                         <span className="text-[10px] text-amber-500 font-mono">.TEX</span>
                       </button>
                       <button
-                        onClick={() => {
-                          exportToFile(renderedPlainText, 'document.txt', 'text/plain;charset=utf-8')
-                          setShowExportMenu(false)
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                        onClick={() => handleOpenExport('text')}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>Plain Text</span>
                         <span className="text-[10px] text-cyan-500 font-mono">.TXT</span>
                       </button>
                       <button
-                        onClick={() => {
-                          exportToFile(renderedJson, 'document.json', 'application/json;charset=utf-8')
-                          setShowExportMenu(false)
-                        }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                        onClick={() => handleOpenExport('json')}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>JSON AST</span>
                         <span className="text-[10px] text-indigo-500 font-mono">.JSON</span>
                       </button>
 
                       <div className="my-1 border-t border-[#E5DDD0] dark:border-white/10" />
+                      <div className="px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-neutral-400 dark:text-neutral-500">
+                        Quick Copy
+                      </div>
 
                       <button
                         onClick={async () => {
@@ -567,7 +583,7 @@ export const Workspace: React.FC = () => {
                           setTimeout(() => setCopiedRichText(false), 2000)
                           setShowExportMenu(false)
                         }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>Copy for Google Docs (Images)</span>
                         <span className="text-[10px] text-blue-500 font-mono">DOCS</span>
@@ -587,7 +603,7 @@ export const Workspace: React.FC = () => {
                           setTimeout(() => setCopiedRichText(false), 2000)
                           setShowExportMenu(false)
                         }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>Copy for Word (MathML)</span>
                         <span className="text-[10px] text-emerald-500 font-mono">WORD</span>
@@ -600,7 +616,7 @@ export const Workspace: React.FC = () => {
                           setTimeout(() => setCopiedRichText(false), 2000)
                           setShowExportMenu(false)
                         }}
-                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200"
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>Copy LaTeX Math ($$)</span>
                         <span className="text-[10px] text-amber-500 font-mono">$$</span>
@@ -714,6 +730,17 @@ export const Workspace: React.FC = () => {
           <strong className="text-neutral-900 dark:text-white font-semibold">Pro Tip:</strong> All conversions happen locally in your browser — no data is uploaded or stored. Supports all file types and LLM mixed outputs seamlessly.
         </p>
       </div>
+
+      {/* Export Preview Modal */}
+      {exportPreviewOpen && (
+        <ExportPreviewModal
+          key={`${exportPreviewType}-${parsedDocument.metadata.title || 'document'}`}
+          isOpen={exportPreviewOpen}
+          initialType={exportPreviewType}
+          onClose={() => setExportPreviewOpen(false)}
+          parsedDocument={parsedDocument}
+        />
+      )}
     </div>
   )
 }

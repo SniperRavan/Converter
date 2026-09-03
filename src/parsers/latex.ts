@@ -143,7 +143,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
       .replace(/~/g, ' ')
 
     const tokens = cursor.split(
-      /(@@BOLD_[^@]+@@|@@ITALIC_[^@]+@@|@@CODE_[^@]+@@|@@LINK_[^@]+@@[\s\S]*?@@ENDLINK@@|\$[^\$]+\$|\\\([^\)]+\\\))/
+      /(@@BOLD_[^@]+@@|@@ITALIC_[^@]+@@|@@CODE_[^@]+@@|@@LINK_[^@]+@@[\s\S]*?@@ENDLINK@@|\$[^$]+\$|\\\([^)]+\\\))/
     )
 
     for (const token of tokens) {
@@ -312,7 +312,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     if (inputMatch) {
       const rawName = inputMatch[2].replace(/\.tex$/, '').trim()
       const formattedTitle = rawName
-        .split(/[_\-\/]+/)
+        .split(/[_\-/]+/)
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(' ')
 
