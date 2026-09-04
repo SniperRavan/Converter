@@ -1,5 +1,5 @@
 import React from 'react'
-import { BookOpen, Bot, FileCode } from 'lucide-react'
+import { BookOpen, Bot, FileCode, GraduationCap, ShieldCheck, FileText, Sigma } from 'lucide-react'
 import { IssueReportSection } from './IssueReportSection'
 
 export const EditorialSections: React.FC = () => {
@@ -10,9 +10,63 @@ export const EditorialSections: React.FC = () => {
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-10">
             <h2 className="text-3xl font-bold text-neutral-900 dark:text-white tracking-tight">
-              User Guide
+              User Guide &amp; Solutions
             </h2>
+            <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2 max-w-xl mx-auto">
+              Purpose-built conversion engines for ChatGPT math equations, Overleaf academic resumes, and private client-side documents.
+            </p>
             <div className="w-12 h-1 bg-neutral-900 dark:bg-white mx-auto mt-3 rounded-full" />
+          </div>
+
+          {/* High-Intent Problem-Solving Workflows */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-5 bg-white dark:bg-[#0a0a0a] shadow-xs hover:border-blue-500/50 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-3">
+                <Sigma className="w-5 h-5" />
+              </div>
+              <h3 className="font-semibold text-neutral-900 dark:text-white text-base">
+                ChatGPT Math to Word
+              </h3>
+              <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1.5 leading-relaxed">
+                Fix broken <code className="font-mono text-[11px]">$...$</code> and <code className="font-mono text-[11px]">\[...\]</code> delimiters. Compiles AI equations into native MathML for Microsoft Word and Google Docs.
+              </p>
+            </div>
+
+            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-5 bg-white dark:bg-[#0a0a0a] shadow-xs hover:border-emerald-500/50 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-3">
+                <GraduationCap className="w-5 h-5" />
+              </div>
+              <h3 className="font-semibold text-neutral-900 dark:text-white text-base">
+                Overleaf Resume to Word
+              </h3>
+              <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1.5 leading-relaxed">
+                Convert academic LaTeX CVs (Jake's Resume, sb2nov) into ATS-compliant editable Word (.doc) files with intact margins and bullet hierarchies.
+              </p>
+            </div>
+
+            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-5 bg-white dark:bg-[#0a0a0a] shadow-xs hover:border-purple-500/50 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3">
+                <FileText className="w-5 h-5" />
+              </div>
+              <h3 className="font-semibold text-neutral-900 dark:text-white text-base">
+                Markdown &amp; Obsidian to PDF
+              </h3>
+              <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1.5 leading-relaxed">
+                Transform math-dense notes from Obsidian, Notion, and GitHub into corporate-ready Word docs or print-ready PDF files.
+              </p>
+            </div>
+
+            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-5 bg-white dark:bg-[#0a0a0a] shadow-xs hover:border-amber-500/50 transition-colors">
+              <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-3">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <h3 className="font-semibold text-neutral-900 dark:text-white text-base">
+                100% Client-Side Privacy
+              </h3>
+              <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1.5 leading-relaxed">
+                Zero server uploads. Your confidential research papers, personal resumes, and proprietary code execute solely inside browser memory.
+              </p>
+            </div>
           </div>
 
           {/* Getting Started */}
@@ -159,37 +213,55 @@ export const EditorialSections: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
               <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                How does Converter handle formulas &amp; math?
+                How do I convert ChatGPT or Claude math formulas to Microsoft Word without broken $$ signs?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                Formulas enclosed in <code className="text-xs font-mono">$...$</code>, <code className="text-xs font-mono">$$...$$</code>, <code className="text-xs font-mono">\(...\)</code>, or <code className="text-xs font-mono">\[...\]</code> are compiled using KaTeX. When copying to Word or Google Docs, formulas are translated into high-fidelity scalable image representations or MathML so they paste natively without raw code.
+                Paste your AI output into Converter and select the <strong>LLM Stream</strong> mode. Converter automatically detects LaTeX math delimiters (<code className="text-xs font-mono">$...$</code>, <code className="text-xs font-mono">$$...$$</code>, <code className="text-xs font-mono">\(...\)</code>, and <code className="text-xs font-mono">\[...\]</code>) and compiles them with KaTeX into native MathML. Click <strong>“Copy Rich Text”</strong> or <strong>“Word (.doc)”</strong> to paste directly into Microsoft Word or Google Docs as editable equations.
               </p>
             </div>
 
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
               <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                What makes the LLM Stream mode special?
+                Can I convert an Overleaf or LaTeX academic resume/CV to Word (.doc)?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                It specifically addresses LLM output quirks: fixing unclosed code fences, normalizing LaTeX delimiters (<code className="text-xs font-mono">\[...\]</code>), converting ASCII tables (<code className="text-xs font-mono">+---+</code>), and harmonizing inline HTML tags into clean AST blocks.
+                Yes! Paste your <code className="text-xs font-mono">.tex</code> source code or upload your LaTeX file. Converter uses an AST parser specifically tuned for popular academic CV templates (including Jake's Resume and sb2nov), transforming sections, dates, itemized bullets, and links into an ATS-friendly, fully editable Word document.
               </p>
             </div>
 
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
               <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                Does this tool store or upload my content?
+                Why do ChatGPT equations break when copied into Google Docs, and how does Converter fix them?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                No. All parsing, rendering, and exporting run 100% locally in your browser sandbox. No servers, no APIs, no tracking, and no data retention forever.
+                Chatbots output equations in raw LaTeX delimiters that Google Docs and Word do not parse from the standard clipboard. Converter uses dual-MIME clipboard injection (<code className="text-xs font-mono">text/html</code> + <code className="text-xs font-mono">text/plain</code>) with pre-rendered MathML and KaTeX typography, ensuring equations paste as rendered formulas rather than raw code.
               </p>
             </div>
 
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
               <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                Can I copy directly into Word or Google Docs?
+                Is Converter safe for confidential research papers, resumes, and private documents?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                Yes! The <strong>“Copy Rich Text”</strong> button creates a dual-mime clipboard item (<code className="text-xs font-mono">text/html</code> + <code className="text-xs font-mono">text/plain</code>), allowing seamless pasting into Word, Google Docs, Notion, Slack, and Apple Pages with full table and formula formatting.
+                Yes, 100%. All document parsing, KaTeX math typesetting, and file exports run locally in your browser sandbox using client-side JavaScript. Zero bytes of your text or files are ever sent to a remote server or third-party API.
+              </p>
+            </div>
+
+            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
+              <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
+                Can I copy formatted tables and LaTeX equations directly to my clipboard?
+              </h3>
+              <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
+                Yes! The <strong>“Copy Rich Text”</strong> button injects formatted HTML directly onto your system clipboard, allowing instant pasting into Word, Google Docs, Notion, Obsidian, Slack, and Apple Pages with full table and equation layout preserved.
+              </p>
+            </div>
+
+            <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
+              <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
+                How does Converter handle messy ASCII tables and unclosed code blocks from AI chats?
+              </h3>
+              <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
+                In <strong>LLM Stream</strong> mode, Converter's streaming tokenizer self-heals unclosed markdown code fences, converts ragged ASCII box tables (<code className="text-xs font-mono">|---|</code>, <code className="text-xs font-mono">+---+</code>) into formatted data grids, and strips invalid escape sequences automatically.
               </p>
             </div>
           </div>

@@ -9,6 +9,12 @@
   *Transform messy AI responses, LaTeX mathematics, academic CVs, and code into clean, presentation-ready Word, PDF, Markdown, and HTML — entirely inside your browser.*
 
   <p align="center">
+    <a href="https://converter-sr.vercel.app/" target="_blank">
+      <img src="https://img.shields.io/badge/🚀%20Live%20Application-converter--sr.vercel.app-2563eb?style=for-the-badge&logo=vercel" alt="Live Application" />
+    </a>
+  </p>
+
+  <p align="center">
     <a href="https://github.com/sniperravan"><img src="https://img.shields.io/badge/Author-Akash%20Das%20Dhibar-blueviolet?style=flat-square" alt="Author"></a>
     <img src="https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react" alt="React 19">
     <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript" alt="TypeScript">

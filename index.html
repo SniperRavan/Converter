@@ -88,26 +88,50 @@
         "mainEntity": [
           {
             "@type": "Question",
-            "name": "How does Converter handle messy ChatGPT or Claude LaTeX math formulas?",
+            "name": "How do I convert ChatGPT or Claude math formulas to Microsoft Word without broken $$ signs?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Converter uses an in-browser streaming tokenizer that detects inline and block LaTeX math delimiters ($$...$$, \\(...\\), \\[...\\]) and compiles them into valid HTML5 MathML and KaTeX SVG representations that Microsoft Word and Google Docs render natively."
+              "text": "Paste your AI output into Converter and select LLM Stream mode. Converter detects LaTeX math delimiters ($$...$$, \\(...\\), \\[...\\]) and compiles them with KaTeX into native MathML. Click Copy Rich Text or Word (.doc) to paste directly into Microsoft Word or Google Docs as editable equations."
             }
           },
           {
             "@type": "Question",
-            "name": "Is my document or resume sent to any cloud server?",
+            "name": "Can I convert an Overleaf or LaTeX academic resume/CV to Word (.doc)?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "No. Converter runs 100% client-side inside your browser sandbox using Web Workers and local JavaScript engines. Zero bytes of your text, CV, or files are ever uploaded or transmitted."
+              "text": "Yes. Paste your .tex source code or upload your LaTeX file. Converter uses an AST parser specifically tuned for academic CV templates like Jake's Resume and sb2nov, converting sections, dates, itemized bullets, and links into an ATS-friendly editable Word document."
             }
           },
           {
             "@type": "Question",
-            "name": "Can I convert Overleaf and LaTeX resumes to Microsoft Word?",
+            "name": "Why do ChatGPT equations break when copied into Google Docs, and how does Converter fix them?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Yes. Converter includes a dedicated Overleaf resume AST parser calibrated for academic CV templates like Jake's Resume and sb2nov, converting sections, dates, itemized bullets, and links into an editable Word (.doc) document."
+              "text": "Chatbots output equations in raw LaTeX delimiters that Google Docs and Word do not parse from the standard clipboard. Converter uses dual-MIME clipboard injection (text/html + text/plain) with pre-rendered MathML and KaTeX typography so equations paste as rendered formulas rather than raw code."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Converter safe for confidential research papers, resumes, and private documents?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, 100%. All document parsing, KaTeX math typesetting, and file exports run locally in your browser sandbox using client-side JavaScript. Zero bytes of your text or files are ever sent to a remote server or third-party API."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I copy formatted tables and LaTeX equations directly to my clipboard?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. The Copy Rich Text button injects formatted HTML directly onto your system clipboard, allowing instant pasting into Word, Google Docs, Notion, Obsidian, Slack, and Apple Pages with full table and equation layout preserved."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How does Converter handle messy ASCII tables and unclosed code blocks from AI chats?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "In LLM Stream mode, Converter's streaming tokenizer self-heals unclosed markdown code fences, converts ragged ASCII box tables (|---| and +---+) into formatted data grids, and strips invalid escape sequences automatically."
             }
           }
         ]
