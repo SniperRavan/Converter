@@ -86,23 +86,36 @@ function renderBlockToLatex(block: BlockNode, levelShift = 0): string {
     }
 
     case 'table': {
-      if (!block.headers || block.headers.length === 0) return ''
+      const hasHeaders = Boolean(block.headers && block.headers.length > 0)
+      const hasRows = Boolean(block.rows && block.rows.length > 0)
+      if (!hasHeaders && !hasRows) return ''
 
-      const colSpecs = block.alignments.map(a => {
+      const numCols = Math.max(
+        block.headers?.length || 0,
+        block.rows?.[0]?.cells.length || 0,
+        1
+      )
+
+      const colSpecs = Array.from({ length: numCols }, (_, i) => {
+        const a = block.alignments?.[i]
         if (a === 'center') return 'c'
         if (a === 'right') return 'r'
         return 'l'
       }).join(' ')
 
-      const headerContent = block.headers
-        .map(c => `\\textbf{${c.children.map(renderInlineToLatex).join('')}}`)
-        .join(' & ') + ' \\\\'
+      const headerContent = hasHeaders
+        ? block.headers
+            .map(c => `\\textbf{${c.children.map(renderInlineToLatex).join('')}}`)
+            .join(' & ') + ' \\\\\n\\hline\n'
+        : ''
 
-      const rowsContent = block.rows
-        .map(row => row.cells.map(c => c.children.map(renderInlineToLatex).join('')).join(' & ') + ' \\\\')
-        .join('\n')
+      const rowsContent = hasRows
+        ? block.rows
+            .map(row => row.cells.map(c => c.children.map(renderInlineToLatex).join('')).join(' & ') + ' \\\\')
+            .join('\n') + '\n\\hline\n'
+        : ''
 
-      return `\\begin{table}[h]\n\\centering\n\\begin{tabular}{${colSpecs}}\n\\hline\n${headerContent}\n\\hline\n${rowsContent}\n\\hline\n\\end{tabular}\n\\end{table}\n`
+      return `\\begin{table}[h]\n\\centering\n\\begin{tabular}{${colSpecs}}\n\\hline\n${headerContent}${rowsContent}\\end{tabular}\n\\end{table}\n`
     }
 
     case 'thematicBreak':

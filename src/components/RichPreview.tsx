@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import katex from 'katex'
+import DOMPurify from 'dompurify'
 import { Copy, Check, Terminal, ExternalLink } from 'lucide-react'
 import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
 import { useConverterStore } from '../store/useConverterStore'
@@ -56,7 +57,20 @@ export const InlineRenderer: React.FC<InlineRendererProps> = ({ node }) => {
       }
     }
 
-    case 'link':
+    case 'link': {
+      const isOnlyImage = node.children.length === 1 && node.children[0].type === 'image'
+      if (isOnlyImage) {
+        return (
+          <a
+            href={node.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block align-middle mx-0.5 transition-opacity hover:opacity-80"
+          >
+            <InlineRenderer node={node.children[0]} />
+          </a>
+        )
+      }
       return (
         <a
           href={node.url}
@@ -70,17 +84,29 @@ export const InlineRenderer: React.FC<InlineRendererProps> = ({ node }) => {
           <ExternalLink className="w-3 h-3 opacity-60 ml-0.5" />
         </a>
       )
+    }
 
-    case 'image':
+    case 'image': {
+      const isBadgeOrIcon =
+        Boolean(node.url && (
+          /shields\.io|badge|skillicons|typing-svg|capsule-render|giphy\.gif|streak-stats|summary-cards/i.test(node.url) ||
+          /\.(svg|gif)$/i.test(node.url)
+        ))
+
       return (
         <img
           src={node.url}
           alt={node.alt || ''}
           title={node.title}
-          className="max-w-full rounded-xl border border-slate-200 dark:border-white/10 my-3 shadow-md"
+          className={
+            isBadgeOrIcon
+              ? 'inline-block align-middle my-1 mx-0.5 max-h-9 object-contain'
+              : 'max-w-full rounded-xl border border-slate-200 dark:border-white/10 my-3 shadow-md'
+          }
           loading="lazy"
         />
       )
+    }
 
     default:
       return null
@@ -243,24 +269,27 @@ export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> =
       }
 
       case 'table': {
+        const hasHeaders = Boolean(block.headers && block.headers.length > 0)
         return (
           <div className="my-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04]">
-                  {block.headers.map((cell, idx) => (
-                    <th
-                      key={idx}
-                      className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white"
-                      style={{ textAlign: cell.align || 'left' }}
-                    >
-                      {cell.children.map((c, i) => (
-                        <InlineRenderer key={i} node={c} />
-                      ))}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
+              {hasHeaders && (
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04]">
+                    {block.headers.map((cell, idx) => (
+                      <th
+                        key={idx}
+                        className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white"
+                        style={{ textAlign: cell.align || 'left' }}
+                      >
+                        {cell.children.map((c, i) => (
+                          <InlineRenderer key={i} node={c} />
+                        ))}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+              )}
               <tbody className="divide-y divide-slate-200/70 dark:divide-white/[0.04]">
                 {block.rows.map((row, rIdx) => (
                   <tr key={rIdx} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
@@ -286,8 +315,51 @@ export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> =
       case 'thematicBreak':
         return <hr className="my-5 border-slate-200 dark:border-white/10" />
 
-      case 'rawBlock':
-        return <div className="my-2 p-2.5 font-mono text-xs bg-slate-100 dark:bg-white/[0.05] rounded-lg">{block.content}</div>
+      case 'rawBlock': {
+        const trimmed = block.content.trim()
+        // If it is purely structural HTML markup (e.g. <table>, <tr>, <td>, </td>, </tr>, </table>, <div>, </div>)
+        // without text or images, don't render an ugly raw code block.
+        const isPureStructuralTag = /^(<\/?(table|tbody|thead|tr|td|th|div)\b[^>]*>\s*)+$/i.test(trimmed)
+        if (isPureStructuralTag) {
+          return null
+        }
+
+        // If it contains HTML markup (like <img...>, <p...>, <a...>, etc.), render it visually sanitized
+        if (/<[a-z][\s\S]*>/i.test(trimmed)) {
+          const cleanHtml =
+            typeof DOMPurify !== 'undefined' && typeof DOMPurify.sanitize === 'function'
+              ? DOMPurify.sanitize(block.content, {
+                  USE_PROFILES: { html: true, svg: true },
+                  ADD_ATTR: [
+                    'target',
+                    'rel',
+                    'style',
+                    'align',
+                    'width',
+                    'height',
+                    'src',
+                    'alt',
+                    'hspace',
+                    'vspace',
+                    'class',
+                    'id',
+                  ],
+                })
+              : block.content
+          return (
+            <div
+              className="my-2 leading-relaxed [&_img]:inline-block [&_img]:align-middle"
+              dangerouslySetInnerHTML={{ __html: cleanHtml }}
+            />
+          )
+        }
+
+        return (
+          <div className="my-2 p-2.5 font-mono text-xs bg-slate-100 dark:bg-white/[0.05] rounded-lg">
+            {block.content}
+          </div>
+        )
+      }
 
       default:
         return null

@@ -45,29 +45,34 @@ function renderBlockToPlainText(block: BlockNode): string {
     }
 
     case 'table': {
-      if (!block.headers || block.headers.length === 0) return ''
-      const headers = block.headers.map(h => getInlineText(h.children))
-      const rows = block.rows.map(r => r.cells.map(c => getInlineText(c.children)))
+      const hasHeaders = Boolean(block.headers && block.headers.length > 0)
+      const hasRows = Boolean(block.rows && block.rows.length > 0)
+      if (!hasHeaders && !hasRows) return ''
 
-      // Compute column widths
-      const colWidths = headers.map((h, i) => {
+      const headers = hasHeaders ? block.headers.map(h => getInlineText(h.children)) : []
+      const rows = hasRows ? block.rows.map(r => r.cells.map(c => getInlineText(c.children))) : []
+
+      const numCols = Math.max(headers.length, ...rows.map(r => r.length), 1)
+
+      const colWidths = Array.from({ length: numCols }, (_, i) => {
+        const headerLen = (headers[i] || '').length
         const rowMax = rows.reduce((max, row) => Math.max(max, (row[i] || '').length), 0)
-        return Math.max(h.length, rowMax, 3)
+        return Math.max(headerLen, rowMax, 3)
       })
 
       const formatRow = (cells: string[]) => {
-        return '| ' + cells.map((c, i) => (c || '').padEnd(colWidths[i])).join(' | ') + ' |'
+        return '| ' + Array.from({ length: numCols }, (_, i) => (cells[i] || '').padEnd(colWidths[i])).join(' | ') + ' |'
       }
 
       const separator = '+-' + colWidths.map(w => '-'.repeat(w)).join('-+-') + '-+'
 
-      const lines = [
-        separator,
-        formatRow(headers),
-        separator,
-        ...rows.map(formatRow),
-        separator,
-      ]
+      const lines: string[] = [separator]
+      if (hasHeaders) {
+        lines.push(formatRow(headers))
+        lines.push(separator)
+      }
+      lines.push(...rows.map(formatRow))
+      lines.push(separator)
 
       return lines.join('\n') + '\n'
     }
@@ -75,8 +80,20 @@ function renderBlockToPlainText(block: BlockNode): string {
     case 'thematicBreak':
       return '----------------------------------------\n'
 
-    case 'rawBlock':
-      return `${block.content}\n`
+    case 'rawBlock': {
+      const clean = block.content
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/(p|div|tr|h[1-6])>/gi, '\n')
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+      return clean ? `${clean}\n` : ''
+    }
 
     default:
       return ''

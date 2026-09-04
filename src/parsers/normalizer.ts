@@ -30,6 +30,13 @@ export function normalizeBoxAndUnicodeTables(text: string): string {
         i++
       }
 
+      // If lines do not contain box-drawing characters or ASCII border lines, it is already a standard GFM table.
+      const hasBoxDrawing = tableLines.some((l) => /[┌┐└┘├┤┬┴┼│┃║─━═]/.test(l) || /^\s*\+[-=+]+\+\s*$/.test(l))
+      if (!hasBoxDrawing) {
+        processedLines.push(...tableLines)
+        continue
+      }
+
       // Detect pipe/cross positions across all lines
       const pipePosCount: Record<number, number> = {}
       tableLines.forEach((l) => {
@@ -169,9 +176,19 @@ export function normalizeUniversalInput(rawText: string): string {
   // 7. Unicode and ASCII Box Tables -> GFM Pipe Tables
   text = normalizeBoxAndUnicodeTables(text)
 
-  // 8. Convert HTML tables to Markdown tables if present
+  // 8. Convert simple HTML data tables to GFM pipe tables (preserving layout tables and block containers)
   text = text.replace(/<table[\s\S]*?<\/table>/gi, (htmlTable) => {
     try {
+      // Preserve HTML layout tables and tables containing block-level markdown or complex nested tags
+      if (
+        /border\s*=\s*['"]0['"]/i.test(htmlTable) ||
+        /cellspacing|cellpadding/i.test(htmlTable) ||
+        /```|#{1,6}\s+|^\s*>|^\s*\|/m.test(htmlTable) ||
+        /<(table|pre|ul|ol|blockquote)[\s>]/i.test(htmlTable)
+      ) {
+        return htmlTable
+      }
+
       const rows: string[][] = []
       const rowMatches = htmlTable.match(/<tr[\s\S]*?<\/tr>/gi) || []
 
@@ -179,10 +196,18 @@ export function normalizeUniversalInput(rawText: string): string {
         const cells: string[] = []
         const cellMatches = rowHtml.match(/<(th|td)[\s\S]*?<\/\1>/gi) || []
         for (const cellHtml of cellMatches) {
-          const cleanText = cellHtml
-            .replace(/<(th|td)[^>]*>/gi, '')
-            .replace(/<\/(th|td)>/gi, '')
+          // Check if cell contains multiline block content
+          const innerContent = cellHtml.replace(/^<(th|td)[^>]*>|<\/(th|td)>$/gi, '').trim()
+          if (innerContent.includes('\n')) {
+            // Cannot safely format multiline cell into single-line markdown pipe table
+            return htmlTable
+          }
+          const cleanText = innerContent
+            .replace(/<a\b[^>]*\bhref=["']([^"']+)["'][^>]*>(.*?)<\/a>/gi, '[$2]($1)')
+            .replace(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*\balt=["']([^"']*)["'][^>]*>/gi, '![$2]($1)')
+            .replace(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi, '![]($1)')
             .replace(/<[^>]+>/g, '')
+            .replace(/\|/g, '\\|')
             .trim()
           cells.push(cleanText)
         }
@@ -190,9 +215,14 @@ export function normalizeUniversalInput(rawText: string): string {
       }
 
       if (rows.length > 0) {
-        const header = '| ' + rows[0].join(' | ') + ' |'
-        const divider = '| ' + rows[0].map(() => '---').join(' | ') + ' |'
-        const bodyRows = rows.slice(1).map((r) => '| ' + r.join(' | ') + ' |')
+        const colCount = Math.max(...rows.map((r) => r.length))
+        const paddedRows = rows.map((r) => {
+          while (r.length < colCount) r.push('')
+          return r
+        })
+        const header = '| ' + paddedRows[0].join(' | ') + ' |'
+        const divider = '| ' + paddedRows[0].map(() => '---').join(' | ') + ' |'
+        const bodyRows = paddedRows.slice(1).map((r) => '| ' + r.join(' | ') + ' |')
         return '\n\n' + [header, divider, ...bodyRows].join('\n') + '\n\n'
       }
     } catch {

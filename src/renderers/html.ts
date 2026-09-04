@@ -140,30 +140,38 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
     }
 
     case 'table': {
-      if (!block.headers || block.headers.length === 0) return ''
+      const hasHeaders = Boolean(block.headers && block.headers.length > 0)
+      const hasRows = Boolean(block.rows && block.rows.length > 0)
+      if (!hasHeaders && !hasRows) return ''
 
-      const ths = block.headers
-        .map((cell, idx) => {
-          const align = block.alignments[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
-          const content = cell.children.map(c => renderInlineToHtml(c, mathMode)).join('')
-          return `<th${align}>${content}</th>`
-        })
-        .join('')
-
-      const rows = block.rows
-        .map(row => {
-          const tds = row.cells
+      const ths = hasHeaders
+        ? block.headers
             .map((cell, idx) => {
-              const align = block.alignments[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
+              const align = block.alignments?.[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
               const content = cell.children.map(c => renderInlineToHtml(c, mathMode)).join('')
-              return `<td${align}>${content}</td>`
+              return `<th${align}>${content}</th>`
             })
             .join('')
-          return `<tr>${tds}</tr>`
-        })
-        .join('\n')
+        : ''
 
-      return `<table>\n<thead><tr>${ths}</tr></thead>\n<tbody>\n${rows}\n</tbody>\n</table>`
+      const thead = hasHeaders ? `<thead><tr>${ths}</tr></thead>\n` : ''
+
+      const rows = hasRows
+        ? block.rows
+            .map(row => {
+              const tds = row.cells
+                .map((cell, idx) => {
+                  const align = block.alignments?.[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
+                  const content = cell.children.map(c => renderInlineToHtml(c, mathMode)).join('')
+                  return `<td${align}>${content}</td>`
+                })
+                .join('')
+              return `<tr>${tds}</tr>`
+            })
+            .join('\n')
+        : ''
+
+      return `<table>\n${thead}<tbody>\n${rows}\n</tbody>\n</table>`
     }
 
     case 'thematicBreak':
@@ -182,21 +190,26 @@ export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions
   const rawHtml = doc.children.map(c => renderBlockToHtml(c, mathMode)).join('\n')
 
   // Strict sanitization with DOMPurify while preserving images and math
-  const sanitizedBody = DOMPurify.sanitize(rawHtml, {
-    USE_PROFILES: { html: true, mathMl: true, svg: true },
-    ADD_TAGS: [
-      'math', 'semantics', 'annotation', 'annotation-xml', 'mrow', 'mi', 'mo', 'mn',
-      'mfrac', 'msup', 'msub', 'msubsup', 'munderover', 'munder', 'mover', 'msqrt',
-      'mroot', 'mtable', 'mtr', 'mtd', 'mspace', 'mtext', 'mpadded', 'mphantom',
-      'menclose', 'mstyle',
-    ],
-    ADD_ATTR: [
-      'xmlns', 'display', 'displaystyle', 'scriptlevel', 'mathvariant', 'columnalign',
-      'rowalign', 'rowlines', 'columnlines', 'linethickness', 'open', 'close',
-      'separators', 'fence', 'stretchy', 'symmetric', 'lspace', 'rspace', 'minsize',
-      'maxsize', 'data-math', 'src', 'alt', 'style', 'align',
-    ],
-  })
+  const sanitizedBody =
+    typeof DOMPurify !== 'undefined' && typeof DOMPurify.sanitize === 'function'
+      ? DOMPurify.sanitize(rawHtml, {
+          USE_PROFILES: { html: true, mathMl: true, svg: true },
+          ADD_TAGS: [
+            'math', 'semantics', 'annotation', 'annotation-xml', 'mrow', 'mi', 'mo', 'mn',
+            'mfrac', 'msup', 'msub', 'msubsup', 'munderover', 'munder', 'mover', 'msqrt',
+            'mroot', 'mtable', 'mtr', 'mtd', 'mspace', 'mtext', 'mpadded', 'mphantom',
+            'menclose', 'mstyle',
+          ],
+          ADD_ATTR: [
+            'xmlns', 'display', 'displaystyle', 'scriptlevel', 'mathvariant', 'columnalign',
+            'rowalign', 'rowlines', 'columnlines', 'linethickness', 'open', 'close',
+            'separators', 'fence', 'stretchy', 'symmetric', 'lspace', 'rspace', 'minsize',
+            'maxsize', 'data-math', 'src', 'alt', 'style', 'align', 'width', 'height',
+            'valign', 'border', 'cellpadding', 'cellspacing', 'hspace', 'vspace',
+            'class', 'id', 'target', 'rel',
+          ],
+        })
+      : rawHtml
 
   if (!options.includeWrapper) {
     return sanitizedBody

@@ -73,23 +73,46 @@ function renderBlockToMarkdown(block: BlockNode): string {
     }
 
     case 'table': {
-      if (!block.headers || block.headers.length === 0) return ''
+      const hasHeaders = Boolean(block.headers && block.headers.length > 0)
+      const hasRows = Boolean(block.rows && block.rows.length > 0)
+      if (!hasHeaders && !hasRows) return ''
 
-      const formatCell = (cell: TableCellNode) => cell.children.map(renderInlineToMarkdown).join('')
-      const headerLine = `| ${block.headers.map(formatCell).join(' | ')} |`
+      const formatCell = (cell: TableCellNode) =>
+        cell.children.map(renderInlineToMarkdown).join('').replace(/\r?\n/g, '<br />')
 
-      const separatorLine = `| ${block.headers.map((_, idx) => {
-        const align = block.alignments[idx]
-        if (align === 'center') return ':---:'
-        if (align === 'right') return '---:'
-        return '---'
-      }).join(' | ')} |`
+      if (hasHeaders) {
+        const headerLine = `| ${block.headers.map(formatCell).join(' | ')} |`
+        const separatorLine = `| ${block.headers.map((_, idx) => {
+          const align = block.alignments?.[idx]
+          if (align === 'center') return ':---:'
+          if (align === 'right') return '---:'
+          return '---'
+        }).join(' | ')} |`
+        const rowLines = (block.rows || []).map(row => `| ${row.cells.map(formatCell).join(' | ')} |`)
+        return [headerLine, separatorLine, ...rowLines].join('\n') + '\n'
+      }
 
-      const rowLines = block.rows.map(row => {
-        return `| ${row.cells.map(formatCell).join(' | ')} |`
-      })
+      // Headerless table with multiple rows: promote first row to header
+      if (block.rows.length > 1) {
+        const headerRow = block.rows[0]
+        const bodyRows = block.rows.slice(1)
+        const headerLine = `| ${headerRow.cells.map(formatCell).join(' | ')} |`
+        const separatorLine = `| ${headerRow.cells.map((_, idx) => {
+          const align = block.alignments?.[idx]
+          if (align === 'center') return ':---:'
+          if (align === 'right') return '---:'
+          return '---'
+        }).join(' | ')} |`
+        const rowLines = bodyRows.map(row => `| ${row.cells.map(formatCell).join(' | ')} |`)
+        return [headerLine, separatorLine, ...rowLines].join('\n') + '\n'
+      }
 
-      return [headerLine, separatorLine, ...rowLines].join('\n') + '\n'
+      // Single-row table without headers
+      const cells = block.rows[0].cells
+      const headerLine = `| ${cells.map(() => ' ').join(' | ')} |`
+      const separatorLine = `| ${cells.map(() => '---').join(' | ')} |`
+      const rowLine = `| ${cells.map(formatCell).join(' | ')} |`
+      return [headerLine, separatorLine, rowLine].join('\n') + '\n'
     }
 
     case 'thematicBreak':

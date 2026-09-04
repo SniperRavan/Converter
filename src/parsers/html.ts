@@ -84,7 +84,32 @@ export function parseHtml(htmlContent: string): NormalizedDocument {
     return inlines
   }
 
-  for (const child of Array.from(body.children)) {
+  for (const child of Array.from(body.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      const text = (child.textContent || '').trim()
+      if (!text) continue
+      if (text === '---' || text === '***' || text === '___') {
+        children.push({ type: 'thematicBreak' })
+      } else if (/^#{1,6}\s+\S+/.test(text)) {
+        const hashes = text.match(/^(#{1,6})\s+/)?.[1] || '#'
+        const level = hashes.length as 1 | 2 | 3 | 4 | 5 | 6
+        const headingText = text.substring(hashes.length).trim()
+        children.push({
+          type: 'heading',
+          level,
+          children: [{ type: 'text', value: headingText }],
+        })
+      } else {
+        children.push({
+          type: 'paragraph',
+          children: [{ type: 'text', value: text }],
+        })
+      }
+      continue
+    }
+
+    if (child.nodeType !== Node.ELEMENT_NODE) continue
+
     const el = child as HTMLElement
     const tag = el.tagName.toLowerCase()
 
@@ -160,7 +185,7 @@ export function parseHtml(htmlContent: string): NormalizedDocument {
         type: 'table',
         headers,
         rows,
-        alignments: headers.map(() => null),
+        alignments: (headers.length > 0 ? headers : rows[0]?.cells || []).map(() => null),
       })
     } else if (tag === 'hr') {
       children.push({

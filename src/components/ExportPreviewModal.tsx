@@ -420,7 +420,6 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
             >
               <Download className="w-4 h-4 mr-1.5 shrink-0" />
               <span className="hidden sm:inline">Download {filename}{activeMeta.ext}</span>
-              <span className="sm:inline hidden font-semibold">Download ({activeMeta.ext})</span>
               <span className="sm:hidden font-semibold">Download {activeMeta.ext}</span>
             </button>
           </div>

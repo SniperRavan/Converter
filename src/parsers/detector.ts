@@ -34,15 +34,6 @@ export function detectInputFormat(content: string): DetectionResult {
     /\\(section|subsection)\*?\{/.test(clean) ||
     /\\begin\{(equation|align|gather|tabular|figure|lstlisting|itemize|enumerate)\}/.test(clean)
 
-  // 2. Explicit HTML detection
-  const hasHtml = /<\/?[a-z][\s\S]*>/i.test(clean)
-  const isExplicitHtml =
-    hasHtml &&
-    (clean.includes('<!DOCTYPE') ||
-      clean.includes('<html') ||
-      clean.includes('<body>') ||
-      /^<(div|article|section|main|p|table|h1|h2)[\s>]/i.test(clean))
-
   // 3. JSON detection
   const isJson = (clean.startsWith('{') && clean.endsWith('}')) || (clean.startsWith('[') && clean.endsWith(']'))
 
@@ -51,6 +42,21 @@ export function detectInputFormat(content: string): DetectionResult {
   const hasTables = /\|(.+)\|[\r\n]+\|[-:\s|]+\|/.test(clean)
   const hasCode = /```[a-zA-Z0-9_-]*[\s\S]*?```/.test(clean)
   const hasHeadings = /^#{1,6}\s+\S+/m.test(clean) || /^\S+[\r\n]+[=-]{2,}\s*$/m.test(clean)
+
+  // 2. Explicit HTML detection (must not misclassify Markdown with HTML layout tags)
+  const hasHtml = /<\/?[a-z][\s\S]*>/i.test(clean)
+  const isFullHtml =
+    clean.includes('<!DOCTYPE') ||
+    clean.includes('<html') ||
+    clean.includes('<body>') ||
+    clean.includes('<head>')
+  const isFragmentHtml =
+    hasHtml &&
+    /^<(div|article|section|main|p|table|h1|h2)[\s>]/i.test(clean) &&
+    !hasHeadings &&
+    !hasCode &&
+    !hasTables
+  const isExplicitHtml = isFullHtml || isFragmentHtml
 
   let primaryFormat: 'markdown' | 'latex' | 'html' | 'text' | 'json' = 'text'
   let confidence = 0.8

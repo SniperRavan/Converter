@@ -65,8 +65,74 @@ function mapMdastInline(node: any): InlineNode | null {
         title: node.title || undefined,
       }
 
+    case 'html': {
+      const val = (node.value || '').trim()
+      if (!val) return null
+
+      // Inline images: <img src="..." alt="..." />
+      const imgMatch = val.match(/<img\b[^>]*?\bsrc=["']([^"']+)["'][^>]*>/i)
+      if (imgMatch) {
+        const altMatch = val.match(/\balt=["']([^"']*)["']/i)
+        const titleMatch = val.match(/\btitle=["']([^"']*)["']/i)
+        return {
+          type: 'image',
+          url: imgMatch[1],
+          alt: altMatch ? altMatch[1] : undefined,
+          title: titleMatch ? titleMatch[1] : undefined,
+        }
+      }
+
+      // Inline code: <code>...</code>
+      const codeMatch = val.match(/^<code>([\s\S]*?)<\/code>$/i)
+      if (codeMatch) {
+        return {
+          type: 'inlineCode',
+          value: codeMatch[1].replace(/<[^>]+>/g, ''),
+        }
+      }
+
+      // Inline line breaks: <br/> or <br>
+      if (/^<br\s*\/?>$/i.test(val)) {
+        return { type: 'text', value: '\n' }
+      }
+
+      // Inline non-breaking space
+      if (/^&nbsp;$/i.test(val)) {
+        return { type: 'text', value: ' ' }
+      }
+
+      // Links: <a href="...">...</a>
+      const linkMatch = val.match(/^<a\b[^>]*?\bhref=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>$/i)
+      if (linkMatch) {
+        const href = linkMatch[1]
+        const inner = linkMatch[2]
+        const innerImg = inner.match(/<img\b[^>]*?\bsrc=["']([^"']+)["'][^>]*>/i)
+        if (innerImg) {
+          const innerAlt = inner.match(/\balt=["']([^"']*)["']/i)
+          return {
+            type: 'link',
+            url: href,
+            children: [
+              {
+                type: 'image',
+                url: innerImg[1],
+                alt: innerAlt ? innerAlt[1] : undefined,
+              },
+            ],
+          }
+        }
+        return {
+          type: 'link',
+          url: href,
+          children: [{ type: 'text', value: inner.replace(/<[^>]+>/g, '') }],
+        }
+      }
+
+      return { type: 'text', value: node.value }
+    }
+
     default:
-      // Fallback for html or unknown inlines
+      // Fallback for unknown inlines
       if (node.value) {
         return { type: 'text', value: node.value }
       }
