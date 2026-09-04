@@ -61,7 +61,7 @@ export const FluidCanvas: React.FC = () => {
       if (idleTimer) clearTimeout(idleTimer)
       idleTimer = setTimeout(() => {
         isIdle = true
-      }, 6000)
+      }, 3000)
       if (isVisible && !animationFrameId) {
         animationFrameId = requestAnimationFrame(render)
       }
@@ -89,7 +89,7 @@ export const FluidCanvas: React.FC = () => {
     document.addEventListener('visibilitychange', handleVisibility)
 
     const render = () => {
-      if (!isVisible || (isIdle && motionMode === 'reduced')) {
+      if (!isVisible || isIdle) {
         animationFrameId = null
         return
       }
@@ -145,11 +145,29 @@ export const FluidCanvas: React.FC = () => {
       animationFrameId = requestAnimationFrame(render)
     }
 
-    wakeUp()
+    // Paint initial stationary layout frame without starting continuous loop
+    render()
+    isIdle = true
+    animationFrameId = null
+
+    // Defer interactive animation loop until idle to ensure 0ms main-thread contention at load
+    let idleHandle: any = null
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleHandle = (window as any).requestIdleCallback(wakeUp, { timeout: 3000 })
+    } else {
+      idleHandle = setTimeout(wakeUp, 2000)
+    }
 
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId)
       if (idleTimer) clearTimeout(idleTimer)
+      if (idleHandle) {
+        if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+          (window as any).cancelIdleCallback(idleHandle)
+        } else {
+          clearTimeout(idleHandle)
+        }
+      }
       window.removeEventListener('resize', handleResize)
       window.removeEventListener('mousemove', handlePointerMove)
       document.removeEventListener('visibilitychange', handleVisibility)
