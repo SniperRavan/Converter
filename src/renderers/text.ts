@@ -1,20 +1,25 @@
 import type { BlockNode, NormalizedDocument } from '../core/types'
 import { getInlineText } from '../core/stats'
+import { latexToUnicode } from '../utils/mathUnicode'
 
-function renderBlockToPlainText(block: BlockNode): string {
+export interface TextRenderOptions {
+  mathMode?: 'unicode' | 'latex'
+}
+
+function renderBlockToPlainText(block: BlockNode, mathMode: 'unicode' | 'latex' = 'unicode'): string {
   switch (block.type) {
     case 'heading': {
-      const text = getInlineText(block.children)
+      const text = getInlineText(block.children, { mathMode })
       const underline = block.level === 1 ? '='.repeat(text.length) : '-'.repeat(text.length)
       return `\n${text}\n${underline}\n`
     }
 
     case 'paragraph': {
-      return getInlineText(block.children) + '\n'
+      return getInlineText(block.children, { mathMode }) + '\n'
     }
 
     case 'blockquote': {
-      const inner = block.children.map(renderBlockToPlainText).join('\n').trim()
+      const inner = block.children.map(c => renderBlockToPlainText(c, mathMode)).join('\n').trim()
       return inner.split('\n').map(l => `  | ${l}`).join('\n') + '\n'
     }
 
@@ -24,7 +29,11 @@ function renderBlockToPlainText(block: BlockNode): string {
     }
 
     case 'mathBlock': {
-      return `\n$$\n${block.value.trim()}\n$$\n`
+      if (mathMode === 'latex') {
+        return `\n$$\n${block.value.trim()}\n$$\n`
+      }
+      const unicode = latexToUnicode(block.value.trim())
+      return `\n    ${unicode}\n`
     }
 
     case 'list': {
@@ -34,7 +43,10 @@ function renderBlockToPlainText(block: BlockNode): string {
           const content = item.children
             .map(child => {
               if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
-                return getInlineText(child.children)
+                return getInlineText(child.children, { mathMode })
+              }
+              if ('type' in child && child.type === 'list') {
+                return renderBlockToPlainText(child, mathMode)
               }
               return ''
             })
@@ -49,8 +61,8 @@ function renderBlockToPlainText(block: BlockNode): string {
       const hasRows = Boolean(block.rows && block.rows.length > 0)
       if (!hasHeaders && !hasRows) return ''
 
-      const headers = hasHeaders ? block.headers.map(h => getInlineText(h.children)) : []
-      const rows = hasRows ? block.rows.map(r => r.cells.map(c => getInlineText(c.children))) : []
+      const headers = hasHeaders ? block.headers.map(h => getInlineText(h.children, { mathMode })) : []
+      const rows = hasRows ? block.rows.map(r => r.cells.map(c => getInlineText(c.children, { mathMode }))) : []
 
       const numCols = Math.max(headers.length, ...rows.map(r => r.length), 1)
 
@@ -100,6 +112,7 @@ function renderBlockToPlainText(block: BlockNode): string {
   }
 }
 
-export function renderToPlainText(doc: NormalizedDocument): string {
-  return doc.children.map(renderBlockToPlainText).join('\n').trim() + '\n'
+export function renderToPlainText(doc: NormalizedDocument, options: TextRenderOptions = {}): string {
+  const mathMode = options.mathMode || 'unicode'
+  return doc.children.map(c => renderBlockToPlainText(c, mathMode)).join('\n').trim() + '\n'
 }

@@ -167,6 +167,18 @@ export function normalizeUniversalInput(rawText: string): string {
     return `$${math.trim()}$`
   })
 
+  // 5b. Normalize LaTeX display environments: \begin{equation}...\end{equation}, \begin{align}...\end{align}, etc.
+  text = text.replace(/\\begin\{(equation\*?|align\*?|gather\*?|multline\*?|displaymath)\}([\s\S]*?)\\end\{\1\}/g, (_match, env, math) => {
+    const isAligned = env.startsWith('align')
+    const isGathered = env.startsWith('gather')
+    const inner = isAligned
+      ? `\\begin{aligned}${math}\\end{aligned}`
+      : isGathered
+      ? `\\begin{gathered}${math}\\end{gathered}`
+      : math.trim()
+    return `\n\n$$\n${inner}\n$$\n\n`
+  })
+
   // 6. Fix unclosed code fences at the end of LLM output
   const codeBlockMatches = text.match(/```/g)
   if (codeBlockMatches && codeBlockMatches.length % 2 !== 0) {

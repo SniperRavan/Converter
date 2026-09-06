@@ -59,6 +59,36 @@ export function parseHtml(htmlContent: string): NormalizedDocument {
           inlines.push({ type: 'strikethrough', children: parseInline(el) })
         } else if (tag === 'code') {
           inlines.push({ type: 'inlineCode', value: el.textContent || '' })
+        } else if (el.classList?.contains('katex') || el.querySelector('.katex-mathml')) {
+          const annotation = el.querySelector('annotation[encoding*="tex"]') || el.querySelector('annotation')
+          if (annotation && annotation.textContent?.trim()) {
+            inlines.push({
+              type: 'inlineMath',
+              value: annotation.textContent.trim(),
+              source: `$${annotation.textContent.trim()}$`,
+            })
+            continue
+          }
+          inlines.push(...parseInline(el))
+        } else if (tag === 'math') {
+          const annotation = el.querySelector('annotation[encoding*="tex"]') || el.querySelector('annotation')
+          const value = annotation?.textContent?.trim() || el.getAttribute('data-math') || el.textContent?.trim() || ''
+          if (value) {
+            inlines.push({
+              type: 'inlineMath',
+              value,
+              source: `$${value}$`,
+            })
+          }
+        } else if (tag === 'img' && (/latex-formula/i.test(el.className) || /codecogs\.com/i.test(el.getAttribute('src') || ''))) {
+          const formula = el.getAttribute('data-latex') || el.getAttribute('alt') || ''
+          if (formula) {
+            inlines.push({
+              type: 'inlineMath',
+              value: formula,
+              source: `$${formula}$`,
+            })
+          }
         } else if (tag === 'a') {
           inlines.push({
             type: 'link',
@@ -112,6 +142,37 @@ export function parseHtml(htmlContent: string): NormalizedDocument {
 
     const el = child as HTMLElement
     const tag = el.tagName.toLowerCase()
+
+    if (
+      el.classList?.contains('math-block') ||
+      el.classList?.contains('katex-display') ||
+      (tag === 'math' && el.getAttribute('display') === 'block')
+    ) {
+      const annotation = el.querySelector('annotation[encoding*="tex"]') || el.querySelector('annotation')
+      const value = annotation?.textContent?.trim() || el.getAttribute('data-math') || el.textContent?.trim() || ''
+      if (value) {
+        children.push({
+          type: 'mathBlock',
+          value,
+          source: `$$\n${value}\n$$`,
+        })
+        continue
+      }
+    }
+
+    const singleFormulaImg = el.querySelectorAll('img.latex-formula, img[src*="codecogs.com"]')
+    if (tag === 'p' && singleFormulaImg.length === 1 && el.textContent?.trim() === '') {
+      const img = singleFormulaImg[0] as HTMLImageElement
+      const formula = img.getAttribute('data-latex') || img.getAttribute('alt') || ''
+      if (formula) {
+        children.push({
+          type: 'mathBlock',
+          value: formula,
+          source: `$$\n${formula}\n$$`,
+        })
+        continue
+      }
+    }
 
     if (/^h[1-6]$/.test(tag)) {
       const level = parseInt(tag[1], 10) as 1 | 2 | 3 | 4 | 5 | 6

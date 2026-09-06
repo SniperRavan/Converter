@@ -1,19 +1,22 @@
 import type { BlockNode, DocumentStats, InlineNode, NormalizedDocument } from './types'
+import { latexToUnicode } from '../utils/mathUnicode'
 
 // Helper to extract raw text content from inline nodes
-export function getInlineText(nodes: InlineNode[]): string {
+export function getInlineText(nodes: InlineNode[], options?: { mathMode?: 'unicode' | 'latex' }): string {
+  const mathMode = options?.mathMode || 'unicode'
   return nodes
     .map(node => {
       switch (node.type) {
         case 'text':
         case 'inlineCode':
-        case 'inlineMath':
           return node.value
+        case 'inlineMath':
+          return mathMode === 'latex' ? `$${node.value}$` : (latexToUnicode(node.value) || node.value)
         case 'strong':
         case 'emphasis':
         case 'strikethrough':
         case 'link':
-          return getInlineText(node.children)
+          return getInlineText(node.children, options)
         case 'image':
           return node.alt || ''
         default:

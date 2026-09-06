@@ -4,6 +4,7 @@ import DOMPurify from 'dompurify'
 import { Copy, Check, Terminal, ExternalLink } from 'lucide-react'
 import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
 import { useConverterStore } from '../store/useConverterStore'
+import { latexToUnicode } from '../utils/mathUnicode'
 
 interface InlineRendererProps {
   node: InlineNode
@@ -49,12 +50,17 @@ export const InlineRenderer: React.FC<InlineRendererProps> = ({ node }) => {
       )
 
     case 'inlineMath': {
+      let html = ''
+      let isError = false
       try {
-        const html = katex.renderToString(node.value, { throwOnError: false })
-        return <span dangerouslySetInnerHTML={{ __html: html }} className="inline-math px-0.5 text-slate-900 dark:text-slate-100" />
+        html = katex.renderToString(node.value, { throwOnError: false })
       } catch {
+        isError = true
+      }
+      if (isError) {
         return <code className="text-amber-500 font-mono">${node.value}$</code>
       }
+      return <span dangerouslySetInnerHTML={{ __html: html }} className="inline-math px-0.5 text-slate-900 dark:text-slate-100" />
     }
 
     case 'link': {
@@ -166,23 +172,30 @@ interface MathBlockProps {
 }
 
 const MathBlockRenderer: React.FC<MathBlockProps> = ({ value }) => {
+  let html = ''
+  let isError = false
   try {
-    const html = katex.renderToString(value, {
+    html = katex.renderToString(value, {
       displayMode: true,
       throwOnError: false,
     })
-    return (
-      <div className="my-3.5 p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.08] overflow-x-auto text-center shadow-xs">
-        <div dangerouslySetInnerHTML={{ __html: html }} className="py-1 text-slate-900 dark:text-slate-100" />
-      </div>
-    )
   } catch {
+    isError = true
+  }
+
+  if (isError) {
     return (
       <div className="my-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-500 font-mono text-xs">
         {value}
       </div>
     )
   }
+
+  return (
+    <div className="my-3.5 p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.08] overflow-x-auto text-center shadow-xs">
+      <div dangerouslySetInnerHTML={{ __html: html }} className="py-1 text-slate-900 dark:text-slate-100" />
+    </div>
+  )
 }
 
 export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> = ({ block, isActive }) => {
@@ -376,6 +389,50 @@ interface RichPreviewProps {
 export const RichPreview: React.FC<RichPreviewProps> = ({ document }) => {
   const { activeLine } = useConverterStore()
 
+  const handleSelectionCopy = (e: React.ClipboardEvent<HTMLElement>) => {
+    const selection = window.getSelection()
+    if (!selection || selection.isCollapsed || !e.clipboardData) return
+
+    const range = selection.getRangeAt(0)
+    const cloned = range.cloneContents()
+
+    // Check if selection contains KaTeX math
+    const katexNodes = cloned.querySelectorAll('.katex')
+    if (katexNodes.length === 0) return
+
+    // 1. Plain text: Replace math with formatted Unicode Math
+    const textClone = cloned.cloneNode(true) as DocumentFragment
+    textClone.querySelectorAll('.katex').forEach((kNode) => {
+      const annotation = kNode.querySelector('annotation[encoding*="tex"]') || kNode.querySelector('annotation')
+      const latex = annotation?.textContent?.trim() || ''
+      const unicodeMath = latex ? latexToUnicode(latex) : ''
+      const span = window.document.createElement('span')
+      span.textContent = unicodeMath || latex
+      kNode.replaceWith(span)
+    })
+    const plainText = textClone.textContent || ''
+
+    // 2. HTML: Pure MathML without duplicate .katex-html visual spans
+    const htmlClone = cloned.cloneNode(true) as DocumentFragment
+    htmlClone.querySelectorAll('.katex').forEach((kNode) => {
+      const mathml = kNode.querySelector('.katex-mathml math')
+      const annotation = kNode.querySelector('annotation')
+      if (annotation) annotation.remove()
+      const katexHtml = kNode.querySelector('.katex-html')
+      if (katexHtml) katexHtml.remove()
+      if (mathml) {
+        kNode.replaceWith(mathml)
+      }
+    })
+    const tempDiv = window.document.createElement('div')
+    tempDiv.appendChild(htmlClone)
+    const cleanHtml = tempDiv.innerHTML
+
+    e.clipboardData.setData('text/plain', plainText)
+    e.clipboardData.setData('text/html', cleanHtml)
+    e.preventDefault()
+  }
+
   if (!document.children || document.children.length === 0) {
     return (
       <div className="h-full min-h-[300px] flex flex-col items-center justify-center text-center p-8 text-slate-400">
@@ -393,7 +450,10 @@ export const RichPreview: React.FC<RichPreviewProps> = ({ document }) => {
   }
 
   return (
-    <article className="prose prose-slate dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed font-sans text-sm">
+    <article
+      onCopy={handleSelectionCopy}
+      className="prose prose-slate dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 leading-relaxed font-sans text-sm"
+    >
       {document.children.map((block, idx) => {
         const isBlockActive =
           activeLine != null &&

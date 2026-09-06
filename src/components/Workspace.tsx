@@ -44,6 +44,14 @@ export const Workspace: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false)
   const [copiedRichText, setCopiedRichText] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showCopyMenu, setShowCopyMenu] = useState(false)
+  const [copyTarget, setCopyTarget] = useState<'docs' | 'word' | 'unicode' | 'latex'>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('convertion_copy_target') as 'docs' | 'word' | 'unicode' | 'latex'
+      if (saved && ['docs', 'word', 'unicode', 'latex'].includes(saved)) return saved
+    }
+    return 'docs'
+  })
   const [exportPreviewOpen, setExportPreviewOpen] = useState(false)
   const [exportPreviewType, setExportPreviewType] = useState<ExportType>('word')
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -229,26 +237,44 @@ export const Workspace: React.FC = () => {
     if (file) processFile(file)
   }
 
-  // Copy Output Handler
-  const handleCopy = async () => {
+  // Copy Output Handler with multi-representation math support
+  const handleCopy = async (target: 'docs' | 'word' | 'unicode' | 'latex' = copyTarget) => {
+    setCopyTarget(target)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('convertion_copy_target', target)
+    }
+    setShowCopyMenu(false)
+
     if (selectedFormat === 'preview') {
       try {
-        const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'images' })
-        const plainSnippet = renderToPlainText(parsedDocument)
-        const blobHtml = new Blob([htmlSnippet], { type: 'text/html' })
-        const blobText = new Blob([plainSnippet], { type: 'text/plain' })
+        if (target === 'unicode') {
+          const plainSnippet = renderToPlainText(parsedDocument, { mathMode: 'unicode' })
+          await navigator.clipboard.writeText(plainSnippet)
+        } else if (target === 'latex') {
+          const latexSnippet = renderToPlainText(parsedDocument, { mathMode: 'latex' })
+          await navigator.clipboard.writeText(latexSnippet)
+        } else {
+          const mathMode = target === 'word' ? 'mathml' : 'images'
+          const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false, mathMode })
+          const plainSnippet = renderToPlainText(parsedDocument, { mathMode: 'unicode' })
+          const blobHtml = new Blob([htmlSnippet], { type: 'text/html' })
+          const blobText = new Blob([plainSnippet], { type: 'text/plain' })
 
-        const data = [
-          new ClipboardItem({
-            'text/html': blobHtml,
-            'text/plain': blobText,
-          }),
-        ]
-        await navigator.clipboard.write(data)
+          const data = [
+            new ClipboardItem({
+              'text/html': blobHtml,
+              'text/plain': blobText,
+            }),
+          ]
+          await navigator.clipboard.write(data)
+        }
         setCopiedRichText(true)
         setTimeout(() => setCopiedRichText(false), 2000)
       } catch {
-        navigator.clipboard.writeText(renderedMarkdown)
+        const fallback = target === 'latex'
+          ? renderedMarkdown
+          : renderToPlainText(parsedDocument, { mathMode: 'unicode' })
+        navigator.clipboard.writeText(fallback)
         setCopiedRichText(true)
         setTimeout(() => setCopiedRichText(false), 2000)
       }
@@ -261,7 +287,7 @@ export const Workspace: React.FC = () => {
           : selectedFormat === 'json'
           ? renderedJson
           : selectedFormat === 'text'
-          ? renderedPlainText
+          ? (target === 'latex' ? renderToPlainText(parsedDocument, { mathMode: 'latex' }) : renderedPlainText)
           : renderedMarkdown
 
       navigator.clipboard.writeText(contentToCopy)
@@ -458,25 +484,114 @@ export const Workspace: React.FC = () => {
                   <span className="ml-1 text-xs hidden sm:inline">Sync</span>
                 </button>
 
-                {/* Copy Button */}
-                <button
-                  onClick={handleCopy}
-                  disabled={!inputContent.trim()}
-                  className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium bg-neutral-900 hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black disabled:pointer-events-none disabled:opacity-40 h-8 sm:h-9 rounded-md px-2.5 sm:px-3.5 shadow-xs transition-all active:scale-95 cursor-pointer font-sans"
-                >
-                  {copiedRichText ? (
-                    <>
-                      <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-400 dark:text-emerald-600" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="h-3.5 w-3.5 mr-1.5" />
-                      <span className="hidden sm:inline">{selectedFormat === 'preview' ? 'Copy Rich Text' : 'Copy Output'}</span>
-                      <span className="sm:hidden">{selectedFormat === 'preview' ? 'Copy Rich' : 'Copy'}</span>
-                    </>
+                {/* Copy Button (Split Button for Rich Preview Target Selection) */}
+                <div className="relative flex items-center">
+                  <button
+                    onClick={() => handleCopy()}
+                    disabled={!inputContent.trim()}
+                    className={`inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium bg-neutral-900 hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black disabled:pointer-events-none disabled:opacity-40 h-8 sm:h-9 ${
+                      selectedFormat === 'preview'
+                        ? 'rounded-l-md px-2.5 sm:px-3 border-r border-neutral-700/50 dark:border-neutral-300/50'
+                        : 'rounded-md px-2.5 sm:px-3.5'
+                    } shadow-xs transition-all active:scale-95 cursor-pointer font-sans`}
+                  >
+                    {copiedRichText ? (
+                      <>
+                        <Check className="h-3.5 w-3.5 mr-1.5 text-emerald-400 dark:text-emerald-600" />
+                        <span>Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3.5 w-3.5 mr-1.5" />
+                        <span>
+                          {selectedFormat !== 'preview'
+                            ? 'Copy Output'
+                            : copyTarget === 'word'
+                            ? 'Copy for Word'
+                            : copyTarget === 'unicode'
+                            ? 'Copy Clean Text'
+                            : copyTarget === 'latex'
+                            ? 'Copy LaTeX'
+                            : 'Copy for Docs'}
+                        </span>
+                      </>
+                    )}
+                  </button>
+
+                  {selectedFormat === 'preview' && (
+                    <button
+                      onClick={() => setShowCopyMenu(!showCopyMenu)}
+                      disabled={!inputContent.trim()}
+                      className="inline-flex items-center justify-center bg-neutral-900 hover:bg-black dark:bg-white dark:hover:bg-neutral-200 text-white dark:text-black disabled:pointer-events-none disabled:opacity-40 h-8 sm:h-9 rounded-r-md px-1.5 transition-colors cursor-pointer shadow-xs"
+                      title="Select math copy target"
+                    >
+                      <ChevronDown className="h-3 w-3 opacity-80" />
+                    </button>
                   )}
-                </button>
+
+                  {showCopyMenu && (
+                    <div
+                      onMouseLeave={() => setShowCopyMenu(false)}
+                      className="absolute right-0 top-full mt-1.5 w-64 rounded-xl border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#121212] shadow-xl py-1.5 z-40 text-xs font-medium animate-in fade-in-50 zoom-in-95"
+                    >
+                      <div className="px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-neutral-400 dark:text-neutral-500">
+                        Math Formatting Target
+                      </div>
+
+                      <button
+                        onClick={() => handleCopy('docs')}
+                        className={`w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer ${
+                          copyTarget === 'docs' ? 'bg-[#FAF5ED]/80 dark:bg-white/[0.08] font-semibold' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="text-neutral-900 dark:text-white font-medium">Google Docs (Visual Math)</div>
+                          <div className="text-[10px] text-neutral-500">Rendered images + Unicode text</div>
+                        </div>
+                        <span className="text-[10px] text-blue-500 font-mono font-bold">DOCS</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleCopy('word')}
+                        className={`w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer ${
+                          copyTarget === 'word' ? 'bg-[#FAF5ED]/80 dark:bg-white/[0.08] font-semibold' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="text-neutral-900 dark:text-white font-medium">MS Word (MathML)</div>
+                          <div className="text-[10px] text-neutral-500">Native editable equation objects</div>
+                        </div>
+                        <span className="text-[10px] text-emerald-500 font-mono font-bold">WORD</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleCopy('unicode')}
+                        className={`w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer ${
+                          copyTarget === 'unicode' ? 'bg-[#FAF5ED]/80 dark:bg-white/[0.08] font-semibold' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="text-neutral-900 dark:text-white font-medium">Clean Text (Unicode)</div>
+                          <div className="text-[10px] text-neutral-500">Formatted math characters in plain text</div>
+                        </div>
+                        <span className="text-[10px] text-cyan-500 font-mono font-bold">TXT</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleCopy('latex')}
+                        className={`w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer ${
+                          copyTarget === 'latex' ? 'bg-[#FAF5ED]/80 dark:bg-white/[0.08] font-semibold' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="text-neutral-900 dark:text-white font-medium">LaTeX Source ($$)</div>
+                          <div className="text-[10px] text-neutral-500">Raw markup for TeX/Markdown</div>
+                        </div>
+                        <span className="text-[10px] text-amber-500 font-mono font-bold">$$</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {/* Export Split Button */}
                 <div className="relative flex items-center">
@@ -576,17 +691,8 @@ export const Workspace: React.FC = () => {
                       </div>
 
                       <button
-                        onClick={async () => {
-                          const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'images' })
-                          const plainSnippet = renderToPlainText(parsedDocument)
-                          await navigator.clipboard.write([
-                            new ClipboardItem({
-                              'text/html': new Blob([htmlSnippet], { type: 'text/html' }),
-                              'text/plain': new Blob([plainSnippet], { type: 'text/plain' }),
-                            }),
-                          ])
-                          setCopiedRichText(true)
-                          setTimeout(() => setCopiedRichText(false), 2000)
+                        onClick={() => {
+                          handleCopy('docs')
                           setShowExportMenu(false)
                         }}
                         className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
@@ -596,17 +702,8 @@ export const Workspace: React.FC = () => {
                       </button>
 
                       <button
-                        onClick={async () => {
-                          const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'mathml' })
-                          const plainSnippet = renderToPlainText(parsedDocument)
-                          await navigator.clipboard.write([
-                            new ClipboardItem({
-                              'text/html': new Blob([htmlSnippet], { type: 'text/html' }),
-                              'text/plain': new Blob([plainSnippet], { type: 'text/plain' }),
-                            }),
-                          ])
-                          setCopiedRichText(true)
-                          setTimeout(() => setCopiedRichText(false), 2000)
+                        onClick={() => {
+                          handleCopy('word')
                           setShowExportMenu(false)
                         }}
                         className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
@@ -617,9 +714,18 @@ export const Workspace: React.FC = () => {
 
                       <button
                         onClick={() => {
-                          navigator.clipboard.writeText(renderedMarkdown)
-                          setCopiedRichText(true)
-                          setTimeout(() => setCopiedRichText(false), 2000)
+                          handleCopy('unicode')
+                          setShowExportMenu(false)
+                        }}
+                        className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
+                      >
+                        <span>Copy Clean Text (Unicode)</span>
+                        <span className="text-[10px] text-cyan-500 font-mono">TXT</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          handleCopy('latex')
                           setShowExportMenu(false)
                         }}
                         className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"

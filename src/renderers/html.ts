@@ -1,6 +1,7 @@
 import DOMPurify from 'dompurify'
 import katex from 'katex'
 import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
+import { latexToUnicode } from '../utils/mathUnicode'
 
 // Escape basic HTML entities for safety
 function escapeHtml(str: string): string {
@@ -40,7 +41,8 @@ function renderMathToMathMl(latex: string, displayMode: boolean): string {
       .replace(/<\/span>$/, '')
       .trim()
   } catch {
-    return displayMode ? `$$\n${escapeHtml(latex)}\n$$` : `$${escapeHtml(latex)}$`
+    const unicode = escapeHtml(latexToUnicode(latex) || latex)
+    return displayMode ? `<p align="center">${unicode}</p>` : `<span>${unicode}</span>`
   }
 }
 
@@ -63,9 +65,10 @@ function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'l
       }
       if (mathMode === 'images') {
         const encoded = encodeURIComponent(trimmed)
+        const unicodeText = escapeHtml(latexToUnicode(node.value) || node.value)
         // Natural DPI (~16-18px height) perfectly matches standard 11pt/12pt document text
         const url = `https://latex.codecogs.com/png.image?${encoded}`
-        return `<img src="${url}" class="latex-formula" alt="${escapeHtml(node.value)}" style="vertical-align: -0.25em; display: inline-block; margin: 0 2px;" />`
+        return `<img src="${url}" class="latex-formula" alt="${unicodeText}" title="${unicodeText}" style="vertical-align: -0.25em; display: inline-block; margin: 0 2px;" />`
       }
       if (mathMode === 'mathml') {
         return renderMathToMathMl(node.value, false)
@@ -107,9 +110,10 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
     case 'mathBlock': {
       if (mathMode === 'images') {
         const encoded = encodeURIComponent(block.value.trim())
+        const unicodeText = escapeHtml(latexToUnicode(block.value) || block.value)
         // 110 DPI renders a crisp, proportional equation block (~50px height) rather than oversized 300 DPI
         const url = `https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D${encoded}`
-        return `<p align="center" style="text-align: center; margin: 12px 0;"><img src="${url}" class="latex-formula" alt="${escapeHtml(block.value)}" style="display: inline-block; max-height: 60px;" /></p>`
+        return `<p align="center" style="text-align: center; margin: 12px 0;"><img src="${url}" class="latex-formula" alt="${unicodeText}" title="${unicodeText}" style="display: inline-block; max-height: 60px;" /></p>`
       }
       if (mathMode === 'mathml') {
         return `<div class="math-block" align="center">\n${renderMathToMathMl(block.value, true)}\n</div>`
@@ -206,7 +210,7 @@ export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions
             'separators', 'fence', 'stretchy', 'symmetric', 'lspace', 'rspace', 'minsize',
             'maxsize', 'data-math', 'src', 'alt', 'style', 'align', 'width', 'height',
             'valign', 'border', 'cellpadding', 'cellspacing', 'hspace', 'vspace',
-            'class', 'id', 'target', 'rel',
+            'class', 'id', 'target', 'rel', 'title',
           ],
         })
       : rawHtml

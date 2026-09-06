@@ -85,6 +85,10 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
     () => renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'images' }),
     [parsedDocument]
   )
+  const contentHtmlWord = useMemo(
+    () => renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'mathml' }),
+    [parsedDocument]
+  )
   const contentHtmlFull = useMemo(
     () => renderToHtml(parsedDocument, { includeWrapper: true, title: filename, mathMode: 'images' }),
     [parsedDocument, filename]
@@ -130,7 +134,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
     const baseName = filename.trim() || 'document'
     switch (activeType) {
       case 'word':
-        exportToWord(contentHtmlClean, baseName)
+        exportToWord(contentHtmlWord, baseName)
         break
       case 'pdf':
         exportToPdf(contentHtmlClean, baseName)
@@ -155,7 +159,13 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
 
   const handleCopyContent = async () => {
     try {
-      if (activeType === 'word' || (activeType === 'html' && htmlViewMode === 'visual')) {
+      if (activeType === 'word') {
+        const blobHtml = new Blob([contentHtmlWord], { type: 'text/html' })
+        const blobText = new Blob([contentPlainText], { type: 'text/plain' })
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobText }),
+        ])
+      } else if (activeType === 'html' && htmlViewMode === 'visual') {
         const blobHtml = new Blob([contentHtmlClean], { type: 'text/html' })
         const blobText = new Blob([contentPlainText], { type: 'text/plain' })
         await navigator.clipboard.write([
