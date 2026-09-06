@@ -21,47 +21,48 @@ export function exportToWord(htmlBody: string, title = 'document') {
   <style>
     @page {
       size: letter portrait;
-      margin: 0.75in;
-      mso-header-margin: 0.5in;
-      mso-footer-margin: 0.5in;
+      margin: 0.5in;
+      mso-header-margin: 0.3in;
+      mso-footer-margin: 0.3in;
     }
     body {
-      font-family: 'Calibri', 'Arial', sans-serif;
-      font-size: 11pt;
+      font-family: 'Calibri', 'Segoe UI', 'Arial', sans-serif;
+      font-size: 10.5pt;
       line-height: 1.35;
       color: #0f172a;
-      margin: 0.75in;
+      margin: 0.5in;
     }
     h1 {
       font-size: 20pt;
       font-weight: bold;
-      color: #0f172a;
+      color: #003884;
       margin-top: 0;
       margin-bottom: 4pt;
       text-align: center;
     }
     h2 {
-      font-size: 13pt;
+      font-size: 11.5pt;
       font-weight: bold;
-      color: #1e293b;
-      margin-top: 14pt;
-      margin-bottom: 4pt;
-      border-bottom: 1.5pt solid #334155;
-      padding-bottom: 2pt;
+      color: #003884;
+      margin-top: 11pt;
+      margin-bottom: 3pt;
+      border-bottom: 1.5pt solid #003884;
+      padding-bottom: 1.5pt;
       text-transform: uppercase;
       letter-spacing: 0.5pt;
     }
     h3 {
-      font-size: 11pt;
+      font-size: 10.5pt;
       font-weight: bold;
-      color: #334155;
-      margin-top: 6pt;
+      color: #1e293b;
+      margin-top: 5pt;
       margin-bottom: 2pt;
     }
-    p { margin: 3pt 0; }
+    p { margin: 2.5pt 0; }
+    p[align="center"] { text-align: center; }
     ul, ol {
-      margin: 3pt 0 6pt 0;
-      padding-left: 20pt;
+      margin: 2pt 0 5pt 0;
+      padding-left: 18pt;
     }
     li { margin-bottom: 2pt; }
     hr {
@@ -142,22 +143,26 @@ export function exportToPdf(htmlBody: string, title = 'document') {
   <style>
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      padding: 40px;
+      padding: 36px;
       color: #0f172a;
-      line-height: 1.6;
-      max-width: 800px;
+      line-height: 1.5;
+      max-width: 820px;
       margin: 0 auto;
     }
-    h1 { font-size: 2rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px; }
-    h2 { font-size: 1.5rem; margin-top: 24px; }
-    h3 { font-size: 1.25rem; }
-    table { border-collapse: collapse; width: 100%; margin: 20px 0; }
-    th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+    h1 { font-size: 1.85rem; text-align: center; color: #003884; margin-bottom: 6px; }
+    h2 { font-size: 1.15rem; font-weight: 700; color: #003884; border-bottom: 2px solid #003884; padding-bottom: 3px; margin-top: 18px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    h3 { font-size: 1.05rem; font-weight: 600; color: #1e293b; margin-top: 8px; margin-bottom: 3px; }
+    p { margin: 3px 0; }
+    p[align="center"] { text-align: center; }
+    ul, ol { margin: 3px 0 6px 0; padding-left: 20px; }
+    li { margin-bottom: 2px; }
+    table { border-collapse: collapse; width: 100%; margin: 16px 0; }
+    th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
     th { background: #f8fafc; }
     code { font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
-    pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; }
-    blockquote { border-left: 4px solid #3b82f6; padding-left: 14px; color: #475569; margin: 16px 0; }
-    .math-block { margin: 20px 0; text-align: center; }
+    pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; }
+    blockquote { border-left: 4px solid #003884; padding-left: 12px; color: #475569; margin: 12px 0; }
+    .math-block { margin: 16px 0; text-align: center; }
     @media print {
       body { padding: 0; }
     }

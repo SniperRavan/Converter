@@ -94,7 +94,8 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
 
     case 'paragraph': {
       const content = block.children.map(c => renderInlineToHtml(c, mathMode)).join('')
-      return `<p>${content}</p>`
+      const alignAttr = block.align ? ` align="${block.align}" style="text-align: ${block.align};"` : ''
+      return `<p${alignAttr}>${content}</p>`
     }
 
     case 'blockquote': {

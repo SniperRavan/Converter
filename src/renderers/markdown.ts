@@ -33,7 +33,12 @@ function renderBlockToMarkdown(block: BlockNode): string {
 
     case 'paragraph': {
       const content = block.children.map(renderInlineToMarkdown).join('')
-      return `${content}\n`
+      const cleaned = content
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .join('\n')
+      return `${cleaned}\n`
     }
 
     case 'blockquote': {

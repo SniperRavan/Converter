@@ -187,7 +187,7 @@ function cleanLatexMetadata(text: string): string[] {
  * Robust balanced inline LaTeX parser with zero placeholder token leaks
  */
 export function parseLatexInline(text: string): InlineNode[] {
-  const cleaned = text
+  let cleaned = text
     .replace(/\\today\b/g, getTodayFormatted())
     .replace(/\\LaTeX\b/g, 'LaTeX')
     .replace(/\\TeX\b/g, 'TeX')
@@ -197,12 +197,13 @@ export function parseLatexInline(text: string): InlineNode[] {
     .replace(/``/g, '“')
     .replace(/''/g, '”')
     .replace(/`/g, '‘')
-    .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|centering|raggedright|noindent)/g, '')
+    .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|centering|raggedright|raggedleft|noindent)/g, '')
     .replace(/\\color\{[^}]+\}/g, '')
     .replace(/\\vspace\*?\{[^}]+\}/g, '')
     .replace(/\\hspace\*?\{[^}]+\}/g, '')
-    .replace(/\\hfill\b/g, ' · ')
-    .replace(/\\\\(?:\[[^\]]*\])?/g, '\n')
+    .replace(/\\(hfill|vfill)\b/g, ' · ')
+    .replace(/\\{1,2}\s*\[\s*-?[\d.]+\s*(?:pt|mm|cm|in|ex|em)?\s*\]/g, ' ')
+    .replace(/\\\\/g, '\n')
     .replace(/~/g, ' ')
     .replace(/\s*\$\\\|\$\s*/g, ' | ')
     .replace(/\s*\$\|\$\s*/g, ' | ')
@@ -215,6 +216,14 @@ export function parseLatexInline(text: string): InlineNode[] {
     .replace(/\\\$/g, '$')
     .replace(/\\\{/g, '{')
     .replace(/\\\}/g, '}')
+
+  // Unwrap outer balanced braces e.g. {Some text}
+  if (cleaned.startsWith('{') && cleaned.endsWith('}')) {
+    const b = extractBalancedBraces(cleaned, 1)
+    if (b && b.endIdx === cleaned.length - 1) {
+      cleaned = b.content.trim()
+    }
+  }
 
   const nodes: InlineNode[] = []
   let i = 0
@@ -611,7 +620,7 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
     const ignorableMatch = input
       .slice(cursor)
       .match(
-        /^\\(newpage|clearpage|maketitle|noindent|centering|raggedright|bigskip|medskip|smallskip|pagestyle\{[^}]*\}|thispagestyle\{[^}]*\}|pagenumbering\{[^}]*\}|vspace\*?\{[^}]*\}|hspace\*?\{[^}]*\}|onehalfspacing|doublespacing|singlespacing)\b/
+        /^\\(newpage|clearpage|maketitle|noindent|centering|raggedright|raggedleft|bigskip|medskip|smallskip|onehalfspacing|doublespacing|singlespacing|pagestyle\{[^}]*\}|thispagestyle\{[^}]*\}|pagenumbering\{[^}]*\}|vspace\*?\{[^}]*\}|hspace\*?\{[^}]*\})(?:\b|(?=[\s\\{}]|$))/
       )
     if (ignorableMatch) {
       cursor += ignorableMatch[0].length
@@ -907,21 +916,36 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
     // 11. Regular Paragraph text: scan ahead until the next block delimiter
     const remaining = input.slice(cursor)
     const delimMatch = remaining.match(
-      /\n\s*(\n|\\(?:part|chapter|section|subsection|subsubsection|paragraph|cvsection|cvsubsection)\*?\s*\{|\\begin\{|\$\$|\\\[|###\s+|\\(?:tableofcontents|listoftables|listoffigures|input|include)\b|\\(?:hrule|hrulefill)\b)/
+      /\n\s*(\n|\\(?:part|chapter|section|subsection|subsubsection|paragraph|cvsection|cvsubsection)\*?\s*\{|\\begin\{|\$\$|\\\[|###\s+|\\(?:tableofcontents|listoftables|listoffigures|input|include)\b|\\(?:hrule|hrulefill)\b|\\(?:pagestyle|thispagestyle|pagenumbering)\{[^}]*\}|\\(?:vspace|hspace)\*?\{[^}]*\})/
     )
     const paraEnd = delimMatch && delimMatch.index !== undefined ? cursor + delimMatch.index : input.length
-    const paraText = input.slice(cursor, paraEnd).trim()
+    let paraText = input.slice(cursor, paraEnd).trim()
     cursor = paraEnd
 
-    const cleanedPara = paraText
+    paraText = paraText
       .replace(/\\\\(?:\[[^\]]*\])?\s*$/, '')
       .replace(/^\\small\{([\s\S]*?)\}$/, '$1')
       .trim()
 
-    if (cleanedPara) {
+    // Strip outer balanced braces e.g. {Some text...} from stripped font-size wrappers
+    if (paraText.startsWith('{') && paraText.endsWith('}')) {
+      const balanced = extractBalancedBraces(paraText, 1)
+      if (balanced && balanced.endIdx === paraText.length - 1) {
+        paraText = balanced.content.trim()
+      }
+    }
+
+    // Normalize lines to avoid 4-space markdown code block indentation
+    const normalizedLines = paraText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .join('\n')
+
+    if (normalizedLines) {
       blocks.push({
         type: 'paragraph',
-        children: parseLatexInline(cleanedPara),
+        children: parseLatexInline(normalizedLines),
       })
     }
   }
@@ -982,19 +1006,30 @@ export function parseLatex(latexContent: string): NormalizedDocument {
 
   // Preprocess FontAwesome icons to universal emojis
   body = body
-    .replace(/\\faMapMarker\*?~/g, '📍 ')
-    .replace(/\\faPhone\*?~/g, '📞 ')
-    .replace(/\\faEnvelope\*?~/g, '✉️ ')
-    .replace(/\\faGlobe\*?~/g, '🌐 ')
-    .replace(/\\faGithub\*?~/g, '🐙 ')
-    .replace(/\\faLinkedin\*?~/g, '💼 ')
-    .replace(/\\faHeadphones\*?~/g, '🎧 ')
-    .replace(/\\faBookOpen\*?~/g, '📖 ')
-    .replace(/\\faLaptopCode\*?~/g, '💻 ')
-    .replace(/\\faGraduationCap\*?~/g, '🎓 ')
-    .replace(/\\faBriefcase\*?~/g, '💼 ')
-    .replace(/\\faExternalLink\*?~/g, '🔗 ')
+    .replace(/\\faMapMarker\*?~?/g, '📍 ')
+    .replace(/\\faPhone\*?~?/g, '📞 ')
+    .replace(/\\faEnvelope\*?~?/g, '✉️ ')
+    .replace(/\\faGlobe\*?~?/g, '🌐 ')
+    .replace(/\\faGithub\*?~?/g, '🐙 ')
+    .replace(/\\faLinkedin\*?~?/g, '💼 ')
+    .replace(/\\faHeadphones\*?~?/g, '🎧 ')
+    .replace(/\\faBookOpen\*?~?/g, '📖 ')
+    .replace(/\\faLaptopCode\*?~?/g, '💻 ')
+    .replace(/\\faGraduationCap\*?~?/g, '🎓 ')
+    .replace(/\\faBriefcase\*?~?/g, '💼 ')
+    .replace(/\\faExternalLink\*?~?/g, '🔗 ')
     .replace(/\\fa[A-Z][a-zA-Z0-9]*\*?~?/g, '')
+
+  // Replace dimensioned line breaks (e.g. \\[4pt], \\[2pt]) with standard newlines
+  body = body.replace(/\\{1,2}\s*\[\s*-?[\d.]+\s*(?:pt|mm|cm|in|ex|em)?\s*\]/g, '\n')
+
+  // Strip layout commands that should not leak into content
+  body = body
+    .replace(/\\(pagestyle|thispagestyle|pagenumbering)\{[^}]*\}/g, '')
+    .replace(/\\(vspace|hspace)\*?\{[^}]*\}/g, '')
+    .replace(/\\(newpage|clearpage|bigskip|medskip|smallskip|onehalfspacing|doublespacing|singlespacing)\b/g, '')
+    .replace(/\\(hfill|vfill)\b/g, ' · ')
+    .replace(/\\noindent\b/g, '')
 
   // Expand ModernCV contact info macros
   body = body
@@ -1064,7 +1099,11 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     const res = extractNBracedArgs(body, idx + 17, 4)
     if (!res) break
     const [p1, p2, p3, p4] = res.args
-    const replacement = `\n\n### ${p1.trim()} — *${p2.trim()}* *(${p4.trim()})*\n*${p3.trim()}*\n\n`
+    const cleanP1 = p1.replace(/\s+/g, ' ').replace(/--/g, '–').trim()
+    const cleanP2 = p2.replace(/\s+/g, ' ').replace(/--/g, '–').trim()
+    const cleanP3 = p3.replace(/\s*\$\|\$\s*/g, ' | ').replace(/\s*\$\\\|\$\s*/g, ' | ').replace(/\s+/g, ' ').replace(/--/g, '–').trim()
+    const cleanP4 = p4.replace(/\s+/g, ' ').replace(/--/g, '–').trim()
+    const replacement = `\n\n### ${cleanP1} — *${cleanP2}* *(${cleanP4})*\n*${cleanP3}*\n\n`
     body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
   }
 
@@ -1074,7 +1113,9 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     const res = extractNBracedArgs(body, idx + 21, 2)
     if (!res) break
     const [p1, p2] = res.args
-    const replacement = `\n\n### ${p1.trim()} *(${p2.trim()})*\n\n`
+    const cleanP1 = p1.replace(/\s*\$\|\$\s*/g, ' | ').replace(/\s*\$\\\|\$\s*/g, ' | ').replace(/\s+/g, ' ').replace(/--/g, '–').trim()
+    const cleanP2 = p2.replace(/\s+/g, ' ').replace(/--/g, '–').trim()
+    const replacement = `\n\n### ${cleanP1} *(${cleanP2})*\n\n`
     body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
   }
 
@@ -1179,13 +1220,15 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     const contactLines = withoutName
       .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape)/g, '')
       .replace(/\\color\{[^}]+\}/g, '')
-      .split(/\\\\(?:\[[^\]]*\])?|\n\s*\n/)
-      .map((l) => l.trim())
+      .replace(/\\{1,2}\s*\[\s*-?[\d.]+\s*(?:pt|mm|cm|in|ex|em)?\s*\]/g, '\n')
+      .split(/\\\\|\n\s*\n/)
+      .map((l) => l.replace(/\s*\n\s*/g, ' ').replace(/\s*~?\|~?\s*/g, ' · ').trim())
       .filter(Boolean)
 
     for (const line of contactLines) {
       children.push({
         type: 'paragraph',
+        align: 'center',
         children: parseLatexInline(line),
       })
     }

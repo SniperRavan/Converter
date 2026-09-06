@@ -75,7 +75,9 @@ export interface HeadingNode extends BaseNode {
 export interface ParagraphNode extends BaseNode {
   type: 'paragraph'
   children: InlineNode[]
+  align?: Alignment
 }
+
 
 export interface BlockquoteNode extends BaseNode {
   type: 'blockquote'
