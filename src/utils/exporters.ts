@@ -19,25 +19,64 @@ export function exportToWord(htmlBody: string, title = 'document') {
   <![endif]-->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <style>
+    @page {
+      size: letter portrait;
+      margin: 0.75in;
+      mso-header-margin: 0.5in;
+      mso-footer-margin: 0.5in;
+    }
     body {
       font-family: 'Calibri', 'Arial', sans-serif;
       font-size: 11pt;
-      line-height: 1.5;
+      line-height: 1.35;
       color: #0f172a;
-      margin: 1in;
+      margin: 0.75in;
     }
-    h1 { font-size: 22pt; font-weight: bold; color: #1e293b; margin-top: 18pt; margin-bottom: 6pt; }
-    h2 { font-size: 16pt; font-weight: bold; color: #334155; margin-top: 14pt; margin-bottom: 4pt; }
-    h3 { font-size: 13pt; font-weight: bold; color: #475569; margin-top: 10pt; margin-bottom: 3pt; }
-    p { margin: 6pt 0; }
+    h1 {
+      font-size: 20pt;
+      font-weight: bold;
+      color: #0f172a;
+      margin-top: 0;
+      margin-bottom: 4pt;
+      text-align: center;
+    }
+    h2 {
+      font-size: 13pt;
+      font-weight: bold;
+      color: #1e293b;
+      margin-top: 14pt;
+      margin-bottom: 4pt;
+      border-bottom: 1.5pt solid #334155;
+      padding-bottom: 2pt;
+      text-transform: uppercase;
+      letter-spacing: 0.5pt;
+    }
+    h3 {
+      font-size: 11pt;
+      font-weight: bold;
+      color: #334155;
+      margin-top: 6pt;
+      margin-bottom: 2pt;
+    }
+    p { margin: 3pt 0; }
+    ul, ol {
+      margin: 3pt 0 6pt 0;
+      padding-left: 20pt;
+    }
+    li { margin-bottom: 2pt; }
+    hr {
+      border: none;
+      border-top: 1pt solid #cbd5e1;
+      margin: 8pt 0;
+    }
     table {
       border-collapse: collapse;
       width: 100%;
-      margin: 12pt 0;
+      margin: 8pt 0;
     }
     th, td {
       border: 1pt solid #cbd5e1;
-      padding: 6pt 8pt;
+      padding: 4pt 6pt;
       text-align: left;
     }
     th {
@@ -56,17 +95,21 @@ export function exportToWord(htmlBody: string, title = 'document') {
       background-color: #f8fafc;
       border: 1pt solid #e2e8f0;
       padding: 8pt;
-      margin: 10pt 0;
+      margin: 8pt 0;
     }
     blockquote {
-      border-left: 3pt solid #3b82f6;
+      border-left: 2.5pt solid #94a3b8;
       padding-left: 10pt;
-      margin: 8pt 0;
+      margin: 6pt 0;
       color: #475569;
       font-style: italic;
     }
+    a {
+      color: #2563eb;
+      text-decoration: none;
+    }
     .math-block, math {
-      margin: 12pt 0;
+      margin: 8pt 0;
     }
   </style>
 </head>

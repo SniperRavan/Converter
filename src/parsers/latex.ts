@@ -4,6 +4,7 @@ import type {
   InlineNode,
   TableCellNode,
   TableRowNode,
+  ListItemNode,
 } from '../core/types'
 import { computeDocumentStats } from '../core/stats'
 
@@ -63,6 +64,90 @@ function extractNBracedArgs(str: string, startIdx: number, count: number): { arg
 }
 
 /**
+ * Extracts balanced LaTeX environment: \begin{envName}[opt]{arg}... \end{envName}
+ */
+function extractEnvironment(str: string, startIndex: number): {
+  envName: string
+  args: string
+  content: string
+  fullMatch: string
+  endIndex: number
+} | null {
+  const beginMatch = str.slice(startIndex).match(/^\\begin\{([a-zA-Z0-9*]+)\}/)
+  if (!beginMatch) return null
+
+  const envName = beginMatch[1]
+  let cursor = startIndex + beginMatch[0].length
+
+  let args = ''
+  while (cursor < str.length) {
+    const nextChar = str[cursor]
+    if (nextChar === ' ' || nextChar === '\t') {
+      cursor++
+      continue
+    }
+    if (nextChar === '[') {
+      const closeBracket = str.indexOf(']', cursor)
+      if (closeBracket !== -1) {
+        args += str.slice(cursor, closeBracket + 1)
+        cursor = closeBracket + 1
+        continue
+      }
+    }
+    if (nextChar === '{') {
+      const balanced = extractBalancedBraces(str, cursor + 1)
+      if (balanced) {
+        args += '{' + balanced.content + '}'
+        cursor = balanced.endIdx + 1
+        continue
+      }
+    }
+    break
+  }
+
+  const beginTag = `\\begin{${envName}}`
+  const endTag = `\\end{${envName}}`
+  let depth = 1
+  let searchIdx = cursor
+
+  while (searchIdx < str.length) {
+    const nextBegin = str.indexOf(beginTag, searchIdx)
+    const nextEnd = str.indexOf(endTag, searchIdx)
+
+    if (nextEnd === -1) {
+      const content = str.slice(cursor)
+      return { envName, args, content, fullMatch: str.slice(startIndex), endIndex: str.length }
+    }
+
+    if (nextBegin !== -1 && nextBegin < nextEnd) {
+      depth++
+      searchIdx = nextBegin + beginTag.length
+    } else {
+      depth--
+      if (depth === 0) {
+        const content = str.slice(cursor, nextEnd)
+        const endIndex = nextEnd + endTag.length
+        return { envName, args, content, fullMatch: str.slice(startIndex, endIndex), endIndex }
+      }
+      searchIdx = nextEnd + endTag.length
+    }
+  }
+
+  return null
+}
+
+/**
+ * Returns the current date formatted in standard academic style (e.g. September 7, 2026)
+ */
+function getTodayFormatted(): string {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(new Date())
+}
+
+/**
  * Unwraps font-sizing and style wrapper commands like \small{text} into bare text
  */
 function unwrapSizingCommands(input: string): string {
@@ -85,11 +170,15 @@ function unwrapSizingCommands(input: string): string {
  */
 function cleanLatexMetadata(text: string): string[] {
   return text
+    .replace(/\\today\b/g, getTodayFormatted())
     .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|centering|raggedright|noindent)/g, '')
     .replace(/\\color\{[^}]+\}/g, '')
     .replace(/\\vspace\*?\{[^}]+\}/g, '')
     .replace(/\\hspace\*?\{[^}]+\}/g, '')
     .replace(/\\&/g, '&')
+    .replace(/\\%/g, '%')
+    .replace(/\\#/g, '#')
+    .replace(/\\_/g, '_')
     .split(/\\\\|\n/)
     .map((l) => l.trim())
     .filter(Boolean)
@@ -100,6 +189,15 @@ function cleanLatexMetadata(text: string): string[] {
  */
 export function parseLatexInline(text: string): InlineNode[] {
   const cleaned = text
+    .replace(/\\today\b/g, getTodayFormatted())
+    .replace(/\\LaTeX\b/g, 'LaTeX')
+    .replace(/\\TeX\b/g, 'TeX')
+    .replace(/\\dots\b|\\ldots\b/g, '...')
+    .replace(/---/g, '—')
+    .replace(/--/g, '–')
+    .replace(/``/g, '“')
+    .replace(/''/g, '”')
+    .replace(/`/g, '‘')
     .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|centering|raggedright|noindent)/g, '')
     .replace(/\\color\{[^}]+\}/g, '')
     .replace(/\\vspace\*?\{[^}]+\}/g, '')
@@ -109,10 +207,15 @@ export function parseLatexInline(text: string): InlineNode[] {
     .replace(/~/g, ' ')
     .replace(/\s*\$\\\|\$\s*/g, ' | ')
     .replace(/\s*\$\|\$\s*/g, ' | ')
+    .replace(/\\quad\b/g, '  ')
+    .replace(/\\qquad\b/g, '    ')
     .replace(/\\&/g, '&')
     .replace(/\\%/g, '%')
     .replace(/\\#/g, '#')
     .replace(/\\_/g, '_')
+    .replace(/\\\$/g, '$')
+    .replace(/\\\{/g, '{')
+    .replace(/\\\}/g, '}')
 
   const nodes: InlineNode[] = []
   let i = 0
@@ -186,8 +289,12 @@ export function parseLatexInline(text: string): InlineNode[] {
       }
     }
 
-    // Check \textit{...} or \emph{...}
-    if (cleaned.startsWith('\\textit', i) || cleaned.startsWith('\\emph', i)) {
+    // Check \textit{...}, \emph{...}, or \underline{...}
+    if (
+      cleaned.startsWith('\\textit', i) ||
+      cleaned.startsWith('\\emph', i) ||
+      cleaned.startsWith('\\underline', i)
+    ) {
       const bStart = cleaned.indexOf('{', i)
       if (bStart !== -1) {
         const bRes = extractBalancedBraces(cleaned, bStart + 1)
@@ -217,6 +324,74 @@ export function parseLatexInline(text: string): InlineNode[] {
           i = bRes.endIdx + 1
           continue
         }
+      }
+    }
+
+    // Check \cite{...} or \cite[p. 10]{...}
+    if (cleaned.startsWith('\\cite', i)) {
+      const optStart = cleaned.indexOf('[', i)
+      let optText = ''
+      const braceStart = cleaned.indexOf('{', i)
+      if (optStart !== -1 && optStart < braceStart) {
+        const optEnd = cleaned.indexOf(']', optStart)
+        if (optEnd !== -1 && optEnd < braceStart) {
+          optText = cleaned.slice(optStart + 1, optEnd).trim()
+        }
+      }
+      if (braceStart !== -1) {
+        const bRes = extractBalancedBraces(cleaned, braceStart + 1)
+        if (bRes) {
+          flushText()
+          const key = bRes.content.trim()
+          const label = optText ? `[${key}, ${optText}]` : `[${key}]`
+          nodes.push({ type: 'text', value: label })
+          i = bRes.endIdx + 1
+          continue
+        }
+      }
+    }
+
+    // Check \ref{...} or \eqref{...}
+    if (cleaned.startsWith('\\ref', i) || cleaned.startsWith('\\eqref', i)) {
+      const isEq = cleaned.startsWith('\\eqref', i)
+      const braceStart = cleaned.indexOf('{', i)
+      if (braceStart !== -1) {
+        const bRes = extractBalancedBraces(cleaned, braceStart + 1)
+        if (bRes) {
+          flushText()
+          const refName = bRes.content.trim()
+          nodes.push({ type: 'text', value: isEq ? `(${refName})` : `[${refName}]` })
+          i = bRes.endIdx + 1
+          continue
+        }
+      }
+    }
+
+    // Check $$...$$ display math occurring within inline text
+    if (cleaned.startsWith('$$', i)) {
+      const nextDollar = cleaned.indexOf('$$', i + 2)
+      if (nextDollar !== -1) {
+        flushText()
+        nodes.push({
+          type: 'inlineMath',
+          value: cleaned.slice(i + 2, nextDollar).trim(),
+        })
+        i = nextDollar + 2
+        continue
+      }
+    }
+
+    // Check \[...\] display math occurring within inline text
+    if (cleaned.startsWith('\\[', i)) {
+      const nextBracket = cleaned.indexOf('\\]', i + 2)
+      if (nextBracket !== -1) {
+        flushText()
+        nodes.push({
+          type: 'inlineMath',
+          value: cleaned.slice(i + 2, nextBracket).trim(),
+        })
+        i = nextBracket + 2
+        continue
       }
     }
 
@@ -254,6 +429,514 @@ export function parseLatexInline(text: string): InlineNode[] {
 
   flushText()
   return nodes.length > 0 ? nodes : [{ type: 'text', value: text }]
+}
+
+/**
+ * Parses LaTeX tabular environment contents into a TableNode
+ */
+function parseLatexTabular(content: string): BlockNode | null {
+  const rawRows = content
+    .split(/\\\\/)
+    .map((r) => r.trim())
+    .filter((r) => r && !r.startsWith('\\hline') && !r.startsWith('\\toprule') && !r.startsWith('\\bottomrule'))
+
+  if (rawRows.length === 0) return null
+
+  const parsedRows: TableRowNode[] = []
+  let headers: TableCellNode[] = []
+
+  rawRows.forEach((rowStr, rIdx) => {
+    const cleanedRow = rowStr
+      .replace(/\\(hline|toprule|midrule|bottomrule)\b/g, '')
+      .replace(/\\\\(?:\[[^\]]*\])?\s*$/, '')
+      .trim()
+
+    if (!cleanedRow) return
+
+    // Preserve escaped \& before splitting on cell delimiter &
+    const cells: TableCellNode[] = cleanedRow
+      .replace(/\\&/g, '\uFFF0')
+      .split('&')
+      .map((cellStr) => ({
+        type: 'tableCell' as const,
+        children: parseLatexInline(cellStr.replace(/\uFFF0/g, '&').trim()),
+      }))
+
+    if (rIdx === 0) {
+      headers = cells
+    } else {
+      parsedRows.push({ type: 'tableRow', cells })
+    }
+  })
+
+  if (headers.length === 0 && parsedRows.length === 0) return null
+
+  return {
+    type: 'table',
+    headers,
+    rows: parsedRows,
+    alignments: headers.map(() => null),
+  }
+}
+
+/**
+ * Parses \begin{thebibliography} entries into ListItemNodes
+ */
+function parseBibliographyContent(content: string): ListItemNode[] {
+  const bibPattern = /\\bibitem(?:\s*\[([^\]]*)\])?\s*\{([^}]+)\}/g
+  const matches = [...content.matchAll(bibPattern)]
+  const items: ListItemNode[] = []
+
+  if (matches.length === 0) {
+    const lines = content.split('\n').map((l) => l.trim()).filter(Boolean)
+    return lines.map((line) => ({
+      type: 'listItem',
+      children: [
+        {
+          type: 'paragraph',
+          children: parseLatexInline(line),
+        },
+      ],
+    }))
+  }
+
+  for (let i = 0; i < matches.length; i++) {
+    const current = matches[i]
+    const next = matches[i + 1]
+    const textStart = (current.index ?? 0) + current[0].length
+    const textEnd = next && next.index !== undefined ? next.index : content.length
+    const refText = content.slice(textStart, textEnd).trim()
+    const label = current[1]?.trim()
+    const inlineChildren = parseLatexInline(refText)
+    const finalChildren = label ? [{ type: 'text' as const, value: `[${label}] ` }, ...inlineChildren] : inlineChildren
+
+    items.push({
+      type: 'listItem',
+      children: [
+        {
+          type: 'paragraph',
+          children: finalChildren,
+        },
+      ],
+    })
+  }
+
+  return items
+}
+
+/**
+ * Parses LaTeX list environment contents (\begin{itemize} / \begin{enumerate})
+ */
+function parseLatexListContent(content: string): ListItemNode[] {
+  const items: ListItemNode[] = []
+  const firstItem = content.indexOf('\\item')
+  if (firstItem === -1) {
+    if (content.trim()) {
+      return [
+        {
+          type: 'listItem',
+          children: [
+            {
+              type: 'paragraph',
+              children: parseLatexInline(content.trim()),
+            },
+          ],
+        },
+      ]
+    }
+    return []
+  }
+
+  let cursor = firstItem
+  while (cursor < content.length) {
+    const itemMatch = content.slice(cursor).match(/^\\item(?:\s*\[([^\]]*)\])?\s*/)
+    if (!itemMatch) break
+    const itemStart = cursor + itemMatch[0].length
+    const label = itemMatch[1]?.trim()
+
+    let search = itemStart
+    let nextItemIdx = -1
+
+    while (search < content.length) {
+      if (content.slice(search).startsWith('\\begin{')) {
+        const env = extractEnvironment(content, search)
+        if (env) {
+          search = env.endIndex
+          continue
+        }
+      }
+      if (content.slice(search).startsWith('\\item')) {
+        nextItemIdx = search
+        break
+      }
+      search++
+    }
+
+    const itemBody = nextItemIdx !== -1 ? content.slice(itemStart, nextItemIdx) : content.slice(itemStart)
+    cursor = nextItemIdx !== -1 ? nextItemIdx : content.length
+
+    const nestedBlocks = parseLatexBodyBlocks(itemBody.trim())
+    const itemChildren: (BlockNode | InlineNode)[] = []
+
+    if (label) {
+      const labelPrefix: InlineNode[] = [{ type: 'strong', children: [{ type: 'text', value: `${label} ` }] }]
+      if (nestedBlocks.length > 0 && nestedBlocks[0].type === 'paragraph') {
+        nestedBlocks[0].children = [...labelPrefix, ...nestedBlocks[0].children]
+      } else {
+        nestedBlocks.unshift({ type: 'paragraph', children: labelPrefix })
+      }
+    }
+
+    if (nestedBlocks.length > 0) {
+      itemChildren.push(...nestedBlocks)
+    } else if (itemBody.trim()) {
+      itemChildren.push({
+        type: 'paragraph',
+        children: parseLatexInline(itemBody.trim()),
+      })
+    }
+
+    items.push({
+      type: 'listItem',
+      children: itemChildren,
+    })
+  }
+
+  return items
+}
+
+/**
+ * Parses LaTeX document body sequentially into structured AST blocks
+ */
+function parseLatexBodyBlocks(input: string): BlockNode[] {
+  const blocks: BlockNode[] = []
+  let cursor = 0
+
+  while (cursor < input.length) {
+    // 1. Skip leading whitespace
+    while (cursor < input.length && /\s/.test(input[cursor])) cursor++
+    if (cursor >= input.length) break
+
+    // 2. Ignore no-op formatting commands
+    const ignorableMatch = input
+      .slice(cursor)
+      .match(
+        /^\\(newpage|clearpage|maketitle|noindent|centering|raggedright|bigskip|medskip|smallskip|pagestyle\{[^}]*\}|thispagestyle\{[^}]*\}|pagenumbering\{[^}]*\}|vspace\*?\{[^}]*\}|hspace\*?\{[^}]*\}|onehalfspacing|doublespacing|singlespacing)\b/
+      )
+    if (ignorableMatch) {
+      cursor += ignorableMatch[0].length
+      continue
+    }
+
+    // 3. Check for Markdown-style heading level 3 (from resume macros: ### Heading)
+    const mdH3Match = input.slice(cursor).match(/^###[ \t]+([^\n]+)/)
+    if (mdH3Match) {
+      blocks.push({
+        type: 'heading',
+        level: 3,
+        children: parseLatexInline(mdH3Match[1].trim()),
+      })
+      cursor += mdH3Match[0].length
+      continue
+    }
+
+    // 4. Check for Section Headings (\part, \chapter, \section, \subsection, \subsubsection, \paragraph, \cvsection)
+    const sectionMatch = input
+      .slice(cursor)
+      .match(/^\\(part|chapter|section|subsection|subsubsection|paragraph|cvsection|cvsubsection)\*?\s*\{/)
+    if (sectionMatch) {
+      const openBrace = cursor + sectionMatch[0].length - 1
+      const balanced = extractBalancedBraces(input, openBrace + 1)
+      if (balanced) {
+        const cmd = sectionMatch[1]
+        const level: 1 | 2 | 3 | 4 =
+          cmd === 'part' || cmd === 'chapter'
+            ? 1
+            : cmd === 'section' || cmd === 'cvsection'
+            ? 2
+            : cmd === 'subsection' || cmd === 'cvsubsection'
+            ? 3
+            : 4
+        blocks.push({
+          type: 'heading',
+          level,
+          children: parseLatexInline(balanced.content.trim()),
+        })
+        cursor = balanced.endIdx + 1
+        continue
+      }
+    }
+
+    // 5. Check for Environments (\begin{...} ... \end{...})
+    if (input.slice(cursor).startsWith('\\begin{')) {
+      const env = extractEnvironment(input, cursor)
+      if (env) {
+        const name = env.envName
+        const content = env.content.trim()
+
+        if (name === 'abstract') {
+          blocks.push({
+            type: 'heading',
+            level: 2,
+            children: [{ type: 'text', value: 'Abstract' }],
+          })
+          const paras = content
+            .split(/\n\s*\n/)
+            .map((p) => p.trim())
+            .filter(Boolean)
+            .map((p) => ({
+              type: 'paragraph' as const,
+              children: parseLatexInline(p),
+            }))
+          blocks.push({
+            type: 'blockquote',
+            children: paras.length > 0 ? paras : [{ type: 'paragraph', children: [{ type: 'text', value: '' }] }],
+          })
+          cursor = env.endIndex
+          continue
+        }
+
+        if (name === 'thebibliography') {
+          blocks.push({
+            type: 'heading',
+            level: 2,
+            children: [{ type: 'text', value: 'References' }],
+          })
+          const bibItems = parseBibliographyContent(content)
+          if (bibItems.length > 0) {
+            blocks.push({
+              type: 'list',
+              ordered: true,
+              items: bibItems,
+            })
+          }
+          cursor = env.endIndex
+          continue
+        }
+
+        if (/^(equation|align|gather|multline)\*?$/.test(name)) {
+          const cleanedMath = content.replace(/\\label\{[^}]*\}/g, '').trim()
+          blocks.push({
+            type: 'mathBlock',
+            value: cleanedMath,
+          })
+          cursor = env.endIndex
+          continue
+        }
+
+        if (name === 'itemize' || name === 'enumerate') {
+          const ordered = name === 'enumerate'
+          const items = parseLatexListContent(content)
+          blocks.push({
+            type: 'list',
+            ordered,
+            items,
+          })
+          cursor = env.endIndex
+          continue
+        }
+
+        if (name === 'tabular' || name === 'tabular*') {
+          const tableNode = parseLatexTabular(content)
+          if (tableNode) {
+            blocks.push(tableNode)
+          }
+          cursor = env.endIndex
+          continue
+        }
+
+        if (name === 'table' || name === 'table*') {
+          const captionMatch = content.match(/\\caption\{([^}]+)\}/)
+          if (captionMatch) {
+            blocks.push({
+              type: 'paragraph',
+              children: [
+                { type: 'strong', children: [{ type: 'text', value: 'Table: ' }] },
+                ...parseLatexInline(captionMatch[1]),
+              ],
+            })
+          }
+          const tabStart = content.indexOf('\\begin{tabular')
+          if (tabStart !== -1) {
+            const innerTab = extractEnvironment(content, tabStart)
+            if (innerTab) {
+              const tableNode = parseLatexTabular(innerTab.content)
+              if (tableNode) blocks.push(tableNode)
+            }
+          }
+          cursor = env.endIndex
+          continue
+        }
+
+        if (name === 'figure' || name === 'figure*') {
+          const captionMatch = content.match(/\\caption\{([^}]+)\}/)
+          const imgMatch = content.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/)
+          if (imgMatch) {
+            blocks.push({
+              type: 'paragraph',
+              children: [
+                {
+                  type: 'image',
+                  url: imgMatch[1].trim(),
+                  alt: captionMatch ? captionMatch[1].trim() : 'Figure',
+                },
+              ],
+            })
+          }
+          if (captionMatch) {
+            blocks.push({
+              type: 'paragraph',
+              children: [
+                { type: 'strong', children: [{ type: 'text', value: 'Figure: ' }] },
+                ...parseLatexInline(captionMatch[1]),
+              ],
+            })
+          }
+          cursor = env.endIndex
+          continue
+        }
+
+        if (name === 'lstlisting' || name === 'verbatim') {
+          blocks.push({
+            type: 'codeBlock',
+            language: 'text',
+            value: content,
+          })
+          cursor = env.endIndex
+          continue
+        }
+
+        if (name === 'quote' || name === 'quotation') {
+          const innerBlocks = parseLatexBodyBlocks(content)
+          blocks.push({
+            type: 'blockquote',
+            children:
+              innerBlocks.length > 0
+                ? innerBlocks
+                : [{ type: 'paragraph', children: [{ type: 'text', value: '' }] }],
+          })
+          cursor = env.endIndex
+          continue
+        }
+
+        // Unrecognized or container environments (center, minipage, etc.)
+        const innerBlocks = parseLatexBodyBlocks(content)
+        blocks.push(...innerBlocks)
+        cursor = env.endIndex
+        continue
+      }
+    }
+
+    // 6. Check for Display Math $$...$$
+    if (input.startsWith('$$', cursor)) {
+      const endIdx = input.indexOf('$$', cursor + 2)
+      if (endIdx !== -1) {
+        blocks.push({
+          type: 'mathBlock',
+          value: input.slice(cursor + 2, endIdx).trim(),
+        })
+        cursor = endIdx + 2
+        continue
+      }
+    }
+
+    // 7. Check for Display Math \[...\]
+    if (input.startsWith('\\[', cursor)) {
+      const endIdx = input.indexOf('\\]', cursor + 2)
+      if (endIdx !== -1) {
+        blocks.push({
+          type: 'mathBlock',
+          value: input.slice(cursor + 2, endIdx).trim(),
+        })
+        cursor = endIdx + 2
+        continue
+      }
+    }
+
+    // 8. Horizontal Rules (\hrule, \hrulefill, \rule{...}{...})
+    const ruleMatch = input.slice(cursor).match(/^\\(hrule|hrulefill|noindent\\rule\{[^}]*\}\{[^}]*\})/)
+    if (ruleMatch) {
+      blocks.push({ type: 'thematicBreak' })
+      cursor += ruleMatch[0].length
+      continue
+    }
+
+    // 9. Modular includes (\input{...} or \include{...})
+    const incMatch = input.slice(cursor).match(/^\\(input|include)\{([^}]+)\}/)
+    if (incMatch) {
+      const rawName = incMatch[2].replace(/\.tex$/, '').trim()
+      const formattedTitle = rawName
+        .split(/[_\-/]+/)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
+      blocks.push({
+        type: 'heading',
+        level: 2,
+        children: [{ type: 'text', value: formattedTitle }],
+      })
+      blocks.push({
+        type: 'paragraph',
+        children: [{ type: 'emphasis', children: [{ type: 'text', value: `[Module: ${rawName}.tex]` }] }],
+      })
+      cursor += incMatch[0].length
+      continue
+    }
+
+    // 10. TOC and Document indices
+    const tocMatch = input.slice(cursor).match(/^\\(tableofcontents|listoftables|listoffigures)\b/)
+    if (tocMatch) {
+      const label =
+        tocMatch[1] === 'tableofcontents'
+          ? 'Table of Contents'
+          : tocMatch[1] === 'listoftables'
+          ? 'List of Tables'
+          : 'List of Figures'
+      blocks.push({
+        type: 'heading',
+        level: 2,
+        children: [{ type: 'text', value: label }],
+      })
+      blocks.push({
+        type: 'paragraph',
+        children: [
+          {
+            type: 'emphasis',
+            children: [
+              {
+                type: 'text',
+                value: '(Document index automatically generated in compiled PDF/Word output)',
+              },
+            ],
+          },
+        ],
+      })
+      cursor += tocMatch[0].length
+      continue
+    }
+
+    // 11. Regular Paragraph text: scan ahead until the next block delimiter
+    const remaining = input.slice(cursor)
+    const delimMatch = remaining.match(
+      /\n\s*(\n|\\(?:part|chapter|section|subsection|subsubsection|paragraph|cvsection|cvsubsection)\*?\s*\{|\\begin\{|\$\$|\\\[|###\s+|\\(?:tableofcontents|listoftables|listoffigures|input|include)\b|\\(?:hrule|hrulefill)\b)/
+    )
+    const paraEnd = delimMatch && delimMatch.index !== undefined ? cursor + delimMatch.index : input.length
+    const paraText = input.slice(cursor, paraEnd).trim()
+    cursor = paraEnd
+
+    const cleanedPara = paraText
+      .replace(/\\\\(?:\[[^\]]*\])?\s*$/, '')
+      .replace(/^\\small\{([\s\S]*?)\}$/, '$1')
+      .trim()
+
+    if (cleanedPara) {
+      blocks.push({
+        type: 'paragraph',
+        children: parseLatexInline(cleanedPara),
+      })
+    }
+  }
+
+  return blocks
 }
 
 /**
@@ -297,8 +980,8 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   let docTitle = titleLines.length > 0 ? titleLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
   const docAuthor = authorLines.length > 0 ? authorLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
 
-  // Strip comments
-  let body = cleanedContent.replace(/%.*$/gm, '')
+  // Strip comments using negative lookbehind so escaped \% is preserved
+  let body = cleanedContent.replace(/(?<!\\)%.*$/gm, '')
 
   // Extract body between \begin{document} and \end{document} if present
   if (body.includes('\\begin{document}')) {
@@ -317,7 +1000,71 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     .replace(/\\faHeadphones\*?~/g, '🎧 ')
     .replace(/\\faBookOpen\*?~/g, '📖 ')
     .replace(/\\faLaptopCode\*?~/g, '💻 ')
+    .replace(/\\faGraduationCap\*?~/g, '🎓 ')
+    .replace(/\\faBriefcase\*?~/g, '💼 ')
+    .replace(/\\faExternalLink\*?~/g, '🔗 ')
     .replace(/\\fa[A-Z][a-zA-Z0-9]*\*?~?/g, '')
+
+  // Expand ModernCV contact info macros
+  body = body
+    .replace(/\\email\{([^}]+)\}/g, '✉️ [$1](mailto:$1)')
+    .replace(/\\phone\*?\{([^}]+)\}/g, '📞 $1')
+    .replace(/\\mobile\*?\{([^}]+)\}/g, '📞 $1')
+    .replace(/\\homepage\{([^}]+)\}/g, '🌐 [$1](https://$1)')
+    .replace(/\\github\{([^}]+)\}/g, '🐙 [$1](https://github.com/$1)')
+    .replace(/\\linkedin\{([^}]+)\}/g, '💼 [$1](https://linkedin.com/in/$1)')
+
+  // Expand ModernCV macros: \cventry, \cvitem, \cvlistitem, \cvdoubleitem
+  while (true) {
+    const idx = body.indexOf('\\cventry')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 8, 6)
+    if (!res) {
+      const res5 = extractNBracedArgs(body, idx + 8, 5)
+      if (!res5) break
+      const [years, degree, inst, city, grade] = res5.args
+      const replacement = `\n\n### ${degree.trim()} — *${inst.trim()}* *(${years.trim()})*\n*${city.trim()}* ${
+        grade.trim() ? `· ${grade.trim()}` : ''
+      }\n\n`
+      body = body.slice(0, idx) + replacement + body.slice(res5.endIdx)
+      continue
+    }
+    const [years, degree, inst, city, grade, desc] = res.args
+    const replacement = `\n\n### ${degree.trim()} — *${inst.trim()}* *(${years.trim()})*\n*${city.trim()}* ${
+      grade.trim() ? `· ${grade.trim()}` : ''
+    }\n\n${desc.trim()}\n\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
+  while (true) {
+    const idx = body.indexOf('\\cvitem')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 7, 2)
+    if (!res) break
+    const [label, desc] = res.args
+    const replacement = `\n\n**${label.trim()}**: ${desc.trim()}\n\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
+  while (true) {
+    const idx = body.indexOf('\\cvdoubleitem')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 13, 4)
+    if (!res) break
+    const [l1, t1, l2, t2] = res.args
+    const replacement = `\n\n**${l1.trim()}**: ${t1.trim()} · **${l2.trim()}**: ${t2.trim()}\n\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
+  while (true) {
+    const idx = body.indexOf('\\cvlistitem')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 11, 1)
+    if (!res) break
+    const [item] = res.args
+    const replacement = `\n\\item ${item.trim()}\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
 
   // Expand Resume/CV custom macros with balanced brace arguments
   while (true) {
@@ -340,21 +1087,25 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
   }
 
-  while (true) {
-    const idx = body.indexOf('\\resumeItem')
-    if (idx === -1) break
-    const res = extractNBracedArgs(body, idx + 11, 1)
-    if (!res) break
-    const [p1] = res.args
-    const replacement = `\n\\item ${p1.trim()}\n`
-    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
-  }
-
+  // Replace resume list delimiters FIRST to prevent eating \resumeItemListStart
   body = body
     .replace(/\\resumeSubHeadingListStart\b/g, '')
     .replace(/\\resumeSubHeadingListEnd\b/g, '')
     .replace(/\\resumeItemListStart\b/g, '\n\\begin{itemize}\n')
     .replace(/\\resumeItemListEnd\b/g, '\n\\end{itemize}\n')
+
+  // Expand \resumeItem{...} using regex to match command directly followed by {
+  while (true) {
+    const match = body.match(/\\resumeItem\s*\{/)
+    if (!match || match.index === undefined) break
+    const idx = match.index
+    const openBrace = match.index + match[0].length - 1
+    const res = extractNBracedArgs(body, openBrace, 1)
+    if (!res) break
+    const [p1] = res.args
+    const replacement = `\n\\item ${p1.trim()}\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
 
   // Unwrap sizing commands (\small{...})
   body = unwrapSizingCommands(body)
@@ -406,26 +1157,26 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   const centerHeaderMatch = body.match(/\\begin\{center\}([\s\S]*?)\\end\{center\}/)
   if (titleLines.length === 0 && centerHeaderMatch) {
     const rawHeader = centerHeaderMatch[1]
-    const bIdx = rawHeader.indexOf('\\textbf{')
+    const bMatch = rawHeader.match(/\\(textbf|Huge|huge|LARGE|Large)\s*\{/)
     let candidateName = ''
     let withoutName = rawHeader
 
-    if (bIdx !== -1) {
-      const bRes = extractBalancedBraces(rawHeader, bIdx + 8)
+    if (bMatch && bMatch.index !== undefined) {
+      const openBrace = bMatch.index + bMatch[0].length - 1
+      const bRes = extractBalancedBraces(rawHeader, openBrace + 1)
       if (bRes) {
         candidateName = bRes.content
           .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape)/g, '')
           .replace(/\\color\{[^}]+\}/g, '')
           .replace(/[\\{}]/g, '')
           .trim()
-        withoutName = rawHeader.slice(0, bIdx) + rawHeader.slice(bRes.endIdx + 1)
+        withoutName = rawHeader.slice(0, bMatch.index) + rawHeader.slice(bRes.endIdx + 1)
       }
     }
 
     if (candidateName) {
       if (!docTitle) docTitle = candidateName
 
-      // Heading 1 for Candidate Name
       children.push({
         type: 'heading',
         level: 1,
@@ -456,234 +1207,8 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     body = body.replace(centerHeaderMatch[0], '')
   }
 
-  // 3. Normalize sections and environments into clean distinct blocks
-  body = body
-    .replace(/(\\section\*?\{[^}]+\}|\\subsection\*?\{[^}]+\}|\\subsubsection\*?\{[^}]+\}|\\chapter\*?\{[^}]+\})/g, '\n\n$1\n\n')
-    .replace(/(\\begin\{(?:itemize|enumerate|tabular|tabular\*|lstlisting|verbatim|equation|align|gather|abstract)\*?(?:\{[^}]*\})*)/g, '\n\n$1\n\n')
-    .replace(/(\\end\{(?:itemize|enumerate|tabular|tabular\*|lstlisting|verbatim|equation|align|gather|abstract)\*?\})/g, '\n\n$1\n\n')
-
-  // 4. Parse Body Blocks
-  const rawBlocks = body.split(/\n\s*\n/)
-
-  for (const block of rawBlocks) {
-    const trimmed = block.trim()
-    if (!trimmed) continue
-
-    // Skip layout commands or empty vspace blocks that don't output text
-    if (/^(\\vspace\*?\{[^}]*\}|\\hspace\*?\{[^}]*\}|\\noindent|\\pagestyle\{[^}]*\}|\\pagenumbering\{[^}]*\}|\\clearpage|\\newpage|\\onehalfspacing|\\doublespacing|\\singlespacing|\\maketitle|\\centering|\\raggedright|\s*)+$/.test(trimmed)) {
-      continue
-    }
-
-    // Markdown-style Level 3 headings generated from resume macros
-    if (trimmed.startsWith('### ')) {
-      children.push({
-        type: 'heading',
-        level: 3,
-        children: parseLatexInline(trimmed.slice(4)),
-      })
-      continue
-    }
-
-    // Chapters & Parts (Level 1 Heading)
-    const chapterMatch = trimmed.match(/^\\(chapter|part)\*?\{([^}]+)\}/)
-    if (chapterMatch) {
-      children.push({
-        type: 'heading',
-        level: 1,
-        children: parseLatexInline(chapterMatch[2]),
-      })
-      continue
-    }
-
-    // Sections & Subsections
-    const sectionMatch = trimmed.match(/^\\(section|subsection|subsubsection)\*?\{([^}]+)\}/)
-    if (sectionMatch) {
-      const level = (sectionMatch[1] === 'section' ? 2 : sectionMatch[1] === 'subsection' ? 3 : 4) as 2 | 3 | 4
-      children.push({
-        type: 'heading',
-        level,
-        children: parseLatexInline(sectionMatch[2]),
-      })
-      continue
-    }
-
-    // Master Document Modular Includes: \input{filename} or \include{filename}
-    const inputMatch = trimmed.match(/^\\(input|include)\{([^}]+)\}/)
-    if (inputMatch) {
-      const rawName = inputMatch[2].replace(/\.tex$/, '').trim()
-      const formattedTitle = rawName
-        .split(/[_\-/]+/)
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' ')
-
-      children.push({
-        type: 'heading',
-        level: 2,
-        children: [{ type: 'text', value: formattedTitle }],
-      })
-      children.push({
-        type: 'paragraph',
-        children: [
-          { type: 'emphasis', children: [{ type: 'text', value: `[Module: ${rawName}.tex]` }] },
-        ],
-      })
-      continue
-    }
-
-    // Table of Contents / Lists
-    if (/^\\(tableofcontents|listoftables|listoffigures)\b/.test(trimmed)) {
-      const label = trimmed.includes('tableofcontents')
-        ? 'Table of Contents'
-        : trimmed.includes('listoftables')
-        ? 'List of Tables'
-        : 'List of Figures'
-      children.push({
-        type: 'heading',
-        level: 2,
-        children: [{ type: 'text', value: label }],
-      })
-      children.push({
-        type: 'paragraph',
-        children: [
-          {
-            type: 'emphasis',
-            children: [{ type: 'text', value: `(Document index automatically generated in compiled PDF/Word output)` }],
-          },
-        ],
-      })
-      continue
-    }
-
-    // Abstract Environment
-    const abstractMatch = trimmed.match(/\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}/)
-    if (abstractMatch) {
-      children.push({
-        type: 'heading',
-        level: 2,
-        children: [{ type: 'text', value: 'Abstract' }],
-      })
-      children.push({
-        type: 'blockquote',
-        children: [
-          {
-            type: 'paragraph',
-            children: parseLatexInline(abstractMatch[1].trim()),
-          },
-        ],
-      })
-      continue
-    }
-
-    // Code Listings (lstlisting or verbatim)
-    const codeMatch = trimmed.match(/\\begin\{(lstlisting|verbatim)\}([\s\S]*?)\\end\{\1\}/)
-    if (codeMatch) {
-      children.push({
-        type: 'codeBlock',
-        language: 'text',
-        value: codeMatch[2].trim(),
-      })
-      continue
-    }
-
-    // Equations (equation, align, gather)
-    const eqMatch = trimmed.match(/\\begin\{(equation|align|gather)\*?\}([\s\S]*?)\\end\{\1\*?\}/)
-    if (eqMatch) {
-      children.push({
-        type: 'mathBlock',
-        value: eqMatch[2].trim(),
-      })
-      continue
-    }
-
-    // Display math with $$...$$ or \[...\]
-    if (trimmed.startsWith('$$') && trimmed.endsWith('$$')) {
-      children.push({
-        type: 'mathBlock',
-        value: trimmed.slice(2, -2).trim(),
-      })
-      continue
-    }
-    if (trimmed.startsWith('\\[') && trimmed.endsWith('\\]')) {
-      children.push({
-        type: 'mathBlock',
-        value: trimmed.slice(2, -2).trim(),
-      })
-      continue
-    }
-
-    // Lists (itemize, enumerate)
-    const listMatch = trimmed.match(/\\begin\{(itemize|enumerate)\}([\s\S]*?)\\end\{\1\}/)
-    if (listMatch) {
-      const ordered = listMatch[1] === 'enumerate'
-      const itemTexts = listMatch[2].split(/\\item\b/).filter((t) => t.trim().length > 0)
-      const items = itemTexts.map((it) => ({
-        type: 'listItem' as const,
-        children: [
-          {
-            type: 'paragraph' as const,
-            children: parseLatexInline(it.trim()),
-          },
-        ],
-      }))
-
-      children.push({
-        type: 'list',
-        ordered,
-        items,
-      })
-      continue
-    }
-
-    // Tabular / Table
-    const tableMatch = trimmed.match(/\\begin\{tabular\*?\}\{[^}]+\}(?:\[[^\]]*\])?(?:\{[^}]*\})?([\s\S]*?)\\end\{tabular\*?\}/)
-    if (tableMatch) {
-      const rawRows = tableMatch[1]
-        .split(/\\\\/)
-        .map((r) => r.trim())
-        .filter((r) => r && !r.startsWith('\\hline') && !r.startsWith('\\toprule') && !r.startsWith('\\bottomrule'))
-
-      if (rawRows.length > 0) {
-        const parsedRows: TableRowNode[] = []
-        let headers: TableCellNode[] = []
-
-        rawRows.forEach((rowStr, rIdx) => {
-          const cells: TableCellNode[] = rowStr.split('&').map((cellStr) => ({
-            type: 'tableCell',
-            children: parseLatexInline(cellStr.trim()),
-          }))
-
-          if (rIdx === 0) {
-            headers = cells
-          } else {
-            parsedRows.push({ type: 'tableRow', cells })
-          }
-        })
-
-        if (headers.length > 0) {
-          children.push({
-            type: 'table',
-            headers,
-            rows: parsedRows,
-            alignments: headers.map(() => null),
-          })
-          continue
-        }
-      }
-    }
-
-    // Default Paragraph (strip any trailing \\)
-    const cleanedPara = trimmed
-      .replace(/\\\\(?:\[[^\]]*\])?$/, '')
-      .replace(/^\\small\{([\s\S]*?)\}$/, '$1')
-      .trim()
-
-    if (cleanedPara) {
-      children.push({
-        type: 'paragraph',
-        children: parseLatexInline(cleanedPara),
-      })
-    }
-  }
+  // 3. Parse Body Blocks sequentially with zero environment severance
+  children.push(...parseLatexBodyBlocks(body))
 
   const stats = computeDocumentStats(children)
 
@@ -700,3 +1225,4 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     stats,
   }
 }
+

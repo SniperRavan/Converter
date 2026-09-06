@@ -6,8 +6,7 @@ export const FluidCanvas: React.FC = () => {
   const { motionMode, themeMode } = useConverterStore()
 
   useEffect(() => {
-    // Completely disable on mobile (<768px) or when motion is off to save battery and RAM
-    if (motionMode === 'off' || (typeof window !== 'undefined' && window.innerWidth < 768)) {
+    if (motionMode === 'off') {
       return
     }
 
@@ -19,6 +18,7 @@ export const FluidCanvas: React.FC = () => {
     let animationFrameId: number | null = null
     let width = (canvas.width = window.innerWidth)
     let height = (canvas.height = window.innerHeight)
+    const isMobile = width < 768
     let isVisible = typeof document !== 'undefined' ? !document.hidden : true
     let isIdle = false
     let idleTimer: ReturnType<typeof setTimeout> | null = null
@@ -31,8 +31,9 @@ export const FluidCanvas: React.FC = () => {
 
     window.addEventListener('resize', handleResize, { passive: true })
 
-    // Lightweight particle constellation: 16 particles in full mode, 8 in reduced mode
-    const particleCount = motionMode === 'reduced' ? 8 : 16
+    // Lightweight adaptive particle constellation: 16 desktop / 10 mobile (reduced: 8 desktop / 6 mobile)
+    const particleCount = motionMode === 'reduced' ? (isMobile ? 6 : 8) : (isMobile ? 10 : 16)
+    const filamentMaxDist = isMobile ? 90 : 120
     const particles: {
       x: number
       y: number
@@ -73,7 +74,17 @@ export const FluidCanvas: React.FC = () => {
       wakeUp()
     }
 
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches && e.touches.length > 0) {
+        mouseX = e.touches[0].clientX
+        mouseY = e.touches[0].clientY
+        wakeUp()
+      }
+    }
+
     window.addEventListener('mousemove', handlePointerMove, { passive: true })
+    window.addEventListener('touchstart', handleTouchMove, { passive: true })
+    window.addEventListener('touchmove', handleTouchMove, { passive: true })
 
     // Pause rendering entirely when browser tab is inactive or hidden
     const handleVisibility = () => {
@@ -108,7 +119,7 @@ export const FluidCanvas: React.FC = () => {
         if (p.x < 0 || p.x > width) p.vx *= -1
         if (p.y < 0 || p.y > height) p.vy *= -1
 
-        // Subtle mouse interaction
+        // Subtle mouse or touch interaction
         if (motionMode === 'full') {
           const dx = mouseX - p.x
           const dy = mouseY - p.y
@@ -129,12 +140,12 @@ export const FluidCanvas: React.FC = () => {
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j]
           const dist = Math.hypot(p.x - p2.x, p.y - p2.y)
-          if (dist < 120) {
+          if (dist < filamentMaxDist) {
             ctx.beginPath()
             ctx.moveTo(p.x, p.y)
             ctx.lineTo(p2.x, p2.y)
             ctx.strokeStyle = `rgba(${baseColor}, ${
-              (1 - dist / 120) * 0.06 * (isDark ? 1 : 0.5)
+              (1 - dist / filamentMaxDist) * 0.06 * (isDark ? 1 : 0.5)
             })`
             ctx.lineWidth = 0.7
             ctx.stroke()
@@ -170,6 +181,8 @@ export const FluidCanvas: React.FC = () => {
       }
       window.removeEventListener('resize', handleResize)
       window.removeEventListener('mousemove', handlePointerMove)
+      window.removeEventListener('touchstart', handleTouchMove)
+      window.removeEventListener('touchmove', handleTouchMove)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [motionMode, themeMode])
