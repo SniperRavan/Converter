@@ -24,26 +24,33 @@ export function detectInputFormat(content: string): DetectionResult {
   // Strip leading/trailing quote marks if user pasted wrapped text
   const clean = content.trim().replace(/^["']/, '').replace(/["']$/, '')
 
-  // 1. Explicit LaTeX detection (documents, preambles, environments, sections)
-  const isExplicitLatex =
-    /\\documentclass\b/.test(clean) ||
-    /\\begin\{document\}/.test(clean) ||
-    /\\usepackage\b/.test(clean) ||
-    /\\(title|author|date)\s*\{/.test(clean) ||
-    /\\(chapter|part)\*?\{/.test(clean) ||
-    /\\(section|subsection)\*?\{/.test(clean) ||
-    /\\begin\{(equation|align|gather|tabular|figure|lstlisting|itemize|enumerate)\}/.test(clean)
+  // 1. Structural features
+  const hasHeadings = /^#{1,6}\s+\S+/m.test(clean) || /^\S+.*[\r\n]+[=-]{3,}\s*$/m.test(clean)
+  const hasTables = /\|(.+)\|[\r\n]+\|[-:\s|]+\|/.test(clean) || /\+[─━═=+-]{3,}\+/.test(clean)
+  const hasCode = /```[a-zA-Z0-9_-]*[\s\S]*?```/.test(clean)
+  const hasBlockquotes = /^>\s+\S+/m.test(clean)
+  const hasBullets = /^[\s]*[-*+•]\s+\S+/m.test(clean)
+  const hasMarkdownFormat = /(\*\*|\*|_|~~|\[.+\]\(.+\))/.test(clean)
+
+  // Explicit LaTeX documents & structural commands
+  const isFullLatex = /\\documentclass\b/.test(clean) || /\\begin\{document\}/.test(clean)
+  const hasLineStartLatex =
+    /^\s*\\(part|chapter|section|subsection|subsubsection|cvsection|cvsubsection|paragraph)\*?\s*\{/m.test(clean) ||
+    /^\s*\\begin\{(equation|align|gather|tabular|figure|lstlisting|itemize|enumerate|abstract|thebibliography)\}/m.test(clean) ||
+    /^\s*\\(usepackage|title|author|date)\s*\{/m.test(clean)
+
+  const isExplicitLatex = isFullLatex || (hasLineStartLatex && !hasHeadings && !hasCode && !hasBlockquotes)
+
+  // 2. Math expressions
+  const hasMath =
+    /\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|\\\[[\s\S]*?\\\]|\\\(.+?\\\)|\b\\begin\{(equation|align|gather|multline)\}/.test(
+      clean
+    )
 
   // 3. JSON detection
   const isJson = (clean.startsWith('{') && clean.endsWith('}')) || (clean.startsWith('[') && clean.endsWith(']'))
 
-  // 4. Markdown features
-  const hasMath = /\$\$[\s\S]*?\$\$|\$[^$\n]+?\$|\\\[[\s\S]*?\\\]|\\\(.+?\\\)|\\[a-zA-Z]+/.test(clean)
-  const hasTables = /\|(.+)\|[\r\n]+\|[-:\s|]+\|/.test(clean)
-  const hasCode = /```[a-zA-Z0-9_-]*[\s\S]*?```/.test(clean)
-  const hasHeadings = /^#{1,6}\s+\S+/m.test(clean) || /^\S+[\r\n]+[=-]{2,}\s*$/m.test(clean)
-
-  // 2. Explicit HTML detection (must not misclassify Markdown with HTML layout tags)
+  // 4. Explicit HTML detection (must not misclassify Markdown with HTML layout tags)
   const hasHtml = /<\/?[a-z][\s\S]*>/i.test(clean)
   const isFullHtml =
     clean.includes('<!DOCTYPE') ||
@@ -75,13 +82,13 @@ export function detectInputFormat(content: string): DetectionResult {
     } catch {
       primaryFormat = 'text'
     }
-  } else if (hasHeadings || hasCode || hasTables) {
+  } else if (hasHeadings || hasCode || hasTables || hasBlockquotes) {
     primaryFormat = 'markdown'
     confidence = 0.95
   } else if (hasMath) {
     primaryFormat = 'latex'
     confidence = 0.85
-  } else if (/(\*\*|\*|_|~~|\[.+\]\(.+\))/.test(clean)) {
+  } else if (hasBullets || hasMarkdownFormat) {
     primaryFormat = 'markdown'
     confidence = 0.85
   }

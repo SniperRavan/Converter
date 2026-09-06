@@ -26,4 +26,16 @@ describe('Input Format Detector', () => {
     const res = detectInputFormat(html)
     expect(res.primaryFormat).toBe('html')
   })
+
+  it('classifies markdown discussing LaTeX commands as markdown, not latex', () => {
+    const text = `
+# Release Notes
+• Added support for \\date{September 7, 2026} and \\begin{abstract}.
+> npm test passed
+### 3. Verification
+Shallow projects claim 100% of compilation...
+`
+    const res = detectInputFormat(text)
+    expect(res.primaryFormat).toBe('markdown')
+  })
 })

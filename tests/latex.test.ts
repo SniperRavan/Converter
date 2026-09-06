@@ -95,4 +95,35 @@ Second line without comments.
     expect(md).toContain('*underline*')
     expect(md).toContain('em—dash')
   })
+
+  it('does not swallow document when an environment is unclosed or mentioned inline', () => {
+    const raw = `
+\\begin{document}
+Paragraph 1 mentions \\begin{abstract} and \\begin{thebibliography} inline.
+
+\\section{Methods}
+Paragraph 2 after unclosed environment mentions.
+\\end{document}
+`
+    const doc = parseLatex(raw)
+    const md = renderToMarkdown(doc)
+    expect(md).toContain('Paragraph 1 mentions')
+    expect(md).toContain('## Methods')
+    expect(md).toContain('Paragraph 2 after unclosed environment mentions.')
+    expect(md).not.toContain('## References')
+  })
+
+  it('preserves percentages with numbers like 100% when stripping comments', () => {
+    const raw = `
+\\begin{document}
+Claims 100% of compilation accuracy. % This is a real comment
+Achieved 99.8% precision.
+\\end{document}
+`
+    const doc = parseLatex(raw)
+    const md = renderToMarkdown(doc)
+    expect(md).toContain('Claims 100% of compilation accuracy.')
+    expect(md).toContain('Achieved 99.8% precision.')
+    expect(md).not.toContain('This is a real comment')
+  })
 })

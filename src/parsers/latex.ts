@@ -115,8 +115,7 @@ function extractEnvironment(str: string, startIndex: number): {
     const nextEnd = str.indexOf(endTag, searchIdx)
 
     if (nextEnd === -1) {
-      const content = str.slice(cursor)
-      return { envName, args, content, fullMatch: str.slice(startIndex), endIndex: str.length }
+      return null
     }
 
     if (nextBegin !== -1 && nextBegin < nextEnd) {
@@ -483,21 +482,12 @@ function parseLatexTabular(content: string): BlockNode | null {
  * Parses \begin{thebibliography} entries into ListItemNodes
  */
 function parseBibliographyContent(content: string): ListItemNode[] {
-  const bibPattern = /\\bibitem(?:\s*\[([^\]]*)\])?\s*\{([^}]+)\}/g
+  const bibPattern = /\\bibitem(?:\s*\[([^\]]*)\])?(?:\s*\{([^}]*)\})?\s*/g
   const matches = [...content.matchAll(bibPattern)]
   const items: ListItemNode[] = []
 
   if (matches.length === 0) {
-    const lines = content.split('\n').map((l) => l.trim()).filter(Boolean)
-    return lines.map((line) => ({
-      type: 'listItem',
-      children: [
-        {
-          type: 'paragraph',
-          children: parseLatexInline(line),
-        },
-      ],
-    }))
+    return []
   }
 
   for (let i = 0; i < matches.length; i++) {
@@ -981,8 +971,8 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   const docAuthor = authorLines.length > 0 ? authorLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
   const docDate = dateLines.length > 0 ? dateLines[0] : undefined
 
-  // Strip comments using negative lookbehind so escaped \% is preserved
-  let body = cleanedContent.replace(/(?<!\\)%.*$/gm, '')
+  // Strip comments using negative lookbehind so escaped \% and percentages (e.g. 100%, 99.5%) are preserved
+  let body = cleanedContent.replace(/(?<!\\)(?<!\d\s*)%.*$/gm, '')
 
   // Extract body between \begin{document} and \end{document} if present
   if (body.includes('\\begin{document}')) {
