@@ -979,6 +979,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
 
   let docTitle = titleLines.length > 0 ? titleLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
   const docAuthor = authorLines.length > 0 ? authorLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
+  const docDate = dateLines.length > 0 ? dateLines[0] : undefined
 
   // Strip comments using negative lookbehind so escaped \% is preserved
   let body = cleanedContent.replace(/(?<!\\)%.*$/gm, '')
@@ -1218,6 +1219,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     metadata: {
       title: docTitle,
       author: docAuthor,
+      date: docDate,
       createdAt: new Date().toISOString(),
       sourceFormat: 'latex',
     },

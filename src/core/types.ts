@@ -162,6 +162,7 @@ export interface NormalizedDocument {
   metadata: {
     title?: string
     author?: string
+    date?: string
     createdAt: string
     sourceFormat: string
   }

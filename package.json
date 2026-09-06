@@ -1,12 +1,37 @@
 {
   "name": "convertion",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "Privacy-first in-browser document AST converter supporting LaTeX, MathML, Word, Markdown, and Google Docs",
+  "author": "Akash Das Dhibar <https://github.com/sniperravan>",
+  "license": "MIT",
+  "homepage": "https://converter-sr.vercel.app/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sniperravan/Converter.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sniperravan/Converter/issues"
+  },
+  "keywords": [
+    "converter",
+    "latex",
+    "markdown",
+    "ast",
+    "mathml",
+    "katex",
+    "word",
+    "google-docs",
+    "document-converter",
+    "client-side"
+  ],
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -36,6 +61,7 @@
     "oxlint": "^1.79.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
   }
 }

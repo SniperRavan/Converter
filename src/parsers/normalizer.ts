@@ -80,15 +80,11 @@ export function normalizeBoxAndUnicodeTables(text: string): string {
           cells.push(tLine.substring(prev).replace(/[│|┃║]/g, '').trim())
 
           let finalCells = cells
-          if (
-            splitPositions[0] <= 3 &&
-            finalCells.length > 1 &&
-            tableLines.every((l) => /^\s*[│|┃║┌├]/.test(l))
-          ) {
+          if (splitPositions[0] <= 3 && finalCells.length > 1 && finalCells[0] === '') {
             finalCells = finalCells.slice(1)
           }
-          if (tableLines.every((l) => /[│|┃║┐┤]\s*$/.test(l))) {
-            if (finalCells[finalCells.length - 1] === '') finalCells.pop()
+          if (finalCells.length > 1 && finalCells[finalCells.length - 1] === '') {
+            finalCells.pop()
           }
 
           const nonEmpty = finalCells.filter((c) => c.length > 0)

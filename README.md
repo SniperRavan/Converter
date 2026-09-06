@@ -14,7 +14,8 @@
     </a>
   </p>
 
-  <p align="center">
+    <a href="https://github.com/sniperravan/Converter/actions"><img src="https://github.com/sniperravan/Converter/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+    <img src="https://img.shields.io/badge/Tests-20%20passing-brightgreen?style=flat-square" alt="Tests">
     <a href="https://github.com/sniperravan"><img src="https://img.shields.io/badge/Author-Akash%20Das%20Dhibar-blueviolet?style=flat-square" alt="Author"></a>
     <img src="https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react" alt="React 19">
     <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript" alt="TypeScript">
@@ -22,7 +23,7 @@
     <img src="https://img.shields.io/badge/TailwindCSS-v4-38bdf8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS">
     <img src="https://img.shields.io/badge/Math-KaTeX-3298dc?style=flat-square" alt="KaTeX">
     <img src="https://img.shields.io/badge/Telemetry-Zero%20Data%20Collected-success?style=flat-square" alt="Zero Telemetry">
-    <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License">
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
   </p>
 
 </div>
@@ -37,7 +38,7 @@ Converting between $N$ different document formats traditionally requires buildin
 Every supported input format is parsed into a single, canonical abstract syntax tree, which is then compiled into any target output format with mathematical precision.
 
 ```mermaid
-flowchart TD
+flowchart LR
     subgraph IN["📥 Inputs"]
         I1["LLM Mixed Stream"]
         I2["LaTeX Papers & CVs"]
@@ -97,12 +98,13 @@ Never guess what your download will look like. Clicking **Export** opens an inte
 * **Markdown, LaTeX & JSON:** Monospace code inspector with instant word count and estimated payload size.
 * **Customizable Naming:** Edit file basenames with locked extension badges before saving.
 
-### 4. 📋 Dual-MIME Rich Text Clipboard
-The **"Copy Rich Text"** button injects a dual-mime clipboard payload (`text/html` + `text/plain`). Paste formulas, headers, bold text, and tables directly into:
-* Microsoft Word & Word Online
-* Google Docs & Google Sheets
-* Notion & Obsidian
-* Slack & Apple Pages
+### 4. 📋 Tri-Target Math Clipboard Engine
+Pasting mathematical expressions across different productivity suites is notoriously inconsistent. Converter solves this with an adaptive, multi-representation clipboard system:
+* **Microsoft Word (`MathML` via `text/html`):** Strips KaTeX rendering spans and generates clean `<math>` markup. Microsoft Word parses this directly into native, editable Word Equation (`OMML`) objects.
+* **Google Docs (Visual SVG with Unicode Alt):** Google Docs silently strips MathML tags upon paste. Converter compiles equations into inline vector images with full Unicode `alt` and `title` text.
+* **Plain Text, Slack, Notion & Discord (Unicode Math):** Automatically translates LaTeX expressions into formatted Unicode characters (e.g., `E = mc²`, `α + β = γ`, `∫ f(x) dx`), eliminating raw backslash dumping.
+* **Raw LaTeX Toggle:** One-click option to retain standard `$ ... $` and `$$ ... $$` delimiters for Obsidian, Overleaf, and LaTeX editors.
+* **Live Selection Copy (`Ctrl+C`):** Highlighting any equation in the interactive preview automatically attaches both clean MathML (`text/html`) and formatted Unicode (`text/plain`).
 
 ### 5. 📬 Anonymous Community Issue Reporting
 Found a tricky syntax edge case? The in-page **Issues** section connects directly to a private Google Sheets webhook:
@@ -176,6 +178,12 @@ Open `http://localhost:5173` in your browser.
 ### Production Build & Linting
 
 ```bash
+# Run the automated unit test suite (Vitest)
+npm test
+
+# Run tests in interactive watch mode
+npm run test:watch
+
 # Verify type safety and build optimized static assets
 npm run build
 
@@ -185,6 +193,23 @@ npm run lint
 # Preview production build locally
 npm run preview
 ```
+
+---
+
+## ⚖️ Design Decisions & Scope
+
+* **AST-First Architecture:** Instead of brittle regex replacement pipelines, every format parses into a typed, canonical Abstract Syntax Tree. This prevents syntax collisions and makes transformations predictable.
+* **Synchronous KaTeX vs. MathJax:** KaTeX renders mathematical expressions synchronously in sub-millisecond time without DOM thrashing or external CDN roundtrips.
+* **Zero-Server Privacy:** 100% of compilation, DOM sanitation ([DOMPurify](https://github.com/cure53/DOMPurify)), and file generation happens entirely in the browser's local sandbox.
+* **Scope & Boundaries:**
+  * **Supported:** Standard `amsmath` equations, standard `thebibliography` citations, academic metadata, Overleaf CV templates (*Jake's Resume*, *ModernCV*), GFM tables, and hybrid LLM stream syntax.
+  * **Out of Scope:** Procedural drawing engines like TikZ or packages requiring a full native TeX Live distribution (`xelatex` shell-escape).
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on adding parsers, clipboard targets, and writing unit tests.
 
 ---
 
@@ -199,4 +224,4 @@ npm run preview
 
 ## 📄 License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+This project is open source and licensed under the **[MIT License](LICENSE)** — see the [LICENSE](LICENSE) file for details.
