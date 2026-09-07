@@ -17,7 +17,6 @@ export function exportToWord(htmlBody: string, title = 'document') {
     </w:WordDocument>
   </xml>
   <![endif]-->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <style>
     @page {
       size: letter portrait;

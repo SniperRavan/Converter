@@ -46,7 +46,18 @@ function renderMathToMathMl(latex: string, displayMode: boolean): string {
   }
 }
 
-function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'latex' = 'images'): string {
+function renderMathToOfflineSvgDataUri(latex: string, displayMode: boolean): string {
+  const unicodeText = latexToUnicode(latex) || latex.trim()
+  const fontSize = displayMode ? 16 : 14
+  const paddingX = displayMode ? 16 : 6
+  const charWidth = fontSize * 0.62
+  const width = Math.max(Math.ceil(unicodeText.length * charWidth + paddingX * 2), displayMode ? 80 : 32)
+  const height = displayMode ? 38 : 22
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="'Cambria Math','STIX Two Math','DejaVu Serif',serif" font-size="${fontSize}" fill="#0f172a">${escapeHtml(unicodeText)}</text></svg>`
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+}
+
+function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'latex' = 'mathml'): string {
   switch (node.type) {
     case 'text':
       return escapeHtml(node.value)
@@ -64,11 +75,9 @@ function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'l
         return `<span>$${escapeHtml(node.value)}$</span>`
       }
       if (mathMode === 'images') {
-        const encoded = encodeURIComponent(trimmed)
         const unicodeText = escapeHtml(latexToUnicode(node.value) || node.value)
-        // Natural DPI (~16-18px height) perfectly matches standard 11pt/12pt document text
-        const url = `https://latex.codecogs.com/png.image?${encoded}`
-        return `<img src="${url}" class="latex-formula" alt="${unicodeText}" title="${unicodeText}" style="vertical-align: -0.25em; display: inline-block; margin: 0 2px;" />`
+        const dataUri = renderMathToOfflineSvgDataUri(node.value, false)
+        return `<img src="${dataUri}" class="latex-formula" alt="${unicodeText}" title="${unicodeText}" style="vertical-align: -0.25em; display: inline-block; margin: 0 2px;" />`
       }
       if (mathMode === 'mathml') {
         return renderMathToMathMl(node.value, false)
@@ -84,7 +93,7 @@ function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'l
   }
 }
 
-function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'latex' = 'images'): string {
+function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'latex' = 'mathml'): string {
   switch (block.type) {
     case 'heading': {
       const tag = `h${block.level}`
@@ -110,11 +119,9 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
 
     case 'mathBlock': {
       if (mathMode === 'images') {
-        const encoded = encodeURIComponent(block.value.trim())
         const unicodeText = escapeHtml(latexToUnicode(block.value) || block.value)
-        // 110 DPI renders a crisp, proportional equation block (~50px height) rather than oversized 300 DPI
-        const url = `https://latex.codecogs.com/png.image?%5Cdpi%7B110%7D${encoded}`
-        return `<p align="center" style="text-align: center; margin: 12px 0;"><img src="${url}" class="latex-formula" alt="${unicodeText}" title="${unicodeText}" style="display: inline-block; max-height: 60px;" /></p>`
+        const dataUri = renderMathToOfflineSvgDataUri(block.value, true)
+        return `<p align="center" style="text-align: center; margin: 12px 0;"><img src="${dataUri}" class="latex-formula" alt="${unicodeText}" title="${unicodeText}" style="display: inline-block; max-height: 60px;" /></p>`
       }
       if (mathMode === 'mathml') {
         return `<div class="math-block" align="center">\n${renderMathToMathMl(block.value, true)}\n</div>`
@@ -191,7 +198,7 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
 }
 
 export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions = {}): string {
-  const mathMode = options.mathMode || 'images'
+  const mathMode = options.mathMode || 'mathml'
   const rawHtml = doc.children.map(c => renderBlockToHtml(c, mathMode)).join('\n')
 
   // Strict sanitization with DOMPurify while preserving images and math
