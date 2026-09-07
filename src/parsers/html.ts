@@ -59,6 +59,8 @@ export function parseHtml(htmlContent: string): NormalizedDocument {
           inlines.push({ type: 'strikethrough', children: parseInline(el) })
         } else if (tag === 'code') {
           inlines.push({ type: 'inlineCode', value: el.textContent || '' })
+        } else if (tag === 'br') {
+          inlines.push({ type: 'text', value: ' ' })
         } else if (el.classList?.contains('katex') || el.querySelector('.katex-mathml')) {
           const annotation = el.querySelector('annotation[encoding*="tex"]') || el.querySelector('annotation')
           if (annotation && annotation.textContent?.trim()) {
@@ -223,12 +225,12 @@ export function parseHtml(htmlContent: string): NormalizedDocument {
       })
     } else if (tag === 'table') {
       const headerThs = Array.from(el.querySelectorAll('thead tr th, tr:first-child th'))
-      const headers: TableCellNode[] = headerThs.map((th) => ({
+      let headers: TableCellNode[] = headerThs.map((th) => ({
         type: 'tableCell',
         children: parseInline(th),
       }))
 
-      const rows: TableRowNode[] = []
+      let rows: TableRowNode[] = []
       const bodyTrs = Array.from(el.querySelectorAll('tbody tr, tr'))
 
       for (const tr of bodyTrs) {
@@ -240,6 +242,12 @@ export function parseHtml(htmlContent: string): NormalizedDocument {
         if (cells.length > 0) {
           rows.push({ type: 'tableRow', cells })
         }
+      }
+
+      // If no <th> tags existed, promote the first row to become the table header
+      if (headers.length === 0 && rows.length > 0) {
+        headers = rows[0].cells
+        rows = rows.slice(1)
       }
 
       children.push({

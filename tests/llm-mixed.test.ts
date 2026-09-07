@@ -37,4 +37,30 @@ describe('LLM Mixed Stream Parser', () => {
       expect(table.rows.length).toBeGreaterThanOrEqual(2)
     }
   })
+
+  it('converts isolated single-dollar lines to display math blocks', () => {
+    const raw = 'The equation is:\n$\n\\frac{a}{b} = c\n$\nAnd done.'
+    const doc = parseLlmMixed(raw)
+    const mathBlock = doc.children.find((b) => b.type === 'mathBlock')
+    expect(mathBlock).toBeDefined()
+    if (mathBlock && mathBlock.type === 'mathBlock') {
+      expect(mathBlock.value).toContain('\\frac{a}{b} = c')
+    }
+  })
+
+  it('trims inner whitespace from inline math delimiters', () => {
+    const raw = 'Calculate $  x^2 + y^2 = r^2  $ in polar coordinates.'
+    const doc = parseLlmMixed(raw)
+    const md = renderToMarkdown(doc)
+    expect(md).toContain('$x^2 + y^2 = r^2$')
+  })
+
+  it('separates adjacent text from headings and tables', () => {
+    const raw = 'Some paragraph text.\n### Subheading\nAttached text.\n| A | B |\n|---|---|\n| 1 | 2 |'
+    const doc = parseLlmMixed(raw)
+    const heading = doc.children.find((b) => b.type === 'heading')
+    const table = doc.children.find((b) => b.type === 'table')
+    expect(heading).toBeDefined()
+    expect(table).toBeDefined()
+  })
 })

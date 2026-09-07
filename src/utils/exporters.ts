@@ -140,40 +140,70 @@ export function exportToPdf(htmlBody: string, title = 'document') {
   <title>${title}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <style>
+    @page {
+      size: auto;
+      margin: 15mm 20mm;
+    }
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      padding: 36px;
+      padding: 32px;
       color: #0f172a;
-      line-height: 1.5;
+      line-height: 1.55;
       max-width: 820px;
       margin: 0 auto;
+      -webkit-font-smoothing: antialiased;
     }
     h1 { font-size: 1.85rem; text-align: center; color: #003884; margin-bottom: 6px; }
     h2 { font-size: 1.15rem; font-weight: 700; color: #003884; border-bottom: 2px solid #003884; padding-bottom: 3px; margin-top: 18px; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
     h3 { font-size: 1.05rem; font-weight: 600; color: #1e293b; margin-top: 8px; margin-bottom: 3px; }
-    p { margin: 3px 0; }
+    p { margin: 4px 0; }
     p[align="center"] { text-align: center; }
-    ul, ol { margin: 3px 0 6px 0; padding-left: 20px; }
-    li { margin-bottom: 2px; }
+    ul, ol { margin: 4px 0 8px 0; padding-left: 20px; }
+    li { margin-bottom: 3px; }
     table { border-collapse: collapse; width: 100%; margin: 16px 0; }
     th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
-    th { background: #f8fafc; }
-    code { font-family: monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; }
-    pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; }
+    th { background: #f8fafc; font-weight: 600; }
+    code { font-family: 'Consolas', 'Courier New', monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.9em; }
     blockquote { border-left: 4px solid #003884; padding-left: 12px; color: #475569; margin: 12px 0; }
-    .math-block { margin: 16px 0; text-align: center; }
+    .math-block { margin: 16px 0; text-align: center; font-family: 'Cambria Math', 'STIX Two Math', 'DejaVu Serif', serif; }
+    math, .katex { font-size: 1.05em; }
     @media print {
-      body { padding: 0; }
+      body {
+        padding: 0;
+        max-width: none;
+        color: #000;
+        background: #fff;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      table, tr, td, th {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      .math-block, pre, blockquote, .latex-formula {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+      h1, h2, h3, h4, h5, h6 {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
     }
   </style>
 </head>
 <body>
   ${htmlBody}
   <script>
-    window.onload = () => {
+    const doPrint = () => {
       window.print();
       setTimeout(() => window.close(), 1000);
     };
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(doPrint).catch(doPrint);
+    } else {
+      window.onload = doPrint;
+    }
   </script>
 </body>
 </html>`)

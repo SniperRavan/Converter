@@ -137,11 +137,107 @@ export function normalizeBoxAndUnicodeTables(text: string): string {
 }
 
 /**
+ * Converts standalone lines with a single '$' into '$$' display math fences (common in LLM outputs).
+ */
+function fixSingleDollarBlocks(text: string): string {
+  const lines = text.split('\n')
+  const result: string[] = []
+  let inCodeBlock = false
+
+  for (const line of lines) {
+    const stripped = line.trim()
+    if (stripped.startsWith('```') || stripped.startsWith('~~~')) {
+      inCodeBlock = !inCodeBlock
+      result.push(line)
+      continue
+    }
+    if (inCodeBlock) {
+      result.push(line)
+      continue
+    }
+
+    if (/^\s*\$\s*$/.test(line)) {
+      const indent = line.substring(0, line.indexOf('$'))
+      result.push(`${indent}$$`)
+    } else {
+      result.push(line)
+    }
+  }
+
+  return result.join('\n')
+}
+
+/**
+ * Trims extraneous whitespace inside inline math ($  formula  $ -> $formula$).
+ */
+function fixInlineMathSpaces(text: string): string {
+  return text.replace(/(?<!\$)\$(?!\$)[ \t]+([^\n$]+?)[ \t]+(?<!\$)\$(?!\$)/g, '$$$1$')
+}
+
+/**
+ * Ensures blank line separation before headings, tables, blockquotes, and code blocks
+ * when preceded by paragraph text without spacing (common in LLM chatter).
+ */
+function normalizeElementSeparation(text: string): string {
+  const lines = text.split('\n')
+  const result: string[] = []
+  let inCodeBlock = false
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const stripped = line.trim()
+
+    if (stripped.startsWith('```') || stripped.startsWith('~~~')) {
+      if (!inCodeBlock && result.length > 0 && result[result.length - 1].trim() !== '') {
+        result.push('')
+      }
+      inCodeBlock = !inCodeBlock
+      result.push(line)
+      continue
+    }
+
+    if (inCodeBlock) {
+      result.push(line)
+      continue
+    }
+
+    const prevLine = result.length > 0 ? result[result.length - 1].trim() : ''
+    const isHeading = /^#{1,6}\s+/.test(stripped)
+    const isTable = stripped.startsWith('|') && stripped.endsWith('|')
+    const isQuote = stripped.startsWith('>')
+
+    if (prevLine !== '') {
+      const prevIsHeading = /^#{1,6}\s+/.test(prevLine)
+      const prevIsTable = prevLine.startsWith('|') && prevLine.endsWith('|')
+      const prevIsQuote = prevLine.startsWith('>')
+
+      if (isHeading && !prevIsHeading) {
+        result.push('')
+      } else if (isTable && !prevIsTable) {
+        result.push('')
+      } else if (isQuote && !prevIsQuote) {
+        result.push('')
+      }
+    }
+
+    result.push(line)
+  }
+
+  return result.join('\n')
+}
+
+/**
  * Main normalization pipeline applied to text before markdown parsing.
  */
 export function normalizeUniversalInput(rawText: string): string {
   if (!rawText) return ''
   let text = rawText
+
+  // Pre-normalize isolated single $ block fences from LLMs
+  text = fixSingleDollarBlocks(text)
+
+  // Pre-normalize inline math whitespace ($ x $ -> $x$)
+  text = fixInlineMathSpaces(text)
 
   // 1. Unicode horizontal rules (──────, ━━━━━━, ══════, ----------------)
   text = text.replace(/^[ \t]*[─━═—]{3,}[ \t]*$/gm, '\n\n---\n\n')
@@ -183,6 +279,9 @@ export function normalizeUniversalInput(rawText: string): string {
 
   // 7. Unicode and ASCII Box Tables -> GFM Pipe Tables
   text = normalizeBoxAndUnicodeTables(text)
+
+  // 8. Element separation (blank line before headings, tables, quotes, code fences)
+  text = normalizeElementSeparation(text)
 
   // 8. Convert simple HTML data tables to GFM pipe tables (preserving layout tables and block containers)
   text = text.replace(/<table[\s\S]*?<\/table>/gi, (htmlTable) => {

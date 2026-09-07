@@ -160,13 +160,15 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
   const handleCopyContent = async () => {
     try {
       if (activeType === 'word') {
-        const blobHtml = new Blob([contentHtmlWord], { type: 'text/html' })
+        const officeHtml = `<!--StartFragment-->\n${contentHtmlWord}\n<!--EndFragment-->`
+        const blobHtml = new Blob([officeHtml], { type: 'text/html' })
         const blobText = new Blob([contentPlainText], { type: 'text/plain' })
         await navigator.clipboard.write([
           new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobText }),
         ])
       } else if (activeType === 'html' && htmlViewMode === 'visual') {
-        const blobHtml = new Blob([contentHtmlClean], { type: 'text/html' })
+        const officeHtml = `<!--StartFragment-->\n${contentHtmlClean}\n<!--EndFragment-->`
+        const blobHtml = new Blob([officeHtml], { type: 'text/html' })
         const blobText = new Blob([contentPlainText], { type: 'text/plain' })
         await navigator.clipboard.write([
           new ClipboardItem({ 'text/html': blobHtml, 'text/plain': blobText }),

@@ -260,7 +260,8 @@ export const Workspace: React.FC = () => {
           const mathMode = target === 'word' ? 'mathml' : 'images'
           const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false, mathMode })
           const plainSnippet = renderToPlainText(parsedDocument, { mathMode: 'unicode' })
-          const blobHtml = new Blob([htmlSnippet], { type: 'text/html' })
+          const clipboardHtml = `<!--StartFragment-->\n${htmlSnippet}\n<!--EndFragment-->`
+          const blobHtml = new Blob([clipboardHtml], { type: 'text/html' })
           const blobText = new Blob([plainSnippet], { type: 'text/plain' })
 
           const data = [
