@@ -286,10 +286,11 @@ export function normalizeUniversalInput(rawText: string): string {
   // 8. Convert simple HTML data tables to GFM pipe tables (preserving layout tables and block containers)
   text = text.replace(/<table[\s\S]*?<\/table>/gi, (htmlTable) => {
     try {
-      // Preserve HTML layout tables and tables containing block-level markdown or complex nested tags
+      // Preserve HTML layout tables and tables containing block-level markdown, merged cells, or complex nested tags
       if (
         /border\s*=\s*['"]0['"]/i.test(htmlTable) ||
         /cellspacing|cellpadding/i.test(htmlTable) ||
+        /rowspan|colspan/i.test(htmlTable) ||
         /```|#{1,6}\s+|^\s*>|^\s*\|/m.test(htmlTable) ||
         /<(table|pre|ul|ol|blockquote)[\s>]/i.test(htmlTable)
       ) {
