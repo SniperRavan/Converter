@@ -20,8 +20,6 @@ export const FluidCanvas: React.FC = () => {
     let height = (canvas.height = window.innerHeight)
     const isMobile = width < 768
     let isVisible = typeof document !== 'undefined' ? !document.hidden : true
-    let isIdle = false
-    let idleTimer: ReturnType<typeof setTimeout> | null = null
 
     const handleResize = () => {
       if (!canvas) return
@@ -31,9 +29,11 @@ export const FluidCanvas: React.FC = () => {
 
     window.addEventListener('resize', handleResize, { passive: true })
 
-    // Adaptive particle constellation: 42 desktop / 22 mobile (reduced: 18 desktop / 12 mobile)
-    const particleCount = motionMode === 'reduced' ? (isMobile ? 12 : 18) : (isMobile ? 22 : 42)
-    const filamentMaxDist = isMobile ? 105 : 140
+    // Adaptive particle constellation: 75 desktop / 40 mobile (reduced: 30 desktop / 18 mobile)
+    const particleCount =
+      motionMode === 'reduced' ? (isMobile ? 18 : 30) : isMobile ? 40 : 75
+    const filamentMaxDist = isMobile ? 105 : 145
+
     const particles: {
       x: number
       y: number
@@ -47,60 +47,48 @@ export const FluidCanvas: React.FC = () => {
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * (motionMode === 'reduced' ? 0.18 : 0.45),
-        vy: (Math.random() - 0.5) * (motionMode === 'reduced' ? 0.18 : 0.45),
-        radius: Math.random() * 1.6 + 1.2,
-        alpha: Math.random() * 0.45 + 0.3,
+        vx: (Math.random() - 0.5) * (motionMode === 'reduced' ? 0.18 : 0.42),
+        vy: (Math.random() - 0.5) * (motionMode === 'reduced' ? 0.18 : 0.42),
+        radius: Math.random() * 1.7 + 1.2,
+        alpha: Math.random() * 0.45 + 0.35,
       })
     }
 
-    let mouseX = width / 2
-    let mouseY = height / 2
-
-    const wakeUp = () => {
-      isIdle = false
-      if (idleTimer) clearTimeout(idleTimer)
-      idleTimer = setTimeout(() => {
-        isIdle = true
-      }, 3000)
-      if (isVisible && !animationFrameId) {
-        animationFrameId = requestAnimationFrame(render)
-      }
-    }
+    // Off-screen default so no phantom repellent force at viewport center
+    let mouseX = -2000
+    let mouseY = -2000
 
     const handlePointerMove = (e: MouseEvent) => {
       mouseX = e.clientX
       mouseY = e.clientY
-      wakeUp()
+    }
+
+    const handleMouseLeave = () => {
+      mouseX = -2000
+      mouseY = -2000
     }
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches && e.touches.length > 0) {
         mouseX = e.touches[0].clientX
         mouseY = e.touches[0].clientY
-        wakeUp()
       }
+    }
+
+    const handleTouchEnd = () => {
+      mouseX = -2000
+      mouseY = -2000
     }
 
     window.addEventListener('mousemove', handlePointerMove, { passive: true })
+    document.addEventListener('mouseleave', handleMouseLeave)
     window.addEventListener('touchstart', handleTouchMove, { passive: true })
     window.addEventListener('touchmove', handleTouchMove, { passive: true })
-
-    // Pause rendering entirely when browser tab is inactive or hidden
-    const handleVisibility = () => {
-      isVisible = !document.hidden
-      if (isVisible) {
-        wakeUp()
-      } else if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId)
-        animationFrameId = null
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('touchend', handleTouchEnd)
+    window.addEventListener('touchcancel', handleTouchEnd)
 
     const render = () => {
-      if (!isVisible || isIdle) {
+      if (!isVisible) {
         animationFrameId = null
         return
       }
@@ -108,7 +96,7 @@ export const FluidCanvas: React.FC = () => {
       ctx.clearRect(0, 0, width, height)
 
       const isDark = themeMode === 'dark'
-      const baseColor = isDark ? '255, 255, 255' : '150, 140, 130'
+      const baseColor = isDark ? '255, 255, 255' : '135, 125, 115'
 
       for (let i = 0; i < particles.length; i++) {
         const p = particles[i]
@@ -116,27 +104,40 @@ export const FluidCanvas: React.FC = () => {
         p.y += p.vy
 
         // Bounce off bounds
-        if (p.x < 0 || p.x > width) p.vx *= -1
-        if (p.y < 0 || p.y > height) p.vy *= -1
+        if (p.x < 0) {
+          p.x = 0
+          p.vx = Math.abs(p.vx)
+        } else if (p.x > width) {
+          p.x = width
+          p.vx = -Math.abs(p.vx)
+        }
 
-        // Subtle mouse or touch interaction
-        if (motionMode === 'full') {
+        if (p.y < 0) {
+          p.y = 0
+          p.vy = Math.abs(p.vy)
+        } else if (p.y > height) {
+          p.y = height
+          p.vy = -Math.abs(p.vy)
+        }
+
+        // Subtle interactive mouse / touch deflection
+        if (motionMode === 'full' && mouseX > -1000) {
           const dx = mouseX - p.x
           const dy = mouseY - p.y
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 100 && dist > 0) {
-            p.x -= (dx / dist) * 0.5
-            p.y -= (dy / dist) * 0.5
+          const dist = Math.hypot(dx, dy)
+          if (dist < 120 && dist > 0) {
+            p.x -= (dx / dist) * 0.55
+            p.y -= (dy / dist) * 0.55
           }
         }
 
         // Draw particle
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(${baseColor}, ${p.alpha * (isDark ? 0.65 : 0.35)})`
+        ctx.fillStyle = `rgba(${baseColor}, ${p.alpha * (isDark ? 0.72 : 0.45)})`
         ctx.fill()
 
-        // Filament lines
+        // Filament constellation lines
         for (let j = i + 1; j < particles.length; j++) {
           const p2 = particles[j]
           const dist = Math.hypot(p.x - p2.x, p.y - p2.y)
@@ -145,7 +146,7 @@ export const FluidCanvas: React.FC = () => {
             ctx.moveTo(p.x, p.y)
             ctx.lineTo(p2.x, p2.y)
             ctx.strokeStyle = `rgba(${baseColor}, ${
-              (1 - dist / filamentMaxDist) * 0.12 * (isDark ? 1 : 0.6)
+              (1 - dist / filamentMaxDist) * (isDark ? 0.15 : 0.1)
             })`
             ctx.lineWidth = 0.75
             ctx.stroke()
@@ -156,33 +157,33 @@ export const FluidCanvas: React.FC = () => {
       animationFrameId = requestAnimationFrame(render)
     }
 
-    // Paint initial stationary layout frame without starting continuous loop
-    render()
-    isIdle = true
-    animationFrameId = null
-
-    // Defer interactive animation loop until idle to ensure 0ms main-thread contention at load
-    let idleHandle: any = null
-    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      idleHandle = (window as any).requestIdleCallback(wakeUp, { timeout: 3000 })
-    } else {
-      idleHandle = setTimeout(wakeUp, 2000)
+    // Pause rendering entirely when browser tab is inactive or hidden to preserve battery
+    const handleVisibility = () => {
+      isVisible = !document.hidden
+      if (isVisible) {
+        if (!animationFrameId) {
+          animationFrameId = requestAnimationFrame(render)
+        }
+      } else if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId)
+        animationFrameId = null
+      }
     }
+
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    // Start continuous gentle drift
+    animationFrameId = requestAnimationFrame(render)
 
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId)
-      if (idleTimer) clearTimeout(idleTimer)
-      if (idleHandle) {
-        if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
-          (window as any).cancelIdleCallback(idleHandle)
-        } else {
-          clearTimeout(idleHandle)
-        }
-      }
       window.removeEventListener('resize', handleResize)
       window.removeEventListener('mousemove', handlePointerMove)
+      document.removeEventListener('mouseleave', handleMouseLeave)
       window.removeEventListener('touchstart', handleTouchMove)
       window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+      window.removeEventListener('touchcancel', handleTouchEnd)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [motionMode, themeMode])
@@ -193,7 +194,7 @@ export const FluidCanvas: React.FC = () => {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0 opacity-95"
+      className="pointer-events-none fixed inset-0 z-0 opacity-100"
     />
   )
 }
