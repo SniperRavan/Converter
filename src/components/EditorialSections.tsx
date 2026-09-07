@@ -13,7 +13,7 @@ export const EditorialSections: React.FC = () => {
               User Guide &amp; Solutions
             </h2>
             <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-2 max-w-xl mx-auto">
-              Purpose-built conversion engines for ChatGPT math equations, Overleaf academic resumes, and private client-side documents.
+              Purpose-built conversion engines for AI &amp; LLM math (ChatGPT, Claude, DeepSeek, Gemini, Perplexity), Overleaf resumes, and client-side documents.
             </p>
             <div className="w-12 h-1 bg-neutral-900 dark:bg-white mx-auto mt-3 rounded-full" />
           </div>
@@ -25,10 +25,10 @@ export const EditorialSections: React.FC = () => {
                 <Sigma className="w-5 h-5" />
               </div>
               <h3 className="font-semibold text-neutral-900 dark:text-white text-base">
-                ChatGPT Math to Word
+                AI &amp; LLM Math to Word
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-xs mt-1.5 leading-relaxed">
-                Fix broken <code className="font-mono text-[11px]">$...$</code> and <code className="font-mono text-[11px]">\[...\]</code> delimiters. Compiles AI equations into native MathML for Microsoft Word and Google Docs.
+                Fix broken <code className="font-mono text-[11px]">$...$</code> and <code className="font-mono text-[11px]">\[...\]</code> delimiters from ChatGPT, Claude, DeepSeek, Gemini, and Grok. Compiles AI equations into native MathML for Microsoft Word and Google Docs.
               </p>
             </div>
 
@@ -188,7 +188,7 @@ export const EditorialSections: React.FC = () => {
               <strong className="text-neutral-900 dark:text-white font-semibold">
                 Dedicated LLM Mixed Stream Engine:
               </strong>{' '}
-              Large Language Models (ChatGPT, Claude, DeepSeek, Gemini) frequently produce mixed outputs combining LaTeX formulas (<code className="px-1.5 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">\[...\]</code> and <code className="px-1.5 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">$$...$$</code>), embedded HTML tags, ASCII box tables, and code fences. Converter normalizes this chaotic mix instantly into a clean document structure without breaking formulas or tables.
+              Large Language Models (ChatGPT, Claude, DeepSeek, Gemini, Perplexity, Grok, and local models like Llama/Qwen) frequently produce mixed outputs combining LaTeX formulas (<code className="px-1.5 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">\[...\]</code> and <code className="px-1.5 py-0.5 rounded bg-[#FAF5ED] dark:bg-white/10 font-mono text-xs">$$...$$</code>), embedded HTML tags, ASCII box tables, and code fences. Converter normalizes this chaotic mix instantly into a clean document structure without breaking formulas or tables.
             </p>
             <p>
               All processing happens locally in your browser —{' '}
@@ -213,10 +213,10 @@ export const EditorialSections: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-6">
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
               <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                How do I convert ChatGPT or Claude math formulas to Microsoft Word without broken $$ signs?
+                How do I convert AI math formulas (ChatGPT, Claude, DeepSeek) to Microsoft Word without broken $$ signs?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                Paste your AI output into Converter and select the <strong>LLM Stream</strong> mode. Converter automatically detects LaTeX math delimiters (<code className="text-xs font-mono">$...$</code>, <code className="text-xs font-mono">$$...$$</code>, <code className="text-xs font-mono">\(...\)</code>, and <code className="text-xs font-mono">\[...\]</code>) and compiles them with KaTeX into native MathML. Click <strong>“Copy Rich Text”</strong> or <strong>“Word (.doc)”</strong> to paste directly into Microsoft Word or Google Docs as editable equations.
+                Paste your AI output (from ChatGPT, Claude, DeepSeek, Gemini, Perplexity, or local models) into Converter and select the <strong>LLM Stream</strong> mode. Converter automatically detects LaTeX math delimiters (<code className="text-xs font-mono">$...$</code>, <code className="text-xs font-mono">$$...$$</code>, <code className="text-xs font-mono">\(...\)</code>, and <code className="text-xs font-mono">\[...\]</code>) and compiles them with KaTeX into native MathML. Click <strong>“Copy Rich Text”</strong> or <strong>“Word (.doc)”</strong> to paste directly into Microsoft Word or Google Docs as editable equations.
               </p>
             </div>
 
@@ -231,10 +231,10 @@ export const EditorialSections: React.FC = () => {
 
             <div className="border border-[#E5DDD0] dark:border-white/10 rounded-2xl p-6 bg-white dark:bg-[#0a0a0a] shadow-xs hover:shadow-md transition-shadow">
               <h3 className="text-lg font-semibold mb-2.5 text-neutral-900 dark:text-white">
-                Why do ChatGPT equations break when copied into Google Docs, and how does Converter fix them?
+                Why do AI equations break when copied into Google Docs, and how does Converter fix them?
               </h3>
               <p className="text-neutral-600 dark:text-neutral-400 text-sm leading-relaxed">
-                Chatbots output equations in raw LaTeX delimiters that Google Docs and Word do not parse from the standard clipboard. Converter uses dual-MIME clipboard injection (<code className="text-xs font-mono">text/html</code> + <code className="text-xs font-mono">text/plain</code>) with pre-rendered MathML and KaTeX typography, ensuring equations paste as rendered formulas rather than raw code.
+                AI chatbots (ChatGPT, Claude, DeepSeek, Gemini, Perplexity) output equations in raw LaTeX delimiters that Google Docs and Word do not parse from the standard clipboard. Converter uses dual-MIME clipboard injection (<code className="text-xs font-mono">text/html</code> + <code className="text-xs font-mono">text/plain</code>) with pre-rendered MathML and KaTeX typography, ensuring equations paste as rendered formulas rather than raw code.
               </p>
             </div>
 

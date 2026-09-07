@@ -81,7 +81,7 @@ flowchart LR
 ## ✨ Standout Capabilities
 
 ### 1. 🤖 Dedicated LLM Mixed Stream Engine
-AI models (ChatGPT, Claude, DeepSeek, Gemini) frequently produce non-standard hybrid syntax:
+AI models (ChatGPT, Claude, DeepSeek, Google Gemini, Perplexity, Grok, and local models like Llama/Qwen) frequently produce non-standard hybrid syntax:
 * **LaTeX Formula Normalization:** Seamlessly harmonizes `\[...\]`, `$$...$$`, `\(...\)`, and `$...$` delimiters.
 * **ASCII Box Table Conversion:** Automatically transforms plain-text terminal tables (`+---+`, `|---|`) into formatted semantic data grids.
 * **Self-Healing Code Fences:** Resolves unclosed code blocks and embedded HTML tags on the fly without breaking formatting.
