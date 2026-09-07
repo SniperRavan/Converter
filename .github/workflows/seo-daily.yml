@@ -1,0 +1,25 @@
+name: Daily SEO & IndexNow Ping
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at 00:00 UTC
+  workflow_dispatch:     # Allows manual trigger anytime from GitHub Actions tab
+
+jobs:
+  ping-search-engines:
+    name: Notify Search Engines via IndexNow
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run IndexNow Ping & SEO Health Check
+        run: node scripts/seo.mjs ping
+        env:
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY || '2c8a4f91b7e34d60a5e8c1f9d2b7a4e6' }}
+          BING_API_KEY: ${{ secrets.BING_API_KEY }}
