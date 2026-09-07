@@ -209,9 +209,13 @@ export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> =
         const content = block.children.map((c, i) => <InlineRenderer key={i} node={c} />)
         if (block.level === 1) {
           return (
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mt-5 mb-2.5 text-slate-950 dark:text-white font-sans">
+            <div
+              role="heading"
+              aria-level={1}
+              className="text-2xl sm:text-3xl font-bold tracking-tight mt-5 mb-2.5 text-slate-950 dark:text-white font-sans"
+            >
               {content}
-            </h1>
+            </div>
           )
         }
         if (block.level === 2) {

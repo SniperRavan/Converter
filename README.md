@@ -131,7 +131,7 @@ Found a tricky syntax edge case? The in-page **Issues** section connects directl
 ## 🛠️ Architecture & Tech Stack
 
 ```text
-Convertion/
+Converter/
 ├── src/
 │   ├── core/           # Normalized Document AST types & document statistics
 │   ├── parsers/        # Modular syntax parsers (LLM, Markdown, LaTeX, HTML, JSON)
@@ -164,8 +164,8 @@ Convertion/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/sniperravan/Convertion.git
-cd Convertion
+git clone https://github.com/SniperRavan/Converter.git
+cd Converter
 
 # 2. Install dependencies
 npm install
