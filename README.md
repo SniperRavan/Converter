@@ -14,16 +14,17 @@
     </a>
   </p>
 
-    <a href="https://github.com/sniperravan/Converter/actions"><img src="https://github.com/sniperravan/Converter/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-    <img src="https://img.shields.io/badge/Tests-20%20passing-brightgreen?style=flat-square" alt="Tests">
-    <a href="https://github.com/sniperravan"><img src="https://img.shields.io/badge/Author-Akash%20Das%20Dhibar-blueviolet?style=flat-square" alt="Author"></a>
-    <img src="https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react" alt="React 19">
-    <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript" alt="TypeScript">
-    <img src="https://img.shields.io/badge/Vite-8.0-646CFF?style=flat-square&logo=vite" alt="Vite">
-    <img src="https://img.shields.io/badge/TailwindCSS-v4-38bdf8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS">
-    <img src="https://img.shields.io/badge/Math-KaTeX-3298dc?style=flat-square" alt="KaTeX">
-    <img src="https://img.shields.io/badge/Telemetry-Zero%20Data%20Collected-success?style=flat-square" alt="Zero Telemetry">
-    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License"></a>
+  <p align="center">
+    <a href="https://github.com/sniperravan/Converter/actions"><img src="https://github.com/sniperravan/Converter/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+    <a href="https://github.com/sniperravan/Converter/actions"><img src="https://img.shields.io/badge/Tests-24%20passing-brightgreen?style=flat-square" alt="Tests" /></a>
+    <a href="https://github.com/sniperravan"><img src="https://img.shields.io/badge/Author-Akash%20Das%20Dhibar-blueviolet?style=flat-square" alt="Author" /></a>
+    <img src="https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react" alt="React 19" />
+    <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript" alt="TypeScript" />
+    <img src="https://img.shields.io/badge/Vite-8.0-646CFF?style=flat-square&logo=vite" alt="Vite" />
+    <img src="https://img.shields.io/badge/TailwindCSS-v4-38bdf8?style=flat-square&logo=tailwindcss" alt="Tailwind CSS" />
+    <img src="https://img.shields.io/badge/Math-KaTeX-3298dc?style=flat-square" alt="KaTeX" />
+    <img src="https://img.shields.io/badge/Telemetry-Zero%20Data%20Collected-success?style=flat-square" alt="Zero Telemetry" />
+    <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="MIT License" /></a>
   </p>
 
 </div>
