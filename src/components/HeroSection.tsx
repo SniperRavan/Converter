@@ -37,7 +37,7 @@ export const HeroSection: React.FC = () => {
 
         <div className="inline-flex items-center rounded-full border border-[#E5DDD0] dark:border-white/15 px-3.5 py-1 text-xs sm:text-sm font-medium bg-white dark:bg-[#111111] text-neutral-800 dark:text-neutral-200 shadow-2xs">
           <Zap className="w-4 h-4 mr-1.5 text-amber-500 dark:text-neutral-300 shrink-0" />
-          <span>All Files In $\to$ Out</span>
+          <span>All Files In &rarr; Out</span>
         </div>
 
         <div className="inline-flex items-center rounded-full border border-[#E5DDD0] dark:border-white/15 px-3.5 py-1 text-xs sm:text-sm font-medium bg-white dark:bg-[#111111] text-neutral-800 dark:text-neutral-200 shadow-2xs">
