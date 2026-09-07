@@ -183,6 +183,22 @@ function cleanLatexMetadata(text: string): string[] {
     .filter(Boolean)
 }
 
+export function unescapeLatexSpecial(text: string): string {
+  return text
+    .replace(/\\textbackslash(?:\\{\\}|\{\}|\b)/g, '\\')
+    .replace(/\\textasciicircum(?:\\{\\}|\{\}|\b)/g, '^')
+    .replace(/\\textasciitilde(?:\\{\\}|\{\}|\b)/g, '~')
+    .replace(/\\textless(?:\\{\\}|\{\}|\b)/g, '<')
+    .replace(/\\textgreater(?:\\{\\}|\{\}|\b)/g, '>')
+    .replace(/\\\{/g, '{')
+    .replace(/\\\}/g, '}')
+    .replace(/\\_/g, '_')
+    .replace(/\\%/g, '%')
+    .replace(/\\&/g, '&')
+    .replace(/\\#/g, '#')
+    .replace(/\\\$/g, '$')
+}
+
 /**
  * Robust balanced inline LaTeX parser with zero placeholder token leaks
  */
@@ -208,7 +224,11 @@ export function parseLatexInline(text: string): InlineNode[] {
     .replace(/\s*\$\\\|\$\s*/g, ' | ')
     .replace(/\s*\$\|\$\s*/g, ' | ')
     .replace(/\\quad\b/g, '  ')
-    .replace(/\\qquad\b/g, '    ')
+    .replace(/\\textbackslash(?:\\{\\}|\{\}|\b)/g, '\\')
+    .replace(/\\textasciicircum(?:\\{\\}|\{\}|\b)/g, '^')
+    .replace(/\\textasciitilde(?:\\{\\}|\{\}|\b)/g, '~')
+    .replace(/\\textless(?:\\{\\}|\{\}|\b)/g, '<')
+    .replace(/\\textgreater(?:\\{\\}|\{\}|\b)/g, '>')
     .replace(/\\&/g, '&')
     .replace(/\\%/g, '%')
     .replace(/\\#/g, '#')
@@ -327,7 +347,7 @@ export function parseLatexInline(text: string): InlineNode[] {
           flushText()
           nodes.push({
             type: 'inlineCode',
-            value: bRes.content,
+            value: unescapeLatexSpecial(bRes.content),
           })
           i = bRes.endIdx + 1
           continue
