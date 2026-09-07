@@ -422,6 +422,13 @@ export const RichPreview: React.FC<RichPreviewProps> = ({ document }) => {
       const mathml = kNode.querySelector('.katex-mathml math')
       const annotation = kNode.querySelector('annotation')
       if (annotation) annotation.remove()
+      const semantics = kNode.querySelector('semantics')
+      if (semantics && semantics.parentNode) {
+        while (semantics.firstChild) {
+          semantics.parentNode.insertBefore(semantics.firstChild, semantics)
+        }
+        semantics.remove()
+      }
       const katexHtml = kNode.querySelector('.katex-html')
       if (katexHtml) katexHtml.remove()
       if (mathml) {

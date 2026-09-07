@@ -37,6 +37,7 @@ function renderMathToMathMl(latex: string, displayMode: boolean): string {
     })
     return raw
       .replace(/<annotation[^>]*>[\s\S]*?<\/annotation>/gi, '')
+      .replace(/<semantics>\s*([\s\S]*?)\s*<\/semantics>/gi, '$1')
       .replace(/^<span[^>]*>/, '')
       .replace(/<\/span>$/, '')
       .trim()

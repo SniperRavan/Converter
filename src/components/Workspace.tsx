@@ -48,12 +48,12 @@ export const Workspace: React.FC = () => {
   const [copiedRichText, setCopiedRichText] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [showCopyMenu, setShowCopyMenu] = useState(false)
-  const [copyTarget, setCopyTarget] = useState<'docs' | 'word' | 'unicode' | 'latex'>(() => {
+  const [copyTarget, setCopyTarget] = useState<'word' | 'docs' | 'unicode' | 'latex'>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('convertion_copy_target') as 'docs' | 'word' | 'unicode' | 'latex'
-      if (saved && ['docs', 'word', 'unicode', 'latex'].includes(saved)) return saved
+      const saved = localStorage.getItem('convertion_copy_target') as 'word' | 'docs' | 'unicode' | 'latex'
+      if (saved && ['word', 'docs', 'unicode', 'latex'].includes(saved)) return saved
     }
-    return 'docs'
+    return 'word'
   })
   const [exportPreviewOpen, setExportPreviewOpen] = useState(false)
   const [exportPreviewType, setExportPreviewType] = useState<ExportType>('word')
@@ -573,11 +573,11 @@ export const Workspace: React.FC = () => {
                             ? 'Copy Output'
                             : copyTarget === 'word'
                             ? 'Copy for Word'
+                            : copyTarget === 'docs'
+                            ? 'Copy for Docs'
                             : copyTarget === 'unicode'
                             ? 'Copy Clean Text'
-                            : copyTarget === 'latex'
-                            ? 'Copy LaTeX'
-                            : 'Copy for Docs'}
+                            : 'Copy LaTeX'}
                         </span>
                       </>
                     )}
@@ -604,19 +604,6 @@ export const Workspace: React.FC = () => {
                       </div>
 
                       <button
-                        onClick={() => handleCopy('docs')}
-                        className={`w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer ${
-                          copyTarget === 'docs' ? 'bg-[#FAF5ED]/80 dark:bg-white/[0.08] font-semibold' : ''
-                        }`}
-                      >
-                        <div>
-                          <div className="text-neutral-900 dark:text-white font-medium">Google Docs (Visual Math)</div>
-                          <div className="text-[10px] text-neutral-500">Rendered images + Unicode text</div>
-                        </div>
-                        <span className="text-[10px] text-blue-500 font-mono font-bold">DOCS</span>
-                      </button>
-
-                      <button
                         onClick={() => handleCopy('word')}
                         className={`w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer ${
                           copyTarget === 'word' ? 'bg-[#FAF5ED]/80 dark:bg-white/[0.08] font-semibold' : ''
@@ -627,6 +614,19 @@ export const Workspace: React.FC = () => {
                           <div className="text-[10px] text-neutral-500">Native editable equation objects</div>
                         </div>
                         <span className="text-[10px] text-emerald-500 font-mono font-bold">WORD</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleCopy('docs')}
+                        className={`w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer ${
+                          copyTarget === 'docs' ? 'bg-[#FAF5ED]/80 dark:bg-white/[0.08] font-semibold' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="text-neutral-900 dark:text-white font-medium">Google Docs (Visual Math)</div>
+                          <div className="text-[10px] text-neutral-500">Rendered images + Unicode text</div>
+                        </div>
+                        <span className="text-[10px] text-blue-500 font-mono font-bold">DOCS</span>
                       </button>
 
                       <button
