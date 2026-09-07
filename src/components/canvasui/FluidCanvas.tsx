@@ -31,9 +31,9 @@ export const FluidCanvas: React.FC = () => {
 
     window.addEventListener('resize', handleResize, { passive: true })
 
-    // Lightweight adaptive particle constellation: 16 desktop / 10 mobile (reduced: 8 desktop / 6 mobile)
-    const particleCount = motionMode === 'reduced' ? (isMobile ? 6 : 8) : (isMobile ? 10 : 16)
-    const filamentMaxDist = isMobile ? 90 : 120
+    // Adaptive particle constellation: 42 desktop / 22 mobile (reduced: 18 desktop / 12 mobile)
+    const particleCount = motionMode === 'reduced' ? (isMobile ? 12 : 18) : (isMobile ? 22 : 42)
+    const filamentMaxDist = isMobile ? 105 : 140
     const particles: {
       x: number
       y: number
@@ -47,10 +47,10 @@ export const FluidCanvas: React.FC = () => {
       particles.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * (motionMode === 'reduced' ? 0.15 : 0.4),
-        vy: (Math.random() - 0.5) * (motionMode === 'reduced' ? 0.15 : 0.4),
-        radius: Math.random() * 1.5 + 1,
-        alpha: Math.random() * 0.35 + 0.1,
+        vx: (Math.random() - 0.5) * (motionMode === 'reduced' ? 0.18 : 0.45),
+        vy: (Math.random() - 0.5) * (motionMode === 'reduced' ? 0.18 : 0.45),
+        radius: Math.random() * 1.6 + 1.2,
+        alpha: Math.random() * 0.45 + 0.3,
       })
     }
 
@@ -133,7 +133,7 @@ export const FluidCanvas: React.FC = () => {
         // Draw particle
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2)
-        ctx.fillStyle = `rgba(${baseColor}, ${p.alpha * (isDark ? 0.3 : 0.15)})`
+        ctx.fillStyle = `rgba(${baseColor}, ${p.alpha * (isDark ? 0.65 : 0.35)})`
         ctx.fill()
 
         // Filament lines
@@ -145,9 +145,9 @@ export const FluidCanvas: React.FC = () => {
             ctx.moveTo(p.x, p.y)
             ctx.lineTo(p2.x, p2.y)
             ctx.strokeStyle = `rgba(${baseColor}, ${
-              (1 - dist / filamentMaxDist) * 0.06 * (isDark ? 1 : 0.5)
+              (1 - dist / filamentMaxDist) * 0.12 * (isDark ? 1 : 0.6)
             })`
-            ctx.lineWidth = 0.7
+            ctx.lineWidth = 0.75
             ctx.stroke()
           }
         }
@@ -193,7 +193,7 @@ export const FluidCanvas: React.FC = () => {
     <canvas
       ref={canvasRef}
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-0 opacity-80"
+      className="pointer-events-none fixed inset-0 z-0 opacity-95"
     />
   )
 }
