@@ -274,5 +274,58 @@ dylib}), and a dedicated Plugins Manager configuration tab within the Flameshot 
     expect(html).not.toContain('\\vspace')
     expect(html).not.toContain('\\pagestyle')
   })
+
+  it('parses real-world arXiv research papers with matrices and multi-line equations', () => {
+    const arxivPaper = `\\documentclass[11pt,a4paper]{article}
+\\usepackage{amsmath}
+\\usepackage{amssymb}
+
+\\title{Spectral Analysis of Quantum Graph Operators}
+\\author{Dr. Elena Rostova \\and Prof. Marcus Thorne}
+\\date{March 2026}
+
+\\begin{document}
+\\maketitle
+
+\\begin{abstract}
+We establish asymptotic bounds for the spectral radius of adjacency matrices on random geometric graphs.
+\\end{abstract}
+
+\\section{Spectral Gap Theorems}
+Let $G = (V, E)$ be a connected graph. The graph Laplacian matrix is given by:
+
+\\begin{equation}
+L = D - A = \\begin{pmatrix} d_1 & -a_{12} & \\cdots \\\\ -a_{21} & d_2 & \\cdots \\\\ \\vdots & \\vdots & \\ddots \\end{pmatrix}
+\\end{equation}
+
+The Dirichlet eigenvalue problem satisfies:
+\\[
+\\lambda_1 = \\inf_{u \\neq 0} \\frac{\\int_\\Omega |\\nabla u|^2 dx}{\\int_\\Omega u^2 dx} \\ge \\frac{\\pi^2}{d^2}
+\\]
+
+\\section{Convergence Results}
+\\begin{itemize}
+  \\item The spectral norm satisfies $\\|L\\|_2 \\le 2 \\Delta(G)$.
+  \\item The algebraic connectivity $\\lambda_2(L) > 0$ if and only if $G$ is connected.
+\\end{itemize}
+
+\\end{document}`
+
+    const doc = parseLatex(arxivPaper)
+    expect(doc.metadata.title).toBe('Spectral Analysis of Quantum Graph Operators')
+    expect(doc.metadata.author).toContain('Elena Rostova')
+
+    const md = renderToMarkdown(doc)
+    expect(md).toContain('# Spectral Analysis of Quantum Graph Operators')
+    expect(md).toContain('## Abstract')
+    expect(md).toContain('## Spectral Gap Theorems')
+    expect(md).toContain('pmatrix')
+    expect(md).toContain('\\lambda_1')
+
+    const html = renderToHtml(doc, { mathMode: 'mathml' })
+    expect(html).toContain('<h1>Spectral Analysis of Quantum Graph Operators</h1>')
+    expect(html).toContain('<math')
+    expect(html).not.toContain('codecogs')
+  })
 })
 

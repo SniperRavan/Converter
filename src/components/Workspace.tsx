@@ -11,6 +11,8 @@ import {
   ChevronDown,
   Sparkles,
   Bot,
+  Code2,
+  Globe,
 } from 'lucide-react'
 import { useConverterStore } from '../store/useConverterStore'
 import { RichPreview } from './RichPreview'
@@ -33,6 +35,7 @@ export const Workspace: React.FC = () => {
     setSelectedFormat,
     formatOptions,
     loadSample,
+    loadLlmSample,
     clearDocument,
     activeLine,
     setActiveLine,
@@ -317,6 +320,68 @@ export const Workspace: React.FC = () => {
 
   return (
     <div className="w-full">
+      {/* Surfaced User-Centric Use-Cases Quick Bar */}
+      <div className="mb-4 flex flex-wrap items-center gap-2 px-1">
+        <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mr-1 flex items-center gap-1">
+          <Sparkles className="w-3.5 h-3.5 text-blue-500" />
+          Quick Use-Cases:
+        </span>
+        <button
+          onClick={() => {
+            setInputFormat('llm-mixed')
+            loadLlmSample()
+            setSelectedFormat('preview')
+            setCopyTarget('word')
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-blue-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
+          title="Convert ChatGPT, Claude, or DeepSeek equations to Word"
+        >
+          <Bot className="w-3.5 h-3.5 text-blue-500" />
+          <span>ChatGPT / AI Math &rarr; Word</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setInputFormat('latex')
+            loadSample()
+            setSelectedFormat('preview')
+            setCopyTarget('word')
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-amber-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
+          title="Convert Overleaf / LaTeX CV or paper into Word document"
+        >
+          <Code2 className="w-3.5 h-3.5 text-amber-500" />
+          <span>Overleaf / LaTeX CV &rarr; Word</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setInputFormat('markdown')
+            loadSample()
+            setSelectedFormat('preview')
+            setCopyTarget('docs')
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-emerald-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
+          title="Format Markdown notes for Google Docs or print to PDF"
+        >
+          <FileText className="w-3.5 h-3.5 text-emerald-500" />
+          <span>Markdown Notes &rarr; PDF / Docs</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setInputFormat('auto')
+            loadSample()
+            setSelectedFormat('html')
+          }}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-purple-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
+          title="Export clean HTML with offline MathML and SVG formulas"
+        >
+          <Globe className="w-3.5 h-3.5 text-purple-500" />
+          <span>Formula Sheet &rarr; Clean HTML</span>
+        </button>
+      </div>
+
       {/* 2-Column Side-by-Side Converter Studio */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* ================= LEFT CARD: Universal All-Files Input ================= */}
