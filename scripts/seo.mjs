@@ -165,6 +165,24 @@ async function checkBing() {
   } catch (err) {
     console.log(`  ${dim('  (Query stats currently warming up)')}`)
   }
+
+  // D. Check URL Live Crawl Status
+  try {
+    const urlRes = await fetch(`${baseUrl}/GetUrlInfo?siteUrl=${encodeURIComponent(SITE_URL)}&url=${encodeURIComponent(SITE_URL + '/')}&apikey=${BING_API_KEY}`)
+    if (urlRes.ok) {
+      const uData = await urlRes.json()
+      const u = uData.d || {}
+      if (u.LastCrawledDate) {
+        const match = u.LastCrawledDate.match(/\/Date\((\d+)/)
+        if (match) {
+          const crawlDate = new Date(parseInt(match[1], 10)).toUTCString()
+          console.log(`  ${green('✔')} Bing Last Crawled: ${bold(crawlDate)}`)
+        }
+      }
+    }
+  } catch (err) {
+    // Optional
+  }
 }
 
 /**
@@ -254,6 +272,34 @@ async function checkGoogle() {
     } else {
       const errText = await queryRes.text()
       console.log(`  ${yellow('⚠')} Search Console query returned HTTP ${queryRes.status}: ${errText}`)
+    }
+
+    // Query Live URL Inspection API
+    try {
+      const inspectRes = await fetch('https://searchconsole.googleapis.com/v1/urlInspection/index:inspect', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          inspectionUrl: SITE_URL + '/',
+          siteUrl: SITE_URL + '/'
+        })
+      })
+      if (inspectRes.ok) {
+        const inspectData = await inspectRes.json()
+        const status = inspectData.inspectionResult?.indexStatusResult || {}
+        console.log(`  ${green('✔')} Google Index Status: ${bold(status.coverageState || 'Unknown')}`)
+        if (status.sitemap && status.sitemap.length > 0) {
+          console.log(`     Discovered via: ${status.sitemap.join(', ')}`)
+        }
+        if (status.referringUrls && status.referringUrls.length > 0) {
+          console.log(`     Backlinks / Referrers: ${status.referringUrls.join(', ')}`)
+        }
+      }
+    } catch (e) {
+      // Optional
     }
   } catch (err) {
     console.log(`  ${red('✖')} Google API error: ${err.message}`)
