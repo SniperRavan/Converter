@@ -328,18 +328,18 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
         </div>
 
         {/* Center Preview Stage */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-[#F4EDE2]/50 dark:bg-black/50">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-6 bg-[#F4EDE2]/50 dark:bg-black/50">
           {/* Word & PDF Realistic Sheet Preview */}
           {(activeType === 'word' || activeType === 'pdf') && (
             <div
-              className={`max-w-3xl mx-auto rounded-xl border shadow-md p-5 sm:p-12 min-h-[480px] transition-colors ${
+              className={`max-w-3xl mx-auto rounded-xl border shadow-md p-4 sm:p-10 min-h-[480px] overflow-hidden transition-colors ${
                 paperView === 'paper'
                   ? 'border-neutral-300 bg-white text-neutral-900 shadow-xl [color-scheme:light]'
                   : 'border-[#E0D7C9] dark:border-white/15 bg-white dark:bg-[#0e0e0e] text-neutral-800 dark:text-neutral-200'
               }`}
             >
               <div
-                className={`prose prose-sm sm:prose-base max-w-none font-serif leading-relaxed select-text ${
+                className={`prose prose-sm sm:prose-base max-w-none font-serif leading-relaxed select-text overflow-hidden [&_.table-container]:max-w-full [&_.table-container]:overflow-x-auto [&_table]:w-full [&_pre]:max-w-full [&_pre]:overflow-x-auto ${
                   paperView === 'paper'
                     ? 'prose-neutral !text-neutral-900 [&_*]:!text-neutral-900 [&_pre]:!bg-neutral-100 [&_pre]:!border-neutral-300 [&_pre]:!border [&_pre_code]:!text-neutral-900 [&_code]:!text-neutral-900 [&_code]:!bg-neutral-100 [&_blockquote]:!text-neutral-700 [&_blockquote]:!border-neutral-400 [&_th]:!text-neutral-900 [&_th]:!bg-neutral-100 [&_td]:!text-neutral-800 [&_td]:!border-neutral-300 [&_th]:!border-neutral-300 [&_a]:!text-blue-600 [&_hr]:!border-neutral-300 [&_img]:filter-none'
                     : 'dark:prose-invert text-neutral-800 dark:text-neutral-200'
@@ -353,9 +353,9 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
           {activeType === 'html' && (
             <div className="max-w-3xl mx-auto">
               {htmlViewMode === 'visual' ? (
-                <div className="rounded-xl border border-[#E0D7C9] dark:border-white/15 bg-white dark:bg-[#0e0e0e] shadow-md p-4 sm:p-10 min-h-[480px]">
+                <div className="rounded-xl border border-[#E0D7C9] dark:border-white/15 bg-white dark:bg-[#0e0e0e] shadow-md p-4 sm:p-10 min-h-[480px] overflow-hidden">
                   <div
-                    className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-neutral-800 dark:text-neutral-200 select-text"
+                    className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-neutral-800 dark:text-neutral-200 select-text overflow-hidden [&_.table-container]:max-w-full [&_.table-container]:overflow-x-auto [&_table]:w-full [&_pre]:max-w-full [&_pre]:overflow-x-auto"
                     dangerouslySetInnerHTML={{ __html: contentHtmlClean }}
                   />
                 </div>

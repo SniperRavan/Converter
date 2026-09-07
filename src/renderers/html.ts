@@ -183,7 +183,7 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
             .join('\n')
         : ''
 
-      return `<table>\n${thead}<tbody>\n${rows}\n</tbody>\n</table>`
+      return `<div class="table-container" style="overflow-x: auto; max-width: 100%; margin: 16px 0;">\n<table style="width: 100%; border-collapse: collapse;">\n${thead}<tbody>\n${rows}\n</tbody>\n</table>\n</div>`
     }
 
     case 'thematicBreak':
