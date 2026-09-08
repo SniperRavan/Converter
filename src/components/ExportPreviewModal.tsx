@@ -18,6 +18,7 @@ import { renderToMarkdown } from '../renderers/markdown'
 import { renderToHtml } from '../renderers/html'
 import { renderToLatex } from '../renderers/latex'
 import { renderToPlainText } from '../renderers/text'
+import { renderToDocx } from '../renderers/docx'
 import { exportToWord, exportToPdf, exportToFile } from '../utils/exporters'
 
 export type ExportType = 'word' | 'pdf' | 'html' | 'markdown' | 'latex' | 'text' | 'json'
@@ -39,7 +40,7 @@ interface FormatMeta {
 }
 
 const EXPORT_FORMATS: FormatMeta[] = [
-  { id: 'word', label: 'Word (.doc)', ext: '.doc', mime: 'application/msword', badgeColor: 'text-blue-500 bg-blue-500/10 border-blue-500/20', icon: <FileSpreadsheet className="w-3.5 h-3.5" /> },
+  { id: 'word', label: 'Word (.docx)', ext: '.docx', mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', badgeColor: 'text-blue-500 bg-blue-500/10 border-blue-500/20', icon: <FileSpreadsheet className="w-3.5 h-3.5" /> },
   { id: 'pdf', label: 'PDF Document', ext: '.pdf', mime: 'application/pdf', badgeColor: 'text-red-500 bg-red-500/10 border-red-500/20', icon: <FileText className="w-3.5 h-3.5" /> },
   { id: 'html', label: 'HTML Page', ext: '.html', mime: 'text/html;charset=utf-8', badgeColor: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20', icon: <Globe className="w-3.5 h-3.5" /> },
   { id: 'markdown', label: 'Markdown', ext: '.md', mime: 'text/markdown;charset=utf-8', badgeColor: 'text-purple-500 bg-purple-500/10 border-purple-500/20', icon: <FileCode className="w-3.5 h-3.5" /> },
@@ -86,7 +87,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
     [parsedDocument]
   )
   const contentHtmlWord = useMemo(
-    () => renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'mathml' }),
+    () => renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'mathml', cleanTables: true }),
     [parsedDocument]
   )
   const contentHtmlFull = useMemo(
@@ -102,9 +103,16 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
 
   // Compute estimated payload size
   const estimatedSize = useMemo(() => {
+    if (activeType === 'word') {
+      try {
+        const bytes = renderToDocx(parsedDocument)
+        return `${(bytes.byteLength / 1024).toFixed(1)} KB`
+      } catch {
+        return '12.5 KB'
+      }
+    }
     let raw = ''
     switch (activeType) {
-      case 'word':
       case 'html':
         raw = contentHtmlFull
         break
@@ -128,13 +136,13 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
     const bytes = new Blob([raw]).size
     if (bytes < 1024) return `${bytes} B`
     return `${(bytes / 1024).toFixed(1)} KB`
-  }, [activeType, contentHtmlFull, contentHtmlClean, contentLatex, contentPlainText, contentJson, contentMarkdown])
+  }, [activeType, contentHtmlFull, contentHtmlClean, contentLatex, contentPlainText, contentJson, contentMarkdown, parsedDocument])
 
   const handleDownload = () => {
     const baseName = filename.trim() || 'document'
     switch (activeType) {
       case 'word':
-        exportToWord(contentHtmlWord, baseName)
+        exportToWord(contentHtmlWord, baseName, parsedDocument)
         break
       case 'pdf':
         exportToPdf(contentHtmlClean, baseName)

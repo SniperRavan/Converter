@@ -42,8 +42,10 @@
   "dependencies": {
     "clsx": "^2.1.1",
     "dompurify": "^3.4.14",
+    "fflate": "^0.8.3",
     "katex": "^0.18.5",
     "lucide-react": "^1.40.0",
+    "mathml2omml": "^0.5.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "remark-gfm": "^4.0.1",

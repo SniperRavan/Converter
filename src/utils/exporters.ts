@@ -1,10 +1,56 @@
+import { renderToDocx } from '../renderers/docx'
+import type { NormalizedDocument } from '../core/types'
+import { mml2omml } from 'mathml2omml'
+
 /**
  * Export helpers for Word (.docx/.doc), PDF, HTML, and Markdown
  */
 
-export function exportToWord(htmlBody: string, title = 'document') {
+export function exportToDocx(doc: NormalizedDocument, title = 'document') {
+  const bytes = renderToDocx(doc)
+  const blob = new Blob([bytes as unknown as BlobPart], {
+    type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${title.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')}.docx`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+export function exportToWord(htmlBody: string, title = 'document', doc?: NormalizedDocument) {
+  if (doc) {
+    exportToDocx(doc, title)
+    return
+  }
+
+  // Fallback for direct HTML-based .doc export with OMML and table protection
+  let processedHtml = htmlBody
+    // Strip table-container div so Word does not collapse table columns
+    .replace(/<div class="table-container"[^>]*>\s*([\s\S]*?)\s*<\/div>/gi, '$1')
+    .replace(/<table(?![^>]*border=)[^>]*>/gi, '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 12pt 0; border: 1pt solid #cbd5e1; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">')
+    .replace(/<th(?![^>]*style=)[^>]*>/gi, '<th style="border: 1pt solid #cbd5e1; background-color: #f1f5f9; padding: 6pt 8pt; font-weight: bold;">')
+    .replace(/<td(?![^>]*style=)[^>]*>/gi, '<td style="border: 1pt solid #cbd5e1; padding: 6pt 8pt;">')
+
+  // Convert MathML equations to OMML for Word HTML compatibility
+  processedHtml = processedHtml.replace(/<math[\s\S]*?<\/math>/gi, (match) => {
+    try {
+      const isDisplay = match.includes('display="block"')
+      const omml = mml2omml(match)
+      if (isDisplay) {
+        return `<p class="MsoNormal" align="center" style="text-align:center;"><m:oMathPara>${omml}</m:oMathPara></p>`
+      }
+      return omml
+    } catch {
+      return match
+    }
+  })
+
   const docHtml = `<!DOCTYPE html>
-<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns:m='http://schemas.microsoft.com/office/2004/12/omml' xmlns='http://www.w3.org/TR/REC-html40'>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns:m='http://schemas.openxmlformats.org/officeDocument/2006/math' xmlns='http://www.w3.org/TR/REC-html40'>
 <head>
   <meta charset='utf-8'>
   <title>${title}</title>
@@ -20,67 +66,69 @@ export function exportToWord(htmlBody: string, title = 'document') {
   <style>
     @page {
       size: letter portrait;
-      margin: 0.5in;
+      margin: 0.75in;
       mso-header-margin: 0.3in;
       mso-footer-margin: 0.3in;
     }
     body {
       font-family: 'Calibri', 'Segoe UI', 'Arial', sans-serif;
-      font-size: 10.5pt;
-      line-height: 1.35;
+      font-size: 11pt;
+      line-height: 1.4;
       color: #0f172a;
-      margin: 0.5in;
+      margin: 0.75in;
     }
     h1 {
-      font-size: 20pt;
+      font-size: 22pt;
       font-weight: bold;
       color: #003884;
       margin-top: 0;
-      margin-bottom: 4pt;
+      margin-bottom: 6pt;
       text-align: center;
     }
     h2 {
-      font-size: 11.5pt;
+      font-size: 13pt;
       font-weight: bold;
       color: #003884;
-      margin-top: 11pt;
-      margin-bottom: 3pt;
+      margin-top: 14pt;
+      margin-bottom: 4pt;
       border-bottom: 1.5pt solid #003884;
-      padding-bottom: 1.5pt;
+      padding-bottom: 2pt;
       text-transform: uppercase;
       letter-spacing: 0.5pt;
     }
     h3 {
-      font-size: 10.5pt;
+      font-size: 11.5pt;
       font-weight: bold;
       color: #1e293b;
-      margin-top: 5pt;
-      margin-bottom: 2pt;
+      margin-top: 8pt;
+      margin-bottom: 3pt;
     }
-    p { margin: 2.5pt 0; }
+    p { margin: 3pt 0 6pt 0; }
     p[align="center"] { text-align: center; }
     ul, ol {
-      margin: 2pt 0 5pt 0;
-      padding-left: 18pt;
+      margin: 3pt 0 6pt 0;
+      padding-left: 20pt;
     }
-    li { margin-bottom: 2pt; }
+    li { margin-bottom: 3pt; }
     hr {
       border: none;
       border-top: 1pt solid #cbd5e1;
-      margin: 8pt 0;
+      margin: 10pt 0;
     }
     table {
       border-collapse: collapse;
       width: 100%;
-      margin: 8pt 0;
+      margin: 10pt 0;
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
     }
     th, td {
       border: 1pt solid #cbd5e1;
-      padding: 4pt 6pt;
+      padding: 6pt 8pt;
       text-align: left;
     }
     th {
-      background-color: #f8fafc;
+      background-color: #f1f5f9;
       font-weight: bold;
     }
     code {
@@ -93,8 +141,8 @@ export function exportToWord(htmlBody: string, title = 'document') {
       font-family: 'Consolas', 'Courier New', monospace;
       font-size: 9.5pt;
       background-color: #f8fafc;
-      border: 1pt solid #e2e8f0;
-      padding: 8pt;
+      border-left: 2pt solid #cbd5e1;
+      padding: 8pt 12pt;
       margin: 8pt 0;
     }
     blockquote {
@@ -108,13 +156,10 @@ export function exportToWord(htmlBody: string, title = 'document') {
       color: #2563eb;
       text-decoration: none;
     }
-    .math-block, math {
-      margin: 8pt 0;
-    }
   </style>
 </head>
 <body>
-  ${htmlBody}
+  ${processedHtml}
 </body>
 </html>`
 
@@ -122,7 +167,7 @@ export function exportToWord(htmlBody: string, title = 'document') {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.doc`
+  a.download = `${title.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')}.doc`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

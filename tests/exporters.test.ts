@@ -51,4 +51,51 @@ const greeting = "Hello World";
     expect(text).toContain('=======')
     expect(text).toContain('x² + y² = r²')
   })
+
+  it('renders clean tables without overflow container for Word compatibility', () => {
+    const source = '| Col A | Col B |\n|---|---|\n| Val 1 | Val 2 |'
+    const doc = parseMarkdown(source)
+    const html = renderToHtml(doc, { includeWrapper: false, cleanTables: true })
+    expect(html).not.toContain('class="table-container"')
+    expect(html).toContain('<table border="1"')
+    expect(html).toContain('mso-table-lspace')
+  })
+
+  it('compiles AST with math and tables to valid Office OpenXML (.docx) bytes', async () => {
+    const { renderToDocx } = await import('../src/renderers/docx')
+    const { unzipSync, strFromU8 } = await import('fflate')
+
+    const source = `# Machine Learning Fundamentals
+
+The linear regression cost function is:
+$$J(\\theta) = \\frac{1}{2m} \\sum_{i=1}^m (h_\\theta(x^{(i)}) - y^{(i)})^2$$
+
+Equivalence: $E=mc^2$
+
+| Model Architecture | Parameters | Accuracy (%) |
+|---|---|---|
+| Transformer-Base | 110M | 94.2 |
+`
+    const doc = parseMarkdown(source)
+    const bytes = renderToDocx(doc)
+
+    expect(bytes).toBeInstanceOf(Uint8Array)
+    expect(bytes.byteLength).toBeGreaterThan(500)
+
+    // Unzip and inspect document.xml
+    const unzipped = unzipSync(bytes)
+    expect(unzipped['word/document.xml']).toBeDefined()
+    expect(unzipped['[Content_Types].xml']).toBeDefined()
+    expect(unzipped['_rels/.rels']).toBeDefined()
+
+    const docXml = strFromU8(unzipped['word/document.xml'])
+    expect(docXml).toContain('Machine Learning Fundamentals')
+    // Contains OMML Office Math
+    expect(docXml).toContain('<m:oMath')
+    expect(docXml).toContain('J(θ)=')
+    // Contains native Word table
+    expect(docXml).toContain('<w:tbl>')
+    expect(docXml).toContain('Transformer-Base')
+    expect(docXml).toContain('<w:tblHeader/>')
+  })
 })

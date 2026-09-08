@@ -26,6 +26,7 @@ export interface HtmlRenderOptions {
   includeWrapper?: boolean
   title?: string
   mathMode?: 'images' | 'mathml' | 'latex'
+  cleanTables?: boolean
 }
 
 function renderMathToMathMl(latex: string, displayMode: boolean): string {
@@ -94,7 +95,11 @@ function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'l
   }
 }
 
-function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'latex' = 'mathml'): string {
+function renderBlockToHtml(
+  block: BlockNode,
+  mathMode: 'images' | 'mathml' | 'latex' = 'mathml',
+  cleanTables = false
+): string {
   switch (block.type) {
     case 'heading': {
       const tag = `h${block.level}`
@@ -109,7 +114,7 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
     }
 
     case 'blockquote': {
-      const inner = block.children.map(c => renderBlockToHtml(c, mathMode)).join('\n')
+      const inner = block.children.map(c => renderBlockToHtml(c, mathMode, cleanTables)).join('\n')
       return `<blockquote>${inner}</blockquote>`
     }
 
@@ -141,7 +146,7 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
                 return child.children.map(c => renderInlineToHtml(c, mathMode)).join('')
               }
               if ('type' in child && child.type === 'list') {
-                return renderBlockToHtml(child, mathMode)
+                return renderBlockToHtml(child, mathMode, cleanTables)
               }
               return ''
             })
@@ -160,9 +165,12 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
       const ths = hasHeaders
         ? block.headers
             .map((cell, idx) => {
-              const align = block.alignments?.[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
+              const align = block.alignments?.[idx] ? ` text-align: ${block.alignments[idx]};` : ''
+              const style = cleanTables
+                ? ` style="border: 1pt solid #cbd5e1; background-color: #f1f5f9; padding: 6pt 8pt; font-weight: bold;${align}"`
+                : align ? ` style="${align.trim()}"` : ''
               const content = cell.children.map(c => renderInlineToHtml(c, mathMode)).join('')
-              return `<th${align}>${content}</th>`
+              return `<th${style}>${content}</th>`
             })
             .join('')
         : ''
@@ -174,15 +182,22 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
             .map(row => {
               const tds = row.cells
                 .map((cell, idx) => {
-                  const align = block.alignments?.[idx] ? ` style="text-align: ${block.alignments[idx]}"` : ''
+                  const align = block.alignments?.[idx] ? ` text-align: ${block.alignments[idx]};` : ''
+                  const style = cleanTables
+                    ? ` style="border: 1pt solid #cbd5e1; padding: 6pt 8pt;${align}"`
+                    : align ? ` style="${align.trim()}"` : ''
                   const content = cell.children.map(c => renderInlineToHtml(c, mathMode)).join('')
-                  return `<td${align}>${content}</td>`
+                  return `<td${style}>${content}</td>`
                 })
                 .join('')
               return `<tr>${tds}</tr>`
             })
             .join('\n')
         : ''
+
+      if (cleanTables) {
+        return `<table border="1" cellpadding="6" cellspacing="0" style="width: 100%; border-collapse: collapse; margin: 14px 0; border: 1pt solid #cbd5e1; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">\n${thead}<tbody>\n${rows}\n</tbody>\n</table>`
+      }
 
       return `<div class="table-container" style="overflow-x: auto; max-width: 100%; margin: 16px 0;">\n<table style="width: 100%; border-collapse: collapse;">\n${thead}<tbody>\n${rows}\n</tbody>\n</table>\n</div>`
     }
@@ -200,7 +215,8 @@ function renderBlockToHtml(block: BlockNode, mathMode: 'images' | 'mathml' | 'la
 
 export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions = {}): string {
   const mathMode = options.mathMode || 'mathml'
-  const rawHtml = doc.children.map(c => renderBlockToHtml(c, mathMode)).join('\n')
+  const cleanTables = Boolean(options.cleanTables)
+  const rawHtml = doc.children.map(c => renderBlockToHtml(c, mathMode, cleanTables)).join('\n')
 
   // Strict sanitization with DOMPurify while preserving images and math
   const sanitizedBody =

@@ -50,8 +50,12 @@ export const Workspace: React.FC = () => {
   const [showCopyMenu, setShowCopyMenu] = useState(false)
   const [copyTarget, setCopyTarget] = useState<'word' | 'docs' | 'unicode' | 'latex'>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('convertion_copy_target') as 'word' | 'docs' | 'unicode' | 'latex'
-      if (saved && ['word', 'docs', 'unicode', 'latex'].includes(saved)) return saved
+      const saved = localStorage.getItem('convertion_copy_target')
+      // Auto-migrate any cached 'docs' setting to 'word' (MathML) so users get native equations by default
+      if (saved && saved !== 'docs' && ['word', 'unicode', 'latex'].includes(saved)) {
+        return saved as 'word' | 'unicode' | 'latex'
+      }
+      localStorage.setItem('convertion_copy_target', 'word')
     }
     return 'word'
   })
@@ -257,8 +261,12 @@ export const Workspace: React.FC = () => {
           const latexSnippet = renderToPlainText(parsedDocument, { mathMode: 'latex' })
           await navigator.clipboard.writeText(latexSnippet)
         } else {
-          const mathMode = target === 'word' ? 'mathml' : 'images'
-          const htmlSnippet = renderToHtml(parsedDocument, { includeWrapper: false, mathMode })
+          // Output high-fidelity W3C Presentation MathML and Word-compatible tables
+          const htmlSnippet = renderToHtml(parsedDocument, {
+            includeWrapper: false,
+            mathMode: 'mathml',
+            cleanTables: true,
+          })
           const plainSnippet = renderToPlainText(parsedDocument, { mathMode: 'unicode' })
           const clipboardHtml = `<!--StartFragment-->\n${htmlSnippet}\n<!--EndFragment-->`
           const blobHtml = new Blob([clipboardHtml], { type: 'text/html' })
@@ -624,8 +632,8 @@ export const Workspace: React.FC = () => {
                         }`}
                       >
                         <div>
-                          <div className="text-neutral-900 dark:text-white font-medium">Google Docs (Visual Math)</div>
-                          <div className="text-[10px] text-neutral-500">Rendered images + Unicode text</div>
+                          <div className="text-neutral-900 dark:text-white font-medium">Google Docs / Web Math</div>
+                          <div className="text-[10px] text-neutral-500">Universal MathML + Unicode text</div>
                         </div>
                         <span className="text-[10px] text-blue-500 font-mono font-bold">DOCS</span>
                       </button>
