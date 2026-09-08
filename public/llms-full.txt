@@ -37,7 +37,7 @@ Converter solves these problems by providing:
 
 ## 3. Supported Export Formats
 
-1. **Microsoft Word (.doc):** Generates MSOffice XML-compliant HTML with embedded MathML and Office namespaces (`xmlns:o`, `xmlns:w`, `xmlns:m`) allowing Word 2016+ and Microsoft 365 to render native editable equations.
+1. **Microsoft Word (.docx / .doc):** Generates native Office OpenXML (.docx) files containing compliant OMML equation structures (`<m:oMath>`, `<m:oMathPara>`) and structured Word tables (`<w:tbl>`). When opened in Word or LibreOffice, equations render as fully editable native equation objects rather than pictures or raw text.
 2. **Print-Ready PDF (.pdf):** Utilizes browser-native print rendering stylesheets with exact A4/Letter margins, page breaks, and high-DPI font vectorization.
 3. **Clean Markdown (.md):** AST serializes cleaned markdown with normalized spacing and syntax.
 4. **HTML5 (.html):** Self-contained semantic HTML sanitized with DOMPurify to eliminate XSS risks.

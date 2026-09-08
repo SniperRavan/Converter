@@ -71,15 +71,15 @@
           "name": "Akash Das Dhibar",
           "url": "https://github.com/sniperravan"
         },
-        "description": "Universal, 100% client-side document conversion engine. Converts chaotic AI outputs, LaTeX mathematics, Overleaf resumes, Markdown, and HTML into clean Word (.doc), PDF, and Markdown without server uploads or telemetry.",
+        "description": "Universal, 100% client-side document conversion engine. Converts chaotic AI outputs, LaTeX mathematics, Overleaf resumes, Markdown, and HTML into clean Word (.docx / .doc), PDF, and Markdown without server uploads or telemetry.",
         "featureList": [
           "LLM Mixed Stream Syntax Normalizer (ChatGPT, Claude, DeepSeek, Gemini, Perplexity, Grok)",
           "Overleaf and LaTeX Academic CV/Resume Parser (Jake's Resume, sb2nov)",
           "Interactive Pre-Flight Export Modal with Paginated Sheet Preview",
           "Dual-MIME Clipboard Injection (Direct paste into Word, Google Docs, Notion)",
           "Zero Telemetry and 100% Browser-Local Execution",
-          "Live KaTeX Formula and MathML Typesetting",
-          "Export to Word (.doc), PDF, Markdown (.md), HTML, LaTeX (.tex), JSON AST"
+          "Live KaTeX Formula, OMML, and MathML Typesetting",
+          "Export to Word (.docx / .doc), PDF, Markdown (.md), HTML, LaTeX (.tex), JSON AST"
         ]
       },
       {
@@ -91,15 +91,15 @@
             "name": "How do I convert AI math formulas (ChatGPT, Claude, DeepSeek, Gemini) to Microsoft Word without broken $$ signs?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Paste your AI output (from ChatGPT, Claude, DeepSeek, Gemini, Perplexity, or local models) into Converter and select LLM Stream mode. Converter detects LaTeX math delimiters ($$...$$, \\(...\\), \\[...\\]) and compiles them with KaTeX into native MathML. Click Copy Rich Text or Word (.doc) to paste directly into Microsoft Word or Google Docs as editable equations."
+              "text": "Paste your AI output (from ChatGPT, Claude, DeepSeek, Gemini, Perplexity, or local models) into Converter and select LLM Stream mode. Converter detects LaTeX math delimiters ($$...$$, \\(...\\), \\[...\\]) and compiles them with KaTeX into native MathML and OMML. Click Copy Rich Text or Word (.docx) to paste directly into Microsoft Word or Google Docs as editable equations."
             }
           },
           {
             "@type": "Question",
-            "name": "Can I convert an Overleaf or LaTeX academic resume/CV to Word (.doc)?",
+            "name": "Can I convert an Overleaf or LaTeX academic resume/CV to Word (.docx / .doc)?",
             "acceptedAnswer": {
               "@type": "Answer",
-              "text": "Yes. Paste your .tex source code or upload your LaTeX file. Converter uses an AST parser specifically tuned for academic CV templates like Jake's Resume and sb2nov, converting sections, dates, itemized bullets, and links into an ATS-friendly editable Word document."
+              "text": "Yes. Paste your .tex source code or upload your LaTeX file. Converter uses an AST parser specifically tuned for academic CV templates like Jake's Resume and sb2nov, converting sections, dates, itemized bullets, and links into an ATS-friendly editable Word (.docx) document."
             }
           },
           {
@@ -143,13 +143,13 @@
     <div id="root">
       <main class="sr-only">
         <h1>Universal Document Converter — Markdown, LaTeX &amp; AI to Word</h1>
-        <p>Convert Markdown, LaTeX mathematics, academic CVs, and AI chat outputs (ChatGPT, Claude, DeepSeek, Gemini, Perplexity) into clean Microsoft Word (.doc), Google Docs, PDF, Markdown, and HTML. Free, open source, and 100% client-side with zero data collection.</p>
+        <p>Convert Markdown, LaTeX mathematics, academic CVs, and AI chat outputs (ChatGPT, Claude, DeepSeek, Gemini, Perplexity) into clean Microsoft Word (.docx / .doc), Google Docs, PDF, Markdown, and HTML. Free, open source, and 100% client-side with zero data collection.</p>
         <h2>Markdown Preview, Editor &amp; Document Converter</h2>
         <p>Live Markdown preview, MD to text, Markdown to Word, and Markdown to Google Docs conversion with instant rich text copy.</p>
-        <h2>LaTeX Resume &amp; Academic CV to Word</h2>
-        <p>Convert Overleaf resumes, Jake's Resume, and LaTeX CVs into formatted Word documents with preserved fonts, section borders, and centered contact links.</p>
+        <h2>LaTeX Resume &amp; Academic CV to Word (.docx)</h2>
+        <p>Convert Overleaf resumes, Jake's Resume, and LaTeX CVs into formatted Word documents (.docx) with preserved fonts, section borders, and centered contact links.</p>
         <h2>AI &amp; LLM Math to Word (ChatGPT, Claude, DeepSeek, Gemini)</h2>
-        <p>Turn raw LaTeX math equations from ChatGPT, Claude, DeepSeek, and Gemini into native Microsoft Word equations without broken dollar signs or raw markup.</p>
+        <p>Turn raw LaTeX math equations from ChatGPT, Claude, DeepSeek, and Gemini into native Microsoft Word equations (.docx) without broken dollar signs or raw markup.</p>
       </main>
     </div>
     <script type="module" src="/src/main.tsx"></script>

@@ -29,7 +29,7 @@ Converter is an open-source web application designed to normalize and convert ch
 
 ## Supported Output Formats
 
-- [Microsoft Word (.doc)](https://converter-sr.vercel.app/#converter): MSOffice XML / HTML Word document with native formula typography.
+- [Microsoft Word (.docx / .doc)](https://converter-sr.vercel.app/#converter): Native Office OpenXML (.docx) and MSOffice XML with editable OMML equations and formatted tables.
 - [Print-Ready PDF (.pdf)](https://converter-sr.vercel.app/#converter): High-fidelity PDF with pagination and embedded KaTeX styles.
 - [Clean Markdown (.md)](https://converter-sr.vercel.app/#converter): Normalized standard Markdown.
 - [Semantic HTML5 (.html)](https://converter-sr.vercel.app/#converter): Sanitized HTML ready for web publishing.
