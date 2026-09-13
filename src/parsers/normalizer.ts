@@ -175,6 +175,78 @@ function fixInlineMathSpaces(text: string): string {
 }
 
 /**
+ * Ensures clean spacing around inline math $...$ when adjacent to alphanumeric text
+ * (e.g. "Markdown $\rightarrow$AST$\rightarrow$" -> "Markdown $\rightarrow$ AST $\rightarrow$").
+ */
+function fixMathSurroundingSpacing(text: string): string {
+  const lines = text.split('\n')
+  const result: string[] = []
+  let inCodeBlock = false
+
+  for (const line of lines) {
+    const stripped = line.trim()
+    if (stripped.startsWith('```') || stripped.startsWith('~~~')) {
+      inCodeBlock = !inCodeBlock
+      result.push(line)
+      continue
+    }
+    if (inCodeBlock) {
+      result.push(line)
+      continue
+    }
+
+    let processed = ''
+    let i = 0
+    while (i < line.length) {
+      if (line[i] === '`') {
+        const endTick = line.indexOf('`', i + 1)
+        if (endTick !== -1) {
+          processed += line.slice(i, endTick + 1)
+          i = endTick + 1
+          continue
+        }
+      }
+
+      if (line[i] === '$' && line[i + 1] === '$') {
+        const endDollar = line.indexOf('$$', i + 2)
+        if (endDollar !== -1) {
+          processed += line.slice(i, endDollar + 2)
+          i = endDollar + 2
+          continue
+        }
+      }
+
+      if (line[i] === '$' && (i === 0 || line[i - 1] !== '\\') && line[i + 1] !== '$') {
+        let end = i + 1
+        while (end < line.length) {
+          if (line[end] === '$' && line[end - 1] !== '\\' && line[end + 1] !== '$') break
+          end++
+        }
+        if (end < line.length && line[end] === '$') {
+          const math = line.slice(i + 1, end)
+          if (math.trim() && !math.startsWith(' ') && !math.endsWith(' ')) {
+            if (processed.length > 0 && /[a-zA-Z0-9]/.test(processed[processed.length - 1])) {
+              processed += ' '
+            }
+            processed += '$' + math + '$'
+            if (end + 1 < line.length && /[a-zA-Z0-9]/.test(line[end + 1])) {
+              processed += ' '
+            }
+            i = end + 1
+            continue
+          }
+        }
+      }
+
+      processed += line[i]
+      i++
+    }
+    result.push(processed)
+  }
+  return result.join('\n')
+}
+
+/**
  * Ensures blank line separation before headings, tables, blockquotes, and code blocks
  * when preceded by paragraph text without spacing (common in LLM chatter).
  */
@@ -248,6 +320,18 @@ export function normalizeUniversalInput(rawText: string): string {
 
   // 3. Unicode bullets (•, ◦, ▪, ▫, ‣) -> Markdown list markers (- )
   text = text.replace(/^([ \t]*)[•◦▪▫‣][ \t]+/gm, '$1- ')
+
+  // 3b. Normalize spacing between inline math and adjacent alphanumeric words
+  // e.g. "final$|\psi\rangle$" -> "final $|\psi\rangle$", "$\hat{H}$governs" -> "$\hat{H}$ governs", "$\rightarrow$AST" -> "$\rightarrow$ AST"
+  text = fixMathSurroundingSpacing(text)
+
+  // 3c. Convert GitHub Flavored Markdown alerts (> [!NOTE]) into clean blockquote prefixes
+  text = text.replace(/^>[ \t]*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*$/gim, (_m, alertType) => {
+    return `> **${alertType.toUpperCase()}:**`
+  })
+
+  // 3d. Normalize author separator \and into middle dot
+  text = text.replace(/([^\n`$])\s*\\and\b\s*([^\n`$])/g, '$1 · $2')
 
   // 4. Normalize LaTeX Display Math: \[ ... \] -> $$ ... $$
   text = text.replace(/\\\[([\s\S]*?)\\\]/g, (_match, math) => {
@@ -348,6 +432,18 @@ export function normalizeUniversalInput(rawText: string): string {
     .replace(/<code\b[^>]*>([\s\S]*?)<\/code>/gi, '`$1`')
     .replace(/<mark\b[^>]*>([\s\S]*?)<\/mark>/gi, '==$1==')
     .replace(/<br\s*\/?>/gi, '\n')
+
+  // 9b. Convert HTML callout/note containers (<div style="...border-left...">) into standard markdown blockquotes
+  text = text.replace(/<div\b[^>]*border-left[^>]*>([\s\S]*?)<\/div>/gi, (_match, inner) => {
+    const lines = inner.trim().split('\n').map((l: string) => l.trim())
+    return '\n\n> ' + lines.join('\n> ') + '\n\n'
+  })
+
+  // 9c. Unwrap simple div containers
+  text = text.replace(/<div\b[^>]*>([\s\S]*?)<\/div>/gi, (_match, inner) => {
+    if (/<(table|div)[\s>]/i.test(inner)) return _match
+    return '\n\n' + inner.trim() + '\n\n'
+  })
 
   return text
 }

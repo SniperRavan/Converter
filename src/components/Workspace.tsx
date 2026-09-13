@@ -21,7 +21,11 @@ import { renderToMarkdown } from '../renderers/markdown'
 import { renderToHtml } from '../renderers/html'
 import { renderToLatex } from '../renderers/latex'
 import { renderToPlainText } from '../renderers/text'
-import { ExportPreviewModal, type ExportType } from './ExportPreviewModal'
+import type { ExportType } from './ExportPreviewModal'
+
+const ExportPreviewModal = React.lazy(() =>
+  import('./ExportPreviewModal').then((m) => ({ default: m.ExportPreviewModal }))
+)
 import type { SupportedInputFormat, SupportedOutputFormat } from '../core/types'
 
 export const Workspace: React.FC = () => {
@@ -919,13 +923,15 @@ export const Workspace: React.FC = () => {
 
       {/* Export Preview Modal */}
       {exportPreviewOpen && (
-        <ExportPreviewModal
-          key={`${exportPreviewType}-${parsedDocument.metadata.title || 'document'}`}
-          isOpen={exportPreviewOpen}
-          initialType={exportPreviewType}
-          onClose={() => setExportPreviewOpen(false)}
-          parsedDocument={parsedDocument}
-        />
+        <React.Suspense fallback={null}>
+          <ExportPreviewModal
+            key={`${exportPreviewType}-${parsedDocument.metadata.title || 'document'}`}
+            isOpen={exportPreviewOpen}
+            initialType={exportPreviewType}
+            onClose={() => setExportPreviewOpen(false)}
+            parsedDocument={parsedDocument}
+          />
+        </React.Suspense>
       )}
     </div>
   )

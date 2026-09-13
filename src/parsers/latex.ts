@@ -348,6 +348,7 @@ function unwrapSizingCommands(input: string): string {
 function cleanLatexMetadata(text: string): string[] {
   return text
     .replace(/\\today\b/g, getTodayFormatted())
+    .replace(/\\and\b/g, ' · ')
     .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|centering|raggedright|noindent)/g, '')
     .replace(/\\color\{[^}]+\}/g, '')
     .replace(/\\vspace\*?\{[^}]+\}/g, '')
@@ -383,6 +384,7 @@ export function unescapeLatexSpecial(text: string): string {
 export function parseLatexInline(text: string): InlineNode[] {
   let cleaned = text
     .replace(/\\today\b/g, getTodayFormatted())
+    .replace(/\\and\b/g, ' · ')
     .replace(/\\LaTeX\b/g, 'LaTeX')
     .replace(/\\TeX\b/g, 'TeX')
     .replace(/\\dots\b|\\ldots\b/g, '...')

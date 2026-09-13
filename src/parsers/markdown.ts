@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
 import type {
   BlockNode,
+  HeadingNode,
   InlineNode,
   NormalizedDocument,
   Alignment,
@@ -295,12 +296,39 @@ export function parseMarkdown(rawText: string): NormalizedDocument {
       .map(mapMdastBlock)
       .filter(Boolean) as BlockNode[]
 
+    let title: string | undefined
+    let author: string | undefined
+    let date: string | undefined
+
+    const frontmatterMatch = text.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+    if (frontmatterMatch) {
+      const yaml = frontmatterMatch[1]
+      const titleM = yaml.match(/^title:\s*["']?(.*?)["']?$/m)
+      if (titleM) title = titleM[1].trim()
+      const authorM = yaml.match(/^author:\s*["']?(.*?)["']?$/m)
+      if (authorM) author = authorM[1].trim()
+      const dateM = yaml.match(/^date:\s*["']?(.*?)["']?$/m)
+      if (dateM) date = dateM[1].trim()
+    }
+
+    if (!title) {
+      const firstH1 = blocks.find((b): b is HeadingNode => b.type === 'heading' && b.level === 1)
+      if (firstH1) {
+        const extractText = (inlines: InlineNode[]): string =>
+          inlines.map((i) => ('children' in i ? extractText((i as any).children) : (i as any).value || '')).join('')
+        title = extractText(firstH1.children).trim() || undefined
+      }
+    }
+
     const stats = computeDocumentStats(blocks)
 
     return {
       type: 'document',
       version: 1,
       metadata: {
+        title,
+        author,
+        date,
         createdAt: new Date().toISOString(),
         sourceFormat: 'markdown',
       },

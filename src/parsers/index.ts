@@ -56,30 +56,17 @@ export function parseUniversalDocument(
       return parseLatex(content)
     case 'json':
       return parseJson(content)
-    case 'text':
-      return {
-        type: 'document',
-        version: 1,
-        metadata: {
-          createdAt: new Date().toISOString(),
-          sourceFormat: 'text',
-        },
-        children: content.split(/\n\s*\n/).map((block, idx) => ({
-          type: 'paragraph',
-          children: [{ type: 'text', value: block }],
-          line: idx + 1,
-        })),
-        stats: {
-          headings: 0,
-          paragraphs: content.split(/\n\s*\n/).length,
-          codeBlocks: 0,
-          mathExpressions: 0,
-          tables: 0,
-          lists: 0,
-          characters: content.length,
-          words: content.split(/\s+/).filter(Boolean).length,
-        },
+    case 'text': {
+      const doc = parseMarkdown(content)
+      doc.metadata.sourceFormat = 'text'
+      if (!doc.metadata.title) {
+        const firstLine = content.trim().split('\n')[0]?.trim()
+        if (firstLine && firstLine.length < 80) {
+          doc.metadata.title = firstLine
+        }
       }
+      return doc
+    }
     case 'markdown':
     default:
       return parseMarkdown(content)

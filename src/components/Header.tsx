@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { Sun, Moon, Zap } from 'lucide-react'
 import { useConverterStore } from '../store/useConverterStore'
-import heroImg from '../assets/hero.png'
+import heroLogoWebp from '../assets/hero-logo.webp'
+import heroLogoPng from '../assets/hero-logo.png'
 
 export const Header: React.FC = () => {
   const { themeMode, toggleThemeMode, motionMode, setMotionMode } = useConverterStore()
@@ -110,13 +111,18 @@ export const Header: React.FC = () => {
         {/* Brand & Logo */}
         <a href="#converter" className="flex items-center space-x-2.5 group">
           <div className="relative flex items-center justify-center">
-            <img
-              src={heroImg}
-              alt="Converter Logo"
-              width={32}
-              height={32}
-              className="w-8 h-8 object-contain drop-shadow-[0_2px_8px_rgba(168,85,247,0.35)] group-hover:scale-105 transition-transform"
-            />
+            <picture>
+              <source srcSet={heroLogoWebp} type="image/webp" />
+              <img
+                src={heroLogoPng}
+                alt="Converter Logo"
+                width={32}
+                height={32}
+                loading="eager"
+                decoding="async"
+                className="w-8 h-8 object-contain drop-shadow-[0_2px_8px_rgba(168,85,247,0.35)] group-hover:scale-105 transition-transform"
+              />
+            </picture>
           </div>
           <span className="font-bold text-xl tracking-tight text-neutral-900 dark:text-white">
             Converter

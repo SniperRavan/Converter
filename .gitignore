@@ -1,6 +1,5 @@
 # Local tracking & scratch notes (local system only)
 .local/
-example/
 
 # Dependencies
 node_modules/

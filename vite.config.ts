@@ -18,6 +18,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id: string) {
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+            return 'vendor-react'
+          }
+          if (id.includes('node_modules/dompurify/')) {
+            return 'vendor-dompurify'
+          }
           if (id.includes('node_modules/katex/')) return 'vendor-katex'
           if (id.includes('node_modules/lucide-react/')) return 'vendor-lucide'
           if (

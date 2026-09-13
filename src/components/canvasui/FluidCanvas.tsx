@@ -29,10 +29,10 @@ export const FluidCanvas: React.FC = () => {
 
     window.addEventListener('resize', handleResize, { passive: true })
 
-    // Adaptive particle constellation: 75 desktop / 40 mobile (reduced: 30 desktop / 18 mobile)
+    // Adaptive particle constellation: 60 desktop / 20 mobile (reduced: 25 desktop / 12 mobile)
     const particleCount =
-      motionMode === 'reduced' ? (isMobile ? 18 : 30) : isMobile ? 40 : 75
-    const filamentMaxDist = isMobile ? 105 : 145
+      motionMode === 'reduced' ? (isMobile ? 12 : 25) : isMobile ? 20 : 60
+    const filamentMaxDist = isMobile ? 85 : 140
 
     const particles: {
       x: number

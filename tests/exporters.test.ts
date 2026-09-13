@@ -90,6 +90,8 @@ Equivalence: $E=mc^2$
 
     const docXml = strFromU8(unzipped['word/document.xml'])
     expect(docXml).toContain('Machine Learning Fundamentals')
+    // Heading styling must be applied to text runs
+    expect(docXml).toMatch(/<w:rPr><w:b\/><w:color w:val="003884"\/><w:sz w:val="36"\/><\/w:rPr><w:t xml:space="preserve">Machine Learning Fundamentals<\/w:t>/)
     // Contains OMML Office Math
     expect(docXml).toContain('<m:oMath')
     expect(docXml).toContain('J(θ)=')
@@ -98,4 +100,36 @@ Equivalence: $E=mc^2$
     expect(docXml).toContain('Transformer-Base')
     expect(docXml).toContain('<w:tblHeader/>')
   })
+
+  it('correctly extracts title from markdown and promotes it cleanly in LaTeX preamble', () => {
+    const md = `# Quantum Computing Architecture
+
+An overview of quantum algorithms.
+
+## 1. Hamiltonian Simulation
+
+Details here.`
+    const doc = parseMarkdown(md)
+    expect(doc.metadata.title).toBe('Quantum Computing Architecture')
+
+    const latex = renderToLatex(doc, { includePreamble: true })
+    expect(latex).toContain('\\title{Quantum Computing Architecture}')
+    expect(latex).not.toContain('Converted Document')
+    expect(latex).not.toContain('author{Convertion}')
+    expect(latex).toContain('\\maketitle')
+    // Must NOT duplicate the title as \section
+    expect(latex).not.toContain('\\section{Quantum Computing Architecture}')
+    // Subsections promoted to sections
+    expect(latex).toContain('\\section{1. Hamiltonian Simulation}')
+  })
+
+  it('normalizes math spacing when touching alphanumeric words', () => {
+    const raw = 'Interoperability: Markdown $\\rightarrow$AST$\\rightarrow$ Multiple formats. Transition: final$|\\psi\\rangle$ and $\\hat{H}$governs state.'
+    const doc = parseMarkdown(raw)
+    const md = renderToMarkdown(doc)
+    expect(md).toContain('$\\rightarrow$ AST $\\rightarrow$')
+    expect(md).toContain('final $|\\psi\\rangle$')
+    expect(md).toContain('$\\hat{H}$ governs')
+  })
 })
+

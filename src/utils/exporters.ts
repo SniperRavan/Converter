@@ -6,7 +6,8 @@ import { mml2omml } from 'mathml2omml'
  * Export helpers for Word (.docx/.doc), PDF, HTML, and Markdown
  */
 
-export function exportToDocx(doc: NormalizedDocument, title = 'document') {
+export function exportToDocx(doc: NormalizedDocument, title?: string) {
+  const finalTitle = title || doc.metadata?.title || 'document'
   const bytes = renderToDocx(doc)
   const blob = new Blob([bytes as unknown as BlobPart], {
     type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -14,16 +15,17 @@ export function exportToDocx(doc: NormalizedDocument, title = 'document') {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${title.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')}.docx`
+  a.download = `${finalTitle.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')}.docx`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
 
-export function exportToWord(htmlBody: string, title = 'document', doc?: NormalizedDocument) {
+export function exportToWord(htmlBody: string, title?: string, doc?: NormalizedDocument) {
+  const finalTitle = title || doc?.metadata?.title || 'document'
   if (doc) {
-    exportToDocx(doc, title)
+    exportToDocx(doc, finalTitle)
     return
   }
 
@@ -167,7 +169,7 @@ export function exportToWord(htmlBody: string, title = 'document', doc?: Normali
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `${title.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')}.doc`
+  a.download = `${finalTitle.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')}.doc`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

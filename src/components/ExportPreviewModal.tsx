@@ -56,10 +56,13 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
   parsedDocument,
 }) => {
   const [activeType, setActiveType] = useState<ExportType>(initialType)
-  const [filename, setFilename] = useState<string>(() => {
+  const defaultFilename = useMemo(() => {
     const docTitle = parsedDocument.metadata.title
-    return docTitle ? docTitle.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').slice(0, 30) : 'document'
-  })
+    return docTitle ? docTitle.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').slice(0, 40) : 'document'
+  }, [parsedDocument.metadata.title])
+  const [customFilename, setCustomFilename] = useState<string | null>(null)
+  const filename = customFilename ?? defaultFilename
+
   const [copied, setCopied] = useState<boolean>(false)
   const [htmlViewMode, setHtmlViewMode] = useState<'visual' | 'code'>('visual')
   const [paperView, setPaperView] = useState<'theme' | 'paper'>('theme')
@@ -91,7 +94,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
     [parsedDocument]
   )
   const contentHtmlFull = useMemo(
-    () => renderToHtml(parsedDocument, { includeWrapper: true, title: filename, mathMode: 'mathml' }),
+    () => renderToHtml(parsedDocument, { includeWrapper: true, title: parsedDocument.metadata.title || filename, mathMode: 'mathml' }),
     [parsedDocument, filename]
   )
   const contentLatex = useMemo(
@@ -145,7 +148,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
         exportToWord(contentHtmlWord, baseName, parsedDocument)
         break
       case 'pdf':
-        exportToPdf(contentHtmlClean, baseName)
+        exportToPdf(contentHtmlClean, parsedDocument.metadata.title || baseName)
         break
       case 'html':
         exportToFile(contentHtmlFull, `${baseName}.html`, 'text/html;charset=utf-8')
@@ -326,7 +329,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
               <input
                 type="text"
                 value={filename}
-                onChange={(e) => setFilename(e.target.value)}
+                onChange={(e) => setCustomFilename(e.target.value)}
                 className="px-2.5 py-1 text-xs bg-transparent text-neutral-900 dark:text-white font-medium focus:outline-hidden w-32 sm:w-52"
                 placeholder="document"
               />
@@ -428,7 +431,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
 
             {activeType === 'pdf' && (
               <button
-                onClick={() => exportToPdf(contentHtmlClean, filename)}
+                onClick={() => exportToPdf(contentHtmlClean, parsedDocument.metadata.title || filename)}
                 className="flex-1 sm:flex-none inline-flex items-center justify-center text-xs font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/60 dark:bg-[#1a1a1a] hover:bg-[#FAF5ED] dark:hover:bg-[#222222] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-lg px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
               >
                 <Printer className="w-3.5 h-3.5 mr-1.5 text-neutral-500 dark:text-neutral-400" />

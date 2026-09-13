@@ -1,11 +1,16 @@
-import { useEffect } from 'react'
+import { useEffect, Suspense, lazy } from 'react'
 import { Header } from './components/Header'
 import { HeroSection } from './components/HeroSection'
 import { Workspace } from './components/Workspace'
-import { EditorialSections } from './components/EditorialSections'
 import { FluidCanvas } from './components/canvasui/FluidCanvas'
 import { MobilePageBend } from './components/MobilePageBend'
 import { useConverterStore } from './store/useConverterStore'
+
+const EditorialSections = lazy(() =>
+  import('./components/EditorialSections').then((module) => ({
+    default: module.EditorialSections,
+  }))
+)
 
 function App() {
   const { themeMode } = useConverterStore()
@@ -40,7 +45,9 @@ function App() {
           </div>
 
           {/* Editorial Sections: About, User Guide, Supported Syntax, FAQ & Footer */}
-          <EditorialSections />
+          <Suspense fallback={<div className="h-32 flex items-center justify-center opacity-30 text-xs font-mono">Loading documentation...</div>}>
+            <EditorialSections />
+          </Suspense>
         </main>
       </MobilePageBend>
     </div>

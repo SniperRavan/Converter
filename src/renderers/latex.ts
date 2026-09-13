@@ -122,8 +122,17 @@ function renderBlockToLatex(block: BlockNode, levelShift = 0): string {
     case 'thematicBreak':
       return '\\noindent\\rule{\\textwidth}{0.4pt}\n'
 
-    case 'rawBlock':
-      return `${block.content}\n`
+    case 'rawBlock': {
+      const clean = block.content
+        .replace(/<[^>]+>/g, '')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .trim()
+      return clean ? `${escapeLatex(clean)}\n\n` : ''
+    }
 
     default:
       return ''
@@ -136,19 +145,48 @@ export interface LatexRenderOptions {
 }
 
 export function renderToLatex(doc: NormalizedDocument, options: LatexRenderOptions = {}): string {
-  const headingLevels = doc.children
+  const extractText = (inlines: InlineNode[]): string =>
+    inlines.map((i) => ('children' in i ? extractText((i as any).children) : (i as any).value || '')).join('')
+
+  const firstBlock = doc.children[0]
+  const firstBlockIsH1 = firstBlock && firstBlock.type === 'heading' && firstBlock.level === 1
+  const h1Title = firstBlockIsH1 ? extractText(firstBlock.children).trim() : undefined
+
+  // Determine document title: metadata.title, or first H1
+  const title = doc.metadata?.title || h1Title
+  const author = doc.metadata?.author
+  const date = doc.metadata?.date
+
+  // In full document mode with preamble:
+  // If the first block is an H1 that was used as document title, promote it to \title + \maketitle
+  // and omit it from the body to avoid duplicate title. Shift subsequent headings.
+  const promoteFirstH1ToTitle = Boolean(
+    options.includePreamble && firstBlockIsH1 && (doc.metadata?.title === h1Title || !doc.metadata?.title)
+  )
+
+  const bodyBlocks = promoteFirstH1ToTitle ? doc.children.slice(1) : doc.children
+
+  const headingLevels = bodyBlocks
     .filter((c): c is BlockNode & { type: 'heading' } => c.type === 'heading')
     .map(h => h.level)
   const minHeadingLevel = headingLevels.length > 0 ? Math.min(...headingLevels) : 1
   const levelShift = minHeadingLevel > 1 ? minHeadingLevel - 1 : 0
 
-  const body = doc.children.map(c => renderBlockToLatex(c, levelShift)).join('\n')
+  const body = bodyBlocks.map(c => renderBlockToLatex(c, levelShift)).join('\n')
 
   if (!options.includePreamble) {
-    return body.trim() + '\n'
+    return (promoteFirstH1ToTitle ? doc.children.map(c => renderBlockToLatex(c, 0)).join('\n') : body).trim() + '\n'
   }
 
   const docClass = options.documentClass || 'article'
+
+  const titleLine = title ? `\\title{${escapeLatex(title)}}` : ''
+  const authorLine = author ? `\\author{${escapeLatex(author)}}` : ''
+  const dateLine = date ? `\\date{${escapeLatex(date)}}` : (title ? '\\date{\\today}' : '')
+  const makeTitleCmd = title ? '\\maketitle\n' : ''
+
+  const metadataPreamble = [titleLine, authorLine, dateLine].filter(Boolean).join('\n')
+
   return `\\documentclass{${docClass}}
 \\usepackage[utf8]{inputenc}
 \\usepackage{amsmath}
@@ -158,13 +196,9 @@ export function renderToLatex(doc: NormalizedDocument, options: LatexRenderOptio
 \\usepackage{listings}
 \\usepackage{ulem}
 
-\\title{Converted Document}
-\\author{Convertion}
-\\date{\\today}
-
+${metadataPreamble ? metadataPreamble + '\n' : ''}
 \\begin{document}
-\\maketitle
-
+${makeTitleCmd}
 ${body.trim()}
 
 \\end{document}

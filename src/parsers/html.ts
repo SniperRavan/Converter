@@ -1,6 +1,7 @@
 import type {
   NormalizedDocument,
   BlockNode,
+  HeadingNode,
   InlineNode,
   TableCellNode,
   TableRowNode,
@@ -59,8 +60,6 @@ export function parseHtml(htmlContent: string): NormalizedDocument {
           inlines.push({ type: 'strikethrough', children: parseInline(el) })
         } else if (tag === 'code') {
           inlines.push({ type: 'inlineCode', value: el.textContent || '' })
-        } else if (tag === 'br') {
-          inlines.push({ type: 'text', value: ' ' })
         } else if (el.classList?.contains('katex') || el.querySelector('.katex-mathml')) {
           const annotation = el.querySelector('annotation[encoding*="tex"]') || el.querySelector('annotation')
           if (annotation && annotation.textContent?.trim()) {
@@ -271,7 +270,15 @@ export function parseHtml(htmlContent: string): NormalizedDocument {
     }
   }
 
-  const title = doc.title || undefined
+  let title = doc.title && doc.title !== 'document' ? doc.title : undefined
+  if (!title) {
+    const firstH1 = children.find((b): b is HeadingNode => b.type === 'heading' && b.level === 1)
+    if (firstH1) {
+      const extractText = (inlines: InlineNode[]): string =>
+        inlines.map((i) => ('children' in i ? extractText((i as any).children) : (i as any).value || '')).join('')
+      title = extractText(firstH1.children).trim() || undefined
+    }
+  }
   const stats = computeDocumentStats(children)
 
   return {

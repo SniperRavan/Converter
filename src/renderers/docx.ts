@@ -62,6 +62,7 @@ function renderInlineToOpenXml(node: InlineNode, style: RunStyle = {}): string {
       if (style.italic) rPr += '<w:i/>'
       if (style.strike) rPr += '<w:strike/>'
       if (style.color) rPr += `<w:color w:val="${style.color}"/>`
+      if (style.size) rPr += `<w:sz w:val="${style.size}"/>`
       if (style.underline) rPr += '<w:u w:val="single"/>'
       if (style.code) {
         rPr += '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/><w:sz w:val="19"/><w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>'
@@ -120,9 +121,9 @@ function renderBlockToOpenXml(block: BlockNode): string {
       const jc = hNode.level === 1 ? '<w:jc w:val="center"/>' : ''
       const border = hNode.level === 2 ? '<w:pBdr><w:bottom w:val="single" w:sz="6" w:space="2" w:color="003884"/></w:pBdr>' : ''
       const color = hNode.level <= 2 ? '003884' : '1E293B'
-      const inlines = hNode.children.map((c) => renderInlineToOpenXml(c)).join('')
+      const inlines = hNode.children.map((c) => renderInlineToOpenXml(c, { bold: true, size: sz, color })).join('')
 
-      return `<w:p><w:pPr>${jc}${border}<w:spacing w:before="240" w:after="120"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="${sz}"/><w:color w:val="${color}"/></w:rPr><w:t xml:space="preserve"></w:t></w:r>${inlines}</w:p>`
+      return `<w:p><w:pPr>${jc}${border}<w:spacing w:before="240" w:after="120"/></w:pPr>${inlines}</w:p>`
     }
 
     case 'paragraph': {
@@ -216,6 +217,18 @@ function renderBlockToOpenXml(block: BlockNode): string {
 
     case 'thematicBreak':
       return '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="8" w:space="1" w:color="CBD5E1"/></w:pBdr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>'
+
+    case 'rawBlock': {
+      const clean = (block as any).content
+        ?.replace(/<[^>]+>/g, '')
+        ?.replace(/&nbsp;/g, ' ')
+        ?.replace(/&amp;/g, '&')
+        ?.replace(/&lt;/g, '<')
+        ?.replace(/&gt;/g, '>')
+        ?.trim()
+      if (!clean) return ''
+      return `<w:p><w:pPr><w:spacing w:after="140" w:line="276" w:lineRule="auto"/></w:pPr><w:r><w:t xml:space="preserve">${escapeXml(clean)}</w:t></w:r></w:p>`
+    }
 
     default:
       return ''

@@ -82,23 +82,28 @@ export const MobilePageBend: React.FC<MobilePageBendProps> = ({ children }) => {
           Math.abs(angle) > 0.1
             ? `perspective(1200px) rotateX(${angle.toFixed(2)}deg) scale(${scale.toFixed(4)})`
             : ''
-      } else {
+      } else if (contentRef.current.style.transform) {
         contentRef.current.style.transform = ''
       }
-
-      if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current)
-      resetTimerRef.current = window.setTimeout(() => {
-        if (contentRef.current) {
-          contentRef.current.style.transform = ''
-        }
-      }, 100)
     }
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
+    let ticking = false
+    const onScroll = () => {
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          handleScroll()
+          ticking = false
+        })
+        ticking = true
+      }
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       window.removeEventListener('resize', checkMobile)
-      window.removeEventListener('scroll', handleScroll)
-      if (resetTimerRef.current) window.clearTimeout(resetTimerRef.current)
+      window.removeEventListener('scroll', onScroll)
+      const timer = resetTimerRef.current
+      if (timer) window.clearTimeout(timer)
     }
   }, [motionMode])
 
