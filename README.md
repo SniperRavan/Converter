@@ -16,7 +16,7 @@
 
   <p align="center">
     <a href="https://github.com/sniperravan/Converter/actions"><img src="https://github.com/sniperravan/Converter/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-    <a href="https://github.com/sniperravan/Converter/actions"><img src="https://img.shields.io/badge/Tests-81%20passing-brightgreen?style=flat-square" alt="Tests" /></a>
+    <a href="https://github.com/sniperravan/Converter/actions"><img src="https://img.shields.io/badge/Tests-100%20passing-brightgreen?style=flat-square" alt="Tests" /></a>
     <a href="https://github.com/sniperravan"><img src="https://img.shields.io/badge/Author-Akash%20Das%20Dhibar-blueviolet?style=flat-square" alt="Author" /></a>
     <img src="https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react" alt="React 19" />
     <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript" alt="TypeScript" />
@@ -112,9 +112,10 @@ Found a tricky syntax edge case? The in-page **Issues** section connects directl
 * Requires zero GitHub accounts and zero Google sign-ins.
 * Collects zero visitor telemetry or IP tracking.
 
-### 6. 📄 Native Word (.docx) & Google Docs Mathematical Equations
-Exporting documents with complex formulas often results in flat text or broken images. Converter includes a dedicated OpenXML compiler:
-* **Native Office Math (OMML):** Generates `<m:oMathPara>` and `<m:oMath>` nodes directly without brittle `<mc:AlternateContent>` fallbacks, ensuring math renders flawlessly in Microsoft Word for Windows/Mac/Web, Google Docs, and LibreOffice Writer.
+### 6. 📄 Dual-Mode Word (.docx) & Mathematical Equations Engine
+Exporting documents with complex formulas often results in flat text or broken images. Converter includes a dual-mode OpenXML compiler:
+* **Universal (Web & LibreOffice) [Default]:** Compiles formulas into native OpenXML typography runs with Unicode math glyphs, superscripts, subscripts, combining diacritics (`\hat{y}`, `\vec{v}`), and Linux font fallback mappings (`DejaVu Sans`, `Latin Modern Math`). Renders visibly in Word for the Web (without `[Equation]` placeholder boxes) and in LibreOffice on Linux without requiring extra OS packages.
+* **Native Office Math (OMML):** Generates `<m:oMathPara>` and `<m:oMath>` nodes directly without brittle `<mc:AlternateContent>` fallbacks, ensuring math renders with full 2D fractions, limits above/below summations, and radical overbars in Desktop Microsoft Word, Google Docs, and LibreOffice (with `libreoffice-math`).
 * **High-Fidelity Clipboard Exporter:** The "Copy for Word" action emits semantic HTML styled with Microsoft Office MSO tags, preserving table boundaries and eliminating empty spacer rows.
 
 ---

@@ -14,9 +14,9 @@ The core engine follows a strict **Compiler Pipeline** design:
 
 * **`src/core/types.ts`**: Defines the canonical AST nodes (`BlockNode`, `InlineNode`, `NormalizedDocument`). All inputs map *to* this schema; all outputs render *from* it.
 * **`src/parsers/`**: Syntax parsers (`markdown.ts`, `latex.ts`, `html.ts`, `json.ts`, `llm-mixed.ts`, `normalizer.ts`). Parsers are deterministic and must never mutate global state.
-* **`src/renderers/`**: Target format compilers (`markdown.ts`, `html.ts`, `latex.ts`, `text.ts`).
+* **`src/renderers/`**: Target format compilers (`docx.ts`, `markdown.ts`, `html.ts`, `latex.ts`, `text.ts`).
 * **`src/utils/mathUnicode.ts`**: Translates LaTeX equations into clean Unicode math symbols for clipboard fallbacks.
-* **`src/utils/exporters.ts`**: Document generation utilities for Microsoft Word (`.doc`) and paginated PDF.
+* **`src/utils/exporters.ts`**: Document generation utilities for Microsoft Word (`.docx` / `.doc`) and paginated PDF.
 
 ---
 
