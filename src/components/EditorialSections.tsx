@@ -295,16 +295,16 @@ export const EditorialSections: React.FC = () => {
           </a>
           <span className="hidden sm:inline">•</span>
           <a
-            href="https://github.com/sniperravan"
+            href="https://github.com/SniperRavan/Converter"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-neutral-900 dark:hover:text-white font-medium transition-colors"
           >
-            GitHub (@sniperravan)
+            GitHub (Repository)
           </a>
         </div>
         <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-4">
-          © 2026 Converter · Crafted by <a href="https://github.com/sniperravan" target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-900 dark:hover:text-white">Akash (sniperravan)</a>. No logins, no paywalls, no tracking.
+          © 2026 Converter · Open Source on <a href="https://github.com/SniperRavan/Converter" target="_blank" rel="noopener noreferrer" className="underline hover:text-neutral-900 dark:hover:text-white">GitHub</a>. No logins, no paywalls, no tracking.
         </p>
       </footer>
     </div>
