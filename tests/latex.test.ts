@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { parseLatex } from '../src/parsers/latex'
 import { renderToMarkdown } from '../src/renderers/markdown'
 import { renderToHtml } from '../src/renderers/html'
+import { renderToLatex } from '../src/renderers/latex'
+import { renderToDocx } from '../src/renderers/docx'
 
 describe('LaTeX Parser & AST Engine', () => {
   it('parses academic documents with abstract and references', () => {
@@ -408,6 +410,96 @@ Jack Sparrow
     expect(md).not.toContain('\\phantom')
     expect(md).not.toContain('\\columnratio')
     expect(md).not.toContain('\\hbadness')
+  })
+
+  it('accurately computes non-zero stats, formats facebook icon, and preserves latex for Hipster CV', () => {
+    const hipsterTex = `\\documentclass[lighthipster]{simplehipstercv}
+\\usepackage[utf8]{inputenc}
+\\title{Captain}
+\\author{Jack Sparrow}
+\\begin{document}
+\\begin{paracol}{2}
+\\bg{cvgreen}{white}{About me}
+Experienced pirate captain of the Black Pearl.
+\\bg{cvgreen}{white}{personal}
+Jack Sparrow\\\\
+nationality: English\\\\
+1690
+\\infobubble{\\faFacebook}{cvgreen}{white}{Jack Sparrow}
+\\infobubble{\\faAt}{cvgreen}{white}{jack@sparrow.org}
+\\switchcolumn
+\\section*{Curriculum}
+\\begin{tabular}{r| p{0.5\\textwidth} c}
+\\cvevent{2018--2021}{Captain}{Lead}{East Indies}{Ship retrieved.}{disney.png}
+\\end{tabular}
+\\section*{Programming}
+\\begin{tabular}{r @{\\hspace{0.5em}}l}
+\\bg{skilllabelcolour}{iconcolour}{Python} & \\barrule{0.5}{0.5em}{cvpurple}\\\\
+\\end{tabular}
+\\section*{Languages}
+\\begin{tabular}{l | ll}
+\\textbf{English} & C2 & mother tongue
+\\end{tabular}
+\\end{paracol}
+\\end{document}`
+
+    const doc = parseLatex(hipsterTex)
+    expect(doc.stats.headings).toBeGreaterThan(0)
+    expect(doc.stats.paragraphs).toBeGreaterThan(0)
+    expect(doc.stats.tables).toBeGreaterThan(0)
+    expect(doc.stats.words).toBeGreaterThan(0)
+    expect(doc.stats.characters).toBeGreaterThan(0)
+
+    const md = renderToMarkdown(doc)
+    expect(md).toContain('👤 Jack Sparrow')
+    expect(md).not.toContain('f [Jack Sparrow](Jack Sparrow)')
+
+    const ltx = renderToLatex(doc, { includePreamble: true })
+    expect(ltx).toContain('\\documentclass[lighthipster]{simplehipstercv}')
+    expect(ltx).not.toContain('\\documentclass{article}\n\\documentclass')
+  })
+
+  it('parses single-column SWE article resume with custom primary color and exports', () => {
+    const sweTex = `\\documentclass[a4paper,10pt]{article}
+\\usepackage{xcolor}
+\\definecolor{primary}{rgb}{0.0, 0.22, 0.52}
+\\newcommand{\\resumeItem}[1]{\\item\\small{{#1}}}
+\\newcommand{\\resumeProjectHeading}[2]{\\item\\begin{tabular*}{1.0\\textwidth}{l@{\\extracolsep{\\fill}}r}\\small#1 & \\small #2 \\\\\\end{tabular*}}
+\\begin{document}
+\\begin{center}
+    \\textbf{\\Huge \\scshape \\color{primary} John Doe} \\\\[4pt]
+    \\small
+    \\faMapMarker*~ San Francisco, CA ~|~
+    \\href{mailto:john@example.com}{\\faEnvelope~ john@example.com}
+\\end{center}
+\\section{Projects}
+\\resumeProjectHeading{\\textbf{CoolApp} $|$ \\emph{React, Node}}{2024 -- 2025}
+\\begin{itemize}
+  \\resumeItem{Developed scalable platform.}
+\\end{itemize}
+\\end{document}`
+
+    const doc = parseLatex(sweTex)
+    expect(doc.metadata.title).toBe('John Doe')
+    expect(doc.stats.headings).toBeGreaterThan(0)
+    expect(doc.stats.words).toBeGreaterThan(0)
+
+    const md = renderToMarkdown(doc)
+    expect(md).toContain('# John Doe')
+    expect(md).toContain('## Projects')
+    expect(md).toContain('### **CoolApp** | *React, Node* *(2024 – 2025)*')
+
+    const html = renderToHtml(doc)
+    expect(html).toContain('<h1>John Doe</h1>')
+    expect(html).toContain('<h2>Projects</h2>')
+    expect(html).toContain('#003885') // Extracted primary color
+    expect(html).toContain('2024 – 2025')
+
+    const docx = renderToDocx(doc)
+    expect(docx.byteLength).toBeGreaterThan(1000)
+
+    const ltx = renderToLatex(doc, { includePreamble: true })
+    expect(ltx).toContain('John Doe')
   })
 })
 

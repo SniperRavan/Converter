@@ -70,7 +70,7 @@
 
 html:not(.dark),
 html:not(.dark) * {
-  scrollbar-color: #262626 transparent;
+  scrollbar-color: #616161 transparent;
 }
 
 html.dark,
@@ -87,16 +87,16 @@ html.dark * {
   background: transparent;
 }
 
-/* Light mode scrollbars (browser window & I/O textarea/previews): #262626 */
+/* Light mode scrollbars (browser window & I/O textarea/previews): #616161 */
 html:not(.dark) ::-webkit-scrollbar-thumb,
 :root:not(.dark) ::-webkit-scrollbar-thumb {
-  background-color: #262626;
+  background-color: #616161;
   border-radius: 9999px;
 }
 
 html:not(.dark) ::-webkit-scrollbar-thumb:hover,
 :root:not(.dark) ::-webkit-scrollbar-thumb:hover {
-  background-color: #111111;
+  background-color: #424242;
 }
 
 /* Dark mode scrollbars */

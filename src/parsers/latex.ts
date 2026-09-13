@@ -8,6 +8,7 @@ import type {
 } from '../core/types'
 import { computeDocumentStats } from '../core/stats'
 import { parseHipsterCv } from './latexHipsterCv'
+import { parseLatexResume } from './latexResume'
 
 /**
  * Extracts content within balanced curly braces starting from startIdx
@@ -1426,6 +1427,19 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   if (isHipsterCv) {
     const cvDoc = parseHipsterCv(cleanedContent)
     if (cvDoc) return cvDoc
+  }
+
+  // Detect single-column SWE / academic resumes (e.g. Jake's Resume, Overleaf article CV)
+  const isResume =
+    /\\resume(Subheading|ProjectHeading|ItemListStart|Item)\b/.test(cleanedContent) ||
+    (/\\documentclass(?:\[[^\]]*\])?\{article\}/i.test(cleanedContent) &&
+      /\\titleformat\{\\section\}/.test(cleanedContent) &&
+      /\\titlerule/.test(cleanedContent) &&
+      /\\fa(MapMarker|Phone|Envelope|Globe|Github|Linkedin)/.test(cleanedContent))
+
+  if (isResume) {
+    const resumeDoc = parseLatexResume(cleanedContent)
+    if (resumeDoc) return resumeDoc
   }
 
   // Extract metadata (Title, Author, Date) with balanced brace matching (avoid matching \titleformat)

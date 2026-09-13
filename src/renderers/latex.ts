@@ -123,7 +123,11 @@ function renderBlockToLatex(block: BlockNode, levelShift = 0): string {
       return '\\noindent\\rule{\\textwidth}{0.4pt}\n'
 
     case 'rawBlock': {
-      const clean = block.content
+      if (block.latex) {
+        return `${block.latex.trim()}\n\n`
+      }
+      const text = block.markdown || block.content
+      const clean = text
         .replace(/<[^>]+>/g, '')
         .replace(/&nbsp;/g, ' ')
         .replace(/&amp;/g, '&')
@@ -145,6 +149,19 @@ export interface LatexRenderOptions {
 }
 
 export function renderToLatex(doc: NormalizedDocument, options: LatexRenderOptions = {}): string {
+  if (doc.children.length === 1 && doc.children[0].type === 'rawBlock' && doc.children[0].latex) {
+    const rawLatex = doc.children[0].latex.trim()
+    if (rawLatex.includes('\\begin{document}')) {
+      if (options.includePreamble) {
+        return rawLatex + '\n'
+      }
+      const bodyMatch = rawLatex.match(/\\begin\{document\}([\s\S]*?)\\end\{document\}/)
+      if (bodyMatch) {
+        return bodyMatch[1].trim() + '\n'
+      }
+    }
+  }
+
   const extractText = (inlines: InlineNode[]): string =>
     inlines.map((i) => ('children' in i ? extractText((i as any).children) : (i as any).value || '')).join('')
 

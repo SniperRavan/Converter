@@ -186,7 +186,7 @@ export function parseHipsterCv(content: string): NormalizedDocument | null {
       iconChar = '🐦'
       link = `https://twitter.com/${text.replace('@', '')}`
     } else if (rawIcon.includes('faFacebook')) {
-      iconChar = 'f'
+      iconChar = '👤'
     } else if (rawIcon.includes('faGithub')) {
       iconChar = '🐙'
       link = `https://github.com/${text}`
@@ -499,6 +499,16 @@ export function parseHipsterCv(content: string): NormalizedDocument | null {
     return `${'█'.repeat(filled)}${'░'.repeat(empty)} ${pct}%`
   }
 
+  const aboutSec = bgSections.find(s => s.label.toLowerCase().includes('about'))
+  const personalSec = bgSections.find(s => s.label.toLowerCase().includes('personal'))
+  const personalFormatted = personalSec
+    ? personalSec.text
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean)
+        .join('  \n')
+    : ''
+
   const markdown = `
 # ${fullName}
 
@@ -509,12 +519,17 @@ export function parseHipsterCv(content: string): NormalizedDocument | null {
 ![Profile Photo](${photoSrc})
 
 ### About me
-${bgSections.find(s => s.label.toLowerCase().includes('about'))?.text || ''}
+${aboutSec?.text || ''}
 
 ### personal
-${bgSections.find(s => s.label.toLowerCase().includes('personal'))?.text || ''}
+${personalFormatted}
 
-${infoBubbles.map(b => `${b.icon === '@' ? '✉️' : b.icon === '🐦' ? '🐦' : b.icon} [${b.text}](${b.link || b.text})`).join('\n\n')}
+${infoBubbles
+  .map(b => {
+    const icon = b.icon === '@' ? '✉️' : b.icon === '🐦' ? '🐦' : b.icon === '🐙' ? '🐙' : b.icon === 'f' || b.icon === '👤' ? '👤' : b.icon
+    return b.link ? `${icon} [${b.text}](${b.link})` : `${icon} ${b.text}`
+  })
+  .join('\n\n')}
 
 ## Short Resumé
 | Date | Position | Logo |
@@ -563,6 +578,7 @@ ${fullName} · The Black Pearl · Tortuga · 0099/333 5647380 · [jack@sparrow.c
       type: 'rawBlock' as const,
       content: fullHtml,
       markdown,
+      latex: content,
     },
   ]
 

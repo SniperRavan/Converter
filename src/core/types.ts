@@ -134,6 +134,7 @@ export interface RawBlockNode extends BaseNode {
   type: 'rawBlock'
   content: string
   markdown?: string
+  latex?: string
 }
 
 export type BlockNode =

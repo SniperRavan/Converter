@@ -89,6 +89,97 @@ export function computeDocumentStats(blocks: BlockNode[]): DocumentStats {
       case 'blockquote':
         block.children.forEach(processBlock)
         break
+      case 'rawBlock': {
+        const textToAnalyze = block.markdown || block.content
+        if (block.markdown) {
+          const lines = block.markdown.split('\n')
+          let currentParagraph = ''
+          let inTable = false
+          let inCode = false
+
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i].trim()
+            if (!line) {
+              if (currentParagraph) {
+                stats.paragraphs += 1
+                combinedText += ' ' + currentParagraph
+                currentParagraph = ''
+              }
+              inTable = false
+              continue
+            }
+
+            if (line.startsWith('```')) {
+              if (currentParagraph) {
+                stats.paragraphs += 1
+                combinedText += ' ' + currentParagraph
+                currentParagraph = ''
+              }
+              inCode = !inCode
+              if (inCode) stats.codeBlocks += 1
+              continue
+            }
+
+            if (inCode) {
+              combinedText += ' ' + line
+              continue
+            }
+
+            if (/^#{1,6}\s+/.test(line)) {
+              if (currentParagraph) {
+                stats.paragraphs += 1
+                combinedText += ' ' + currentParagraph
+                currentParagraph = ''
+              }
+              stats.headings += 1
+              combinedText += ' ' + line.replace(/^#{1,6}\s+/, '')
+            } else if (line.startsWith('|') && line.endsWith('|')) {
+              if (currentParagraph) {
+                stats.paragraphs += 1
+                combinedText += ' ' + currentParagraph
+                currentParagraph = ''
+              }
+              if (line.includes('---')) {
+                if (!inTable) {
+                  stats.tables += 1
+                  inTable = true
+                }
+              }
+              const cells = line.split('|').map(c => c.trim()).filter(Boolean)
+              combinedText += ' ' + cells.join(' ')
+            } else if (/^[-*+]\s+/.test(line) || /^\d+\.\s+/.test(line)) {
+              if (currentParagraph) {
+                stats.paragraphs += 1
+                combinedText += ' ' + currentParagraph
+                currentParagraph = ''
+              }
+              const prevLine = i > 0 ? lines[i - 1].trim() : ''
+              if (!/^[-*+]\s+/.test(prevLine) && !/^\d+\.\s+/.test(prevLine)) {
+                stats.lists += 1
+              }
+              combinedText += ' ' + line.replace(/^[-*+]\s+/, '').replace(/^\d+\.\s+/, '')
+            } else if (line.startsWith('$$')) {
+              stats.mathExpressions += 1
+            } else if (line === '---' || line === '***') {
+              // thematic break
+            } else {
+              currentParagraph += (currentParagraph ? ' ' : '') + line
+            }
+          }
+
+          if (currentParagraph) {
+            stats.paragraphs += 1
+            combinedText += ' ' + currentParagraph
+          }
+        } else {
+          const stripped = textToAnalyze.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+          if (stripped) {
+            stats.paragraphs += 1
+            combinedText += ' ' + stripped
+          }
+        }
+        break
+      }
       default:
         break
     }
