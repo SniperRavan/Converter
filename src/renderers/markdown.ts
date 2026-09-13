@@ -128,7 +128,7 @@ function renderBlockToMarkdown(block: BlockNode): string {
       return '---\n'
 
     case 'rawBlock':
-      return `${block.content}\n`
+      return block.markdown ? `${block.markdown}\n` : `${block.content}\n`
 
     default:
       return ''

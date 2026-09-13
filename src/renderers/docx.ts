@@ -219,6 +219,51 @@ function renderBlockToOpenXml(block: BlockNode): string {
       return '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="8" w:space="1" w:color="CBD5E1"/></w:pBdr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>'
 
     case 'rawBlock': {
+      if ((block as any).markdown) {
+        const lines = ((block as any).markdown as string).split('\n')
+        const docxParas: string[] = []
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed) continue
+          if (trimmed.startsWith('# ')) {
+            docxParas.push(
+              `<w:p><w:pPr><w:pStyle w:val="Heading1"/><w:spacing w:before="240" w:after="120"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="003884"/><w:sz w:val="36"/></w:rPr><w:t xml:space="preserve">${escapeXml(
+                trimmed.slice(2)
+              )}</w:t></w:r></w:p>`
+            )
+          } else if (trimmed.startsWith('## ')) {
+            docxParas.push(
+              `<w:p><w:pPr><w:pStyle w:val="Heading2"/><w:spacing w:before="200" w:after="100"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="003884"/><w:sz w:val="28"/></w:rPr><w:t xml:space="preserve">${escapeXml(
+                trimmed.slice(3)
+              )}</w:t></w:r></w:p>`
+            )
+          } else if (trimmed.startsWith('### ')) {
+            docxParas.push(
+              `<w:p><w:pPr><w:pStyle w:val="Heading3"/><w:spacing w:before="160" w:after="80"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${escapeXml(
+                trimmed.slice(4)
+              )}</w:t></w:r></w:p>`
+            )
+          } else if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+            docxParas.push(
+              `<w:p><w:pPr><w:spacing w:after="80"/></w:pPr><w:r><w:t xml:space="preserve">• ${escapeXml(
+                trimmed.slice(2)
+              )}</w:t></w:r></w:p>`
+            )
+          } else if (trimmed === '---') {
+            docxParas.push(
+              `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="CCCCCC"/></w:pBdr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>`
+            )
+          } else {
+            docxParas.push(
+              `<w:p><w:pPr><w:spacing w:after="120" w:line="260" w:lineRule="auto"/></w:pPr><w:r><w:t xml:space="preserve">${escapeXml(
+                trimmed
+              )}</w:t></w:r></w:p>`
+            )
+          }
+        }
+        return docxParas.join('\n')
+      }
+
       const clean = (block as any).content
         ?.replace(/<[^>]+>/g, '')
         ?.replace(/&nbsp;/g, ' ')

@@ -64,6 +64,20 @@
 }
 
 /* Scrollbar Customization */
+* {
+  scrollbar-width: thin;
+}
+
+html:not(.dark),
+html:not(.dark) * {
+  scrollbar-color: #262626 transparent;
+}
+
+html.dark,
+html.dark * {
+  scrollbar-color: rgba(150, 150, 150, 0.25) transparent;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -73,13 +87,26 @@
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(150, 150, 150, 0.2);
+/* Light mode scrollbars (browser window & I/O textarea/previews): #262626 */
+html:not(.dark) ::-webkit-scrollbar-thumb,
+:root:not(.dark) ::-webkit-scrollbar-thumb {
+  background-color: #262626;
   border-radius: 9999px;
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(150, 150, 150, 0.4);
+html:not(.dark) ::-webkit-scrollbar-thumb:hover,
+:root:not(.dark) ::-webkit-scrollbar-thumb:hover {
+  background-color: #111111;
+}
+
+/* Dark mode scrollbars */
+html.dark ::-webkit-scrollbar-thumb {
+  background-color: rgba(150, 150, 150, 0.25);
+  border-radius: 9999px;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(150, 150, 150, 0.45);
 }
 
 /* Typography styles for converted documents */

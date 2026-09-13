@@ -133,6 +133,7 @@ export interface ThematicBreakNode extends BaseNode {
 export interface RawBlockNode extends BaseNode {
   type: 'rawBlock'
   content: string
+  markdown?: string
 }
 
 export type BlockNode =

@@ -93,6 +93,9 @@ function renderBlockToPlainText(block: BlockNode, mathMode: 'unicode' | 'latex' 
       return '----------------------------------------\n'
 
     case 'rawBlock': {
+      if (block.markdown) {
+        return `${block.markdown.trim()}\n\n`
+      }
       const clean = block.content
         .replace(/<br\s*\/?>/gi, '\n')
         .replace(/<\/(p|div|tr|h[1-6])>/gi, '\n')

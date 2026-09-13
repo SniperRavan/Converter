@@ -7,6 +7,7 @@ import type {
   ListItemNode,
 } from '../core/types'
 import { computeDocumentStats } from '../core/stats'
+import { parseHipsterCv } from './latexHipsterCv'
 
 /**
  * Extracts content within balanced curly braces starting from startIdx
@@ -1415,6 +1416,17 @@ export function parseLatex(latexContent: string): NormalizedDocument {
 
   // Strip leading/trailing quote marks if user pasted quoted string
   const cleanedContent = latexContent.replace(/\r\n/g, '\n').trim().replace(/^["']/, '').replace(/["']$/, '')
+
+  // Detect simplehipstercv or creative multi-column CV templates
+  const isHipsterCv =
+    /\\documentclass(?:\[[^\]]*\])?\{simplehipstercv\}/i.test(cleanedContent) ||
+    /\\simpleheader\{/.test(cleanedContent) ||
+    (/\\begin\{paracol\}\{2\}/.test(cleanedContent) && /\\(cvevent|cvdegree|bg\{cvgreen\})/i.test(cleanedContent))
+
+  if (isHipsterCv) {
+    const cvDoc = parseHipsterCv(cleanedContent)
+    if (cvDoc) return cvDoc
+  }
 
   // Extract metadata (Title, Author, Date) with balanced brace matching (avoid matching \titleformat)
   const rawTitle = extractBracedCommand(cleanedContent, 'title')
