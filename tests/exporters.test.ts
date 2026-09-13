@@ -195,7 +195,8 @@ Details here.`
     const tmpDocx = '/tmp/test_verify_libreoffice.docx'
     const tmpPdf = '/tmp/test_verify_libreoffice.pdf'
 
-    const sampleDocxPath = '/home/sniperravan/Desktop/Projects/Convertion/.local/example/samples/machine-learning-fundamentals.docx'
+    const path = await import('path')
+    const sampleDocxPath = path.resolve(__dirname, '../.local/example/samples/machine-learning-fundamentals.docx')
     if (fs.existsSync(sampleDocxPath)) {
       fs.writeFileSync(sampleDocxPath, bytes)
     }
