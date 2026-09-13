@@ -1,4 +1,5 @@
-import React, { useRef, useState, useMemo } from 'react'
+import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react'
+import { unzipSync, strFromU8 } from 'fflate'
 import {
   Upload,
   RotateCcw,
@@ -13,6 +14,7 @@ import {
   Bot,
   Code2,
   Globe,
+  ShieldCheck,
 } from 'lucide-react'
 import { useConverterStore } from '../store/useConverterStore'
 import { RichPreview } from './RichPreview'
@@ -21,6 +23,7 @@ import { renderToMarkdown } from '../renderers/markdown'
 import { renderToHtml } from '../renderers/html'
 import { renderToLatex } from '../renderers/latex'
 import { renderToPlainText } from '../renderers/text'
+import { formatForWordClipboard } from '../utils/exporters'
 import type { ExportType } from './ExportPreviewModal'
 
 const ExportPreviewModal = React.lazy(() =>
@@ -52,20 +55,24 @@ export const Workspace: React.FC = () => {
   const [copiedRichText, setCopiedRichText] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [showCopyMenu, setShowCopyMenu] = useState(false)
+  // BUG-03: track column separately so status bar shows real column number
+  const [activeCol, setActiveCol] = useState(1)
   const [copyTarget, setCopyTarget] = useState<'word' | 'docs' | 'unicode' | 'latex'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('convertion_copy_target')
-      // Auto-migrate any cached 'docs' setting to 'word' (MathML) so users get native equations by default
-      if (saved && saved !== 'docs' && ['word', 'unicode', 'latex'].includes(saved)) {
-        return saved as 'word' | 'unicode' | 'latex'
+      if (saved && ['docs', 'word', 'unicode', 'latex'].includes(saved)) {
+        return saved as 'docs' | 'word' | 'unicode' | 'latex'
       }
-      localStorage.setItem('convertion_copy_target', 'word')
+      localStorage.setItem('convertion_copy_target', 'docs')
     }
-    return 'word'
+    return 'docs'
   })
   const [exportPreviewOpen, setExportPreviewOpen] = useState(false)
   const [exportPreviewType, setExportPreviewType] = useState<ExportType>('word')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // BUG-06: store scroll-sync reset timers so they can be cleared on unmount
+  const editorSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const previewSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const handleOpenExport = (type: ExportType) => {
     setExportPreviewType(type)
@@ -127,17 +134,55 @@ export const Workspace: React.FC = () => {
     return Array.from({ length: count }, (_, i) => i + 1)
   }, [lineCount])
 
-  // Track cursor position for line indicator
-  const handleCursorMove = () => {
+  // BUG-06: cleanup scroll timers on unmount to prevent setState on unmounted component
+  useEffect(() => {
+    return () => {
+      if (editorSyncTimerRef.current) clearTimeout(editorSyncTimerRef.current)
+      if (previewSyncTimerRef.current) clearTimeout(previewSyncTimerRef.current)
+    }
+  }, [])
+
+  // BUG-05: Close dropdown menus on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowCopyMenu(false)
+        setShowExportMenu(false)
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  // BUG-05: Close menus when clicking outside
+  useEffect(() => {
+    if (!showCopyMenu && !showExportMenu) return
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as Element
+      if (!target.closest('[data-menu="copy"]') && !target.closest('[data-menu="export"]')) {
+        setShowCopyMenu(false)
+        setShowExportMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showCopyMenu, showExportMenu])
+
+  // BUG-03: Compute real line AND column from cursor position
+  const handleCursorMove = useCallback(() => {
     const el = textareaRef.current
     if (!el) return
     const pos = el.selectionStart
-    const line = el.value.substring(0, pos).split('\n').length
+    const textBefore = el.value.substring(0, pos)
+    const line = textBefore.split('\n').length
+    const lineStart = textBefore.lastIndexOf('\n') + 1
+    const col = pos - lineStart + 1
     setActiveLine(line)
-  }
+    setActiveCol(col)
+  }, [setActiveLine])
 
   // Handle Synchronized Scrolling: Editor -> Preview
-  const handleEditorScroll = () => {
+  const handleEditorScroll = useCallback(() => {
     const textarea = textareaRef.current
     const gutter = gutterRef.current
     const preview = previewContainerRef.current
@@ -157,15 +202,17 @@ export const Workspace: React.FC = () => {
       preview.scrollTop = percentage * (preview.scrollHeight - preview.clientHeight)
     }
 
-    setTimeout(() => {
+    // BUG-06: Store timer ID so it can be cleared on unmount
+    if (editorSyncTimerRef.current) clearTimeout(editorSyncTimerRef.current)
+    editorSyncTimerRef.current = setTimeout(() => {
       if (isSyncingScrollRef.current === 'editor') {
         isSyncingScrollRef.current = null
       }
     }, 50)
-  }
+  }, [syncScrollEnabled])
 
   // Handle Synchronized Scrolling: Preview -> Editor
-  const handlePreviewScroll = () => {
+  const handlePreviewScroll = useCallback(() => {
     if (!syncScrollEnabled || isSyncingScrollRef.current === 'editor') return
 
     const textarea = textareaRef.current
@@ -181,18 +228,31 @@ export const Workspace: React.FC = () => {
       gutterRef.current.scrollTop = textarea.scrollTop
     }
 
-    setTimeout(() => {
+    // BUG-06: Store timer ID so it can be cleared on unmount
+    if (previewSyncTimerRef.current) clearTimeout(previewSyncTimerRef.current)
+    previewSyncTimerRef.current = setTimeout(() => {
       if (isSyncingScrollRef.current === 'preview') {
         isSyncingScrollRef.current = null
       }
     }, 50)
-  }
+  }, [syncScrollEnabled])
 
   // Universal File Processor for all files
   const processFile = (file: File) => {
+    const ext = file.name.split('.').pop()?.toLowerCase() || ''
+    const binaryExts = ['docx', 'doc', 'pdf', 'odt', 'rtf', 'zip', 'tar', 'gz', 'exe', 'bin', 'pptx', 'xlsx']
+    if (binaryExts.includes(ext)) {
+      alert(`The file "${file.name}" is a compiled binary format. Convertion processes text and markup inputs (Markdown, LaTeX, HTML, JSON, Code). Please copy or save your document as text, Markdown, or LaTeX!`)
+      return
+    }
+
     const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name)
 
     if (isImage) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert('Image exceeds 5MB limit. Please upload a smaller image to keep browser performance responsive.')
+        return
+      }
       const reader = new FileReader()
       reader.onload = (event) => {
         const dataUrl = event.target?.result as string
@@ -206,14 +266,60 @@ export const Workspace: React.FC = () => {
       return
     }
 
+    if (ext === 'zip') {
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        try {
+          const buffer = event.target?.result as ArrayBuffer
+          const unzipped = unzipSync(new Uint8Array(buffer))
+          const fileNames = Object.keys(unzipped)
+          const texFiles: Record<string, string> = {}
+          for (const name of fileNames) {
+            if (name.endsWith('.tex')) {
+              texFiles[name] = strFromU8(unzipped[name])
+            }
+          }
+          if (Object.keys(texFiles).length > 0) {
+            let rootName = Object.keys(texFiles).find(n => /^(main|index|resume|cv)\.tex$/i.test(n.split('/').pop() || ''))
+            if (!rootName) {
+              rootName = Object.keys(texFiles).find(n => texFiles[n].includes('\\documentclass')) || Object.keys(texFiles)[0]
+            }
+            let rootTex = texFiles[rootName]
+            // Recursively inline \input and \include (arxiv-latex-cleaner approach)
+            rootTex = rootTex.replace(/\\(input|include)\{([^}]+)\}/g, (match, _cmd, incPath) => {
+              const cleanInc = incPath.trim().replace(/\.tex$/, '') + '.tex'
+              const matchedKey = Object.keys(texFiles).find(k => k === cleanInc || k.endsWith('/' + cleanInc) || k.endsWith(cleanInc))
+              if (matchedKey && texFiles[matchedKey]) {
+                return `\n% --- Inlined from ${matchedKey} ---\n` + texFiles[matchedKey] + '\n'
+              }
+              return match
+            })
+            setInputFormat('latex')
+            setInputContent(rootTex, 'latex')
+            return
+          }
+          const mdFiles = fileNames.filter(n => n.endsWith('.md') || n.endsWith('.markdown'))
+          if (mdFiles.length > 0) {
+            const content = strFromU8(unzipped[mdFiles[0]])
+            setInputFormat('markdown')
+            setInputContent(content, 'markdown')
+            return
+          }
+        } catch (err) {
+          console.error('Failed to extract zip archive:', err)
+        }
+      }
+      reader.readAsArrayBuffer(file)
+      return
+    }
+
     // Auto-detect format from extension
-    const ext = file.name.split('.').pop()?.toLowerCase()
     let detectedFmt: SupportedInputFormat = 'auto'
     if (ext === 'html' || ext === 'htm') detectedFmt = 'html'
     else if (ext === 'tex' || ext === 'latex') detectedFmt = 'latex'
     else if (ext === 'json') detectedFmt = 'json'
     else if (ext === 'md' || ext === 'markdown') detectedFmt = 'markdown'
-    else if (['py', 'js', 'ts', 'rs', 'cpp', 'c', 'sh', 'txt'].includes(ext || '')) detectedFmt = 'text'
+    else if (['py', 'js', 'ts', 'rs', 'cpp', 'c', 'sh', 'txt'].includes(ext)) detectedFmt = 'text'
 
     setInputFormat(detectedFmt)
 
@@ -264,11 +370,30 @@ export const Workspace: React.FC = () => {
         } else if (target === 'latex') {
           const latexSnippet = renderToPlainText(parsedDocument, { mathMode: 'latex' })
           await navigator.clipboard.writeText(latexSnippet)
-        } else {
-          // Output high-fidelity W3C Presentation MathML and Word-compatible tables
+        } else if (target === 'word') {
+          // Output Microsoft Word-compatible semantic markup with Word MSO styling
           const htmlSnippet = renderToHtml(parsedDocument, {
             includeWrapper: false,
-            mathMode: 'mathml',
+            mathMode: 'semantic',
+            cleanTables: true,
+          })
+          const plainSnippet = renderToPlainText(parsedDocument, { mathMode: 'unicode' })
+          const clipboardHtml = formatForWordClipboard(htmlSnippet)
+          const blobHtml = new Blob([clipboardHtml], { type: 'text/html' })
+          const blobText = new Blob([plainSnippet], { type: 'text/plain' })
+
+          const data = [
+            new ClipboardItem({
+              'text/html': blobHtml,
+              'text/plain': blobText,
+            }),
+          ]
+          await navigator.clipboard.write(data)
+        } else {
+          // Output high-fidelity Universal Semantic HTML for Docs, OneNote, Word & web editors
+          const htmlSnippet = renderToHtml(parsedDocument, {
+            includeWrapper: false,
+            mathMode: 'semantic',
             cleanTables: true,
           })
           const plainSnippet = renderToPlainText(parsedDocument, { mathMode: 'unicode' })
@@ -287,9 +412,15 @@ export const Workspace: React.FC = () => {
         setCopiedRichText(true)
         setTimeout(() => setCopiedRichText(false), 2000)
       } catch {
-        const fallback = target === 'latex'
-          ? renderedMarkdown
-          : renderToPlainText(parsedDocument, { mathMode: 'unicode' })
+        // BUG-11: use correct fallback per target — was incorrectly using renderedMarkdown for latex
+        let fallback: string
+        if (target === 'latex') {
+          fallback = renderToPlainText(parsedDocument, { mathMode: 'latex' })
+        } else if (target === 'unicode') {
+          fallback = renderToPlainText(parsedDocument, { mathMode: 'unicode' })
+        } else {
+          fallback = renderToPlainText(parsedDocument, { mathMode: 'unicode' })
+        }
         navigator.clipboard.writeText(fallback)
         setCopiedRichText(true)
         setTimeout(() => setCopiedRichText(false), 2000)
@@ -333,66 +464,69 @@ export const Workspace: React.FC = () => {
 
   return (
     <div className="w-full">
-      {/* Surfaced User-Centric Use-Cases Quick Bar */}
-      <div className="mb-4 flex flex-wrap items-center gap-2 px-1">
-        <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider mr-1 flex items-center gap-1">
-          <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-          Quick Use-Cases:
-        </span>
-        <button
-          onClick={() => {
-            setInputFormat('llm-mixed')
-            loadLlmSample()
-            setSelectedFormat('preview')
-            setCopyTarget('word')
-          }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-blue-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
-          title="Convert ChatGPT, Claude, or DeepSeek equations to Word"
-        >
-          <Bot className="w-3.5 h-3.5 text-blue-500" />
-          <span>ChatGPT / AI Math &rarr; Word</span>
-        </button>
+      {/* Surfaced User-Centric Use-Cases Quick Bar with generous breathing room above */}
+      <div className="pt-6 sm:pt-10 mb-4">
+        <div className="flex items-center gap-2 overflow-x-auto touch-scroll-x no-scrollbar py-1 px-1 -mx-1 sm:flex-wrap">
+          <span className="text-xs font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider shrink-0 flex items-center gap-1.5 mr-0.5 select-none">
+            <Sparkles className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+            <span className="hidden sm:inline">Quick Use-Cases:</span>
+            <span className="sm:hidden">Templates:</span>
+          </span>
+          <button
+            onClick={() => {
+              setInputFormat('llm-mixed')
+              loadLlmSample()
+              setSelectedFormat('preview')
+              setCopyTarget('word')
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-blue-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] shrink-0 whitespace-nowrap active:scale-95"
+            title="Convert ChatGPT, Claude, or DeepSeek equations to Word"
+          >
+            <Bot className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+            <span>ChatGPT / AI Math &rarr; Word</span>
+          </button>
 
-        <button
-          onClick={() => {
-            setInputFormat('latex')
-            loadSample()
-            setSelectedFormat('preview')
-            setCopyTarget('word')
-          }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-amber-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
-          title="Convert Overleaf / LaTeX CV or paper into Word document"
-        >
-          <Code2 className="w-3.5 h-3.5 text-amber-500" />
-          <span>Overleaf / LaTeX CV &rarr; Word</span>
-        </button>
+          <button
+            onClick={() => {
+              setInputFormat('latex')
+              loadSample()
+              setSelectedFormat('preview')
+              setCopyTarget('word')
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-amber-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] shrink-0 whitespace-nowrap active:scale-95"
+            title="Convert Overleaf / LaTeX CV or paper into Word document"
+          >
+            <Code2 className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+            <span>Overleaf / LaTeX CV &rarr; Word</span>
+          </button>
 
-        <button
-          onClick={() => {
-            setInputFormat('markdown')
-            loadSample()
-            setSelectedFormat('preview')
-            setCopyTarget('docs')
-          }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-emerald-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
-          title="Format Markdown notes for Google Docs or print to PDF"
-        >
-          <FileText className="w-3.5 h-3.5 text-emerald-500" />
-          <span>Markdown Notes &rarr; PDF / Docs</span>
-        </button>
+          <button
+            onClick={() => {
+              setInputFormat('markdown')
+              loadSample()
+              setSelectedFormat('preview')
+              setCopyTarget('word')
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-emerald-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] shrink-0 whitespace-nowrap active:scale-95"
+            title="Format Markdown notes for Google Docs or print to PDF"
+          >
+            <FileText className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+            <span>Markdown Notes &rarr; PDF / Docs</span>
+          </button>
 
-        <button
-          onClick={() => {
-            setInputFormat('auto')
-            loadSample()
-            setSelectedFormat('html')
-          }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-purple-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02]"
-          title="Export clean HTML with offline MathML and SVG formulas"
-        >
-          <Globe className="w-3.5 h-3.5 text-purple-500" />
-          <span>Formula Sheet &rarr; Clean HTML</span>
-        </button>
+          <button
+            onClick={() => {
+              setInputFormat('auto')
+              loadSample()
+              setSelectedFormat('html')
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-white dark:bg-[#121212] border border-[#E2DAD0] dark:border-white/15 hover:border-purple-500 text-neutral-800 dark:text-neutral-200 transition-all cursor-pointer shadow-2xs hover:scale-[1.02] shrink-0 whitespace-nowrap active:scale-95"
+            title="Export clean HTML with offline MathML and SVG formulas"
+          >
+            <Globe className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+            <span>Formula Sheet &rarr; Clean HTML</span>
+          </button>
+        </div>
       </div>
 
       {/* 2-Column Side-by-Side Converter Studio */}
@@ -451,7 +585,7 @@ export const Workspace: React.FC = () => {
             </div>
 
             {/* Input Format Selector Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs touch-scroll-x no-scrollbar">
               <span className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mr-1 uppercase tracking-wider shrink-0">
                 Mode:
               </span>
@@ -497,6 +631,12 @@ export const Workspace: React.FC = () => {
                   {num}
                 </div>
               ))}
+              {/* BUG-14: Visual indicator when gutter is capped at 600 */}
+              {lineCount > 600 && (
+                <div className="h-5 leading-5 text-center text-neutral-400 dark:text-neutral-600 text-[10px]" title={`${lineCount} total lines`}>
+                  ⋯
+                </div>
+              )}
             </div>
 
             {/* Textarea */}
@@ -525,11 +665,32 @@ export const Workspace: React.FC = () => {
           </div>
 
           {/* Bottom Bar: Input Details */}
-          <div className="h-8 px-4 border-t border-[#EBE3D6] dark:border-white/10 bg-[#FAF5ED] dark:bg-[#070707] flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 font-mono">
-            <span>Ln {activeLine ?? 1}, Col 1</span>
-            <span>
-              Detected: <strong className="text-neutral-700 dark:text-neutral-200">{detectionResult.summary}</strong> · {lineCount} lines · {inputContent.length.toLocaleString()} chars
-            </span>
+          <div className="h-8 px-3 sm:px-4 border-t border-[#EBE3D6] dark:border-white/10 bg-[#FAF5ED] dark:bg-[#070707] flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 font-mono select-none overflow-hidden gap-2">
+            {/* Left: Cursor coordinates and metrics (never wraps) */}
+            <div className="flex items-center gap-1.5 shrink-0 whitespace-nowrap text-[11px]">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-black/[0.04] dark:bg-white/[0.08] text-neutral-800 dark:text-neutral-200 font-semibold font-mono text-[10px] tracking-tight">
+                Ln {activeLine ?? 1}, Col {activeCol}
+              </span>
+              <span className="text-neutral-300 dark:text-neutral-700">·</span>
+              <span className="text-neutral-600 dark:text-neutral-400">
+                {lineCount.toLocaleString()} {lineCount === 1 ? 'line' : 'lines'}
+              </span>
+              <span className="text-neutral-300 dark:text-neutral-700 hidden xs:inline">·</span>
+              <span className="text-neutral-500 dark:text-neutral-400 hidden xs:inline">
+                {inputContent.length.toLocaleString()} chars
+              </span>
+            </div>
+
+            {/* Right: Live Detection with Pulse */}
+            <div className="flex items-center gap-1.5 shrink-0 min-w-0 text-[11px] truncate">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 animate-pulse" />
+              <span className="text-neutral-400 dark:text-neutral-500 uppercase tracking-wider text-[9px] font-bold hidden sm:inline">
+                Detected
+              </span>
+              <span className="font-semibold text-neutral-800 dark:text-neutral-200 truncate" title={detectionResult.summary}>
+                {detectionResult.summary}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -548,7 +709,8 @@ export const Workspace: React.FC = () => {
               </div>
 
               <div className="flex items-center space-x-2">
-                {/* Sync Scroll Toggle */}
+                {/* BUG-08: Sync Scroll only meaningful in preview mode */}
+                {selectedFormat === 'preview' && (
                 <button
                   onClick={() => setSyncScrollEnabled(!syncScrollEnabled)}
                   className={`inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 h-8 sm:h-9 rounded-md px-2.5 transition-colors cursor-pointer shadow-2xs ${
@@ -561,9 +723,10 @@ export const Workspace: React.FC = () => {
                   {syncScrollEnabled ? <Link2 className="w-3.5 h-3.5" /> : <Link2Off className="w-3.5 h-3.5" />}
                   <span className="ml-1 text-xs hidden sm:inline">Sync</span>
                 </button>
+                )}
 
                 {/* Copy Button (Split Button for Rich Preview Target Selection) */}
-                <div className="relative flex items-center">
+                <div className="relative flex items-center" data-menu="copy">
                   <button
                     onClick={() => handleCopy()}
                     disabled={!inputContent.trim()}
@@ -587,7 +750,7 @@ export const Workspace: React.FC = () => {
                             : copyTarget === 'word'
                             ? 'Copy for Word'
                             : copyTarget === 'docs'
-                            ? 'Copy for Docs'
+                            ? 'Copy Rich Text'
                             : copyTarget === 'unicode'
                             ? 'Copy Clean Text'
                             : 'Copy LaTeX'}
@@ -609,25 +772,11 @@ export const Workspace: React.FC = () => {
 
                   {showCopyMenu && (
                     <div
-                      onMouseLeave={() => setShowCopyMenu(false)}
-                      className="absolute right-0 top-full mt-1.5 w-64 rounded-xl border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#121212] shadow-xl py-1.5 z-40 text-xs font-medium animate-in fade-in-50 zoom-in-95"
+                      className="absolute right-0 top-full mt-1.5 w-68 rounded-xl border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#121212] shadow-xl py-1.5 z-40 text-xs font-medium animate-in fade-in-50 zoom-in-95"
                     >
                       <div className="px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-neutral-400 dark:text-neutral-500">
                         Math Formatting Target
                       </div>
-
-                      <button
-                        onClick={() => handleCopy('word')}
-                        className={`w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer ${
-                          copyTarget === 'word' ? 'bg-[#FAF5ED]/80 dark:bg-white/[0.08] font-semibold' : ''
-                        }`}
-                      >
-                        <div>
-                          <div className="text-neutral-900 dark:text-white font-medium">MS Word (MathML)</div>
-                          <div className="text-[10px] text-neutral-500">Native editable equation objects</div>
-                        </div>
-                        <span className="text-[10px] text-emerald-500 font-mono font-bold">WORD</span>
-                      </button>
 
                       <button
                         onClick={() => handleCopy('docs')}
@@ -636,10 +785,23 @@ export const Workspace: React.FC = () => {
                         }`}
                       >
                         <div>
-                          <div className="text-neutral-900 dark:text-white font-medium">Google Docs / Web Math</div>
-                          <div className="text-[10px] text-neutral-500">Universal MathML + Unicode text</div>
+                          <div className="text-neutral-900 dark:text-white font-medium">Universal Rich Text (Recommended)</div>
+                          <div className="text-[10px] text-neutral-500">For Docs, OneNote, Word & Web (fractions & exponents)</div>
                         </div>
-                        <span className="text-[10px] text-blue-500 font-mono font-bold">DOCS</span>
+                        <span className="text-[10px] text-blue-500 font-mono font-bold">RICH</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleCopy('word')}
+                        className={`w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer ${
+                          copyTarget === 'word' ? 'bg-[#FAF5ED]/80 dark:bg-white/[0.08] font-semibold' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="text-neutral-900 dark:text-white font-medium">Microsoft Word (OMML)</div>
+                          <div className="text-[10px] text-neutral-500">Native editable equation objects</div>
+                        </div>
+                        <span className="text-[10px] text-emerald-500 font-mono font-bold">WORD</span>
                       </button>
 
                       <button
@@ -672,7 +834,7 @@ export const Workspace: React.FC = () => {
                 </div>
 
                 {/* Export Split Button */}
-                <div className="relative flex items-center">
+                <div className="relative flex items-center" data-menu="export">
                   <button
                     onClick={() => {
                       const defaultType: ExportType =
@@ -706,7 +868,6 @@ export const Workspace: React.FC = () => {
 
                   {showExportMenu && (
                     <div
-                      onMouseLeave={() => setShowExportMenu(false)}
                       className="absolute right-0 top-full mt-1.5 w-52 rounded-xl border border-[#E5DDD0] dark:border-white/15 bg-white dark:bg-[#121212] shadow-xl py-1.5 z-30 text-xs font-medium animate-in fade-in-50 zoom-in-95"
                     >
                       <div className="px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-neutral-400 dark:text-neutral-500">
@@ -718,7 +879,7 @@ export const Workspace: React.FC = () => {
                         className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
                         <span>Word Document</span>
-                        <span className="text-[10px] text-blue-500 font-mono">.DOC</span>
+                        <span className="text-[10px] text-blue-500 font-mono">.DOCX</span>
                       </button>
                       <button
                         onClick={() => handleOpenExport('pdf')}
@@ -818,7 +979,7 @@ export const Workspace: React.FC = () => {
             </div>
 
             {/* Output Format Switcher Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs touch-scroll-x no-scrollbar">
               <span className="text-[11px] font-semibold text-neutral-500 dark:text-neutral-400 mr-1 uppercase tracking-wider shrink-0">
                 Format:
               </span>
@@ -904,12 +1065,43 @@ export const Workspace: React.FC = () => {
             )}
           </div>
 
-          {/* Bottom Status Bar */}
-          <div className="h-8 px-4 border-t border-[#EBE3D6] dark:border-white/10 bg-[#FAF5ED] dark:bg-[#070707] flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 font-mono">
-            <span>
-              {parsedDocument.stats.words} words · {parsedDocument.stats.headings} headings · {parsedDocument.stats.tables} tables · {parsedDocument.stats.mathExpressions} math expressions
-            </span>
-            <span className="text-neutral-800 dark:text-neutral-300 font-medium">100% In-Browser Engine</span>
+          {/* Bottom Status Bar: Document Metrics */}
+          <div className="h-8 px-3 sm:px-4 border-t border-[#EBE3D6] dark:border-white/10 bg-[#FAF5ED] dark:bg-[#070707] flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 font-mono select-none overflow-hidden gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 min-w-0 text-[11px] truncate">
+              <span className="font-semibold text-neutral-800 dark:text-neutral-200">
+                {parsedDocument.stats.words.toLocaleString()} words
+              </span>
+              {parsedDocument.stats.headings > 0 && (
+                <>
+                  <span className="text-neutral-300 dark:text-neutral-700">·</span>
+                  <span className="text-neutral-600 dark:text-neutral-400 hidden sm:inline">
+                    {parsedDocument.stats.headings} {parsedDocument.stats.headings === 1 ? 'heading' : 'headings'}
+                  </span>
+                </>
+              )}
+              {parsedDocument.stats.tables > 0 && (
+                <>
+                  <span className="text-neutral-300 dark:text-neutral-700">·</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                    {parsedDocument.stats.tables} {parsedDocument.stats.tables === 1 ? 'table' : 'tables'}
+                  </span>
+                </>
+              )}
+              {parsedDocument.stats.mathExpressions > 0 && (
+                <>
+                  <span className="text-neutral-300 dark:text-neutral-700">·</span>
+                  <span className="text-purple-600 dark:text-purple-400 font-medium">
+                    {parsedDocument.stats.mathExpressions} math
+                  </span>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0 text-[11px] text-neutral-700 dark:text-neutral-300 font-medium whitespace-nowrap">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+              <span className="hidden sm:inline">100% In-Browser</span>
+              <span className="sm:hidden">Offline</span>
+            </div>
           </div>
         </div>
       </div>
@@ -925,7 +1117,6 @@ export const Workspace: React.FC = () => {
       {exportPreviewOpen && (
         <React.Suspense fallback={null}>
           <ExportPreviewModal
-            key={`${exportPreviewType}-${parsedDocument.metadata.title || 'document'}`}
             isOpen={exportPreviewOpen}
             initialType={exportPreviewType}
             onClose={() => setExportPreviewOpen(false)}
@@ -936,5 +1127,3 @@ export const Workspace: React.FC = () => {
     </div>
   )
 }
-
-export default Workspace

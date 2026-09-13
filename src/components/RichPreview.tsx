@@ -2,9 +2,11 @@ import React, { useState } from 'react'
 import katex from 'katex'
 import DOMPurify from 'dompurify'
 import { Copy, Check, Terminal, ExternalLink } from 'lucide-react'
-import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
+import type { BlockNode, InlineNode, NormalizedDocument, TableNode, TableCellNode } from '../core/types'
 import { useConverterStore } from '../store/useConverterStore'
 import { latexToUnicode } from '../utils/mathUnicode'
+import { renderMathToSemanticHtml } from '../utils/mathSemantic'
+import { latexToOmml } from '../renderers/docx'
 
 interface InlineRendererProps {
   node: InlineNode
@@ -13,6 +15,19 @@ interface InlineRendererProps {
 export const InlineRenderer: React.FC<InlineRendererProps> = ({ node }) => {
   switch (node.type) {
     case 'text':
+      if (node.value.includes('\n')) {
+        const parts = node.value.split('\n')
+        return (
+          <span>
+            {parts.map((part, i) => (
+              <React.Fragment key={i}>
+                {part}
+                {i < parts.length - 1 && <br />}
+              </React.Fragment>
+            ))}
+          </span>
+        )
+      }
       return <span>{node.value}</span>
 
     case 'strong':
@@ -60,10 +75,56 @@ export const InlineRenderer: React.FC<InlineRendererProps> = ({ node }) => {
       if (isError) {
         return <code className="text-amber-500 font-mono">${node.value}$</code>
       }
-      return <span dangerouslySetInnerHTML={{ __html: html }} className="inline-math px-0.5 text-slate-900 dark:text-slate-100" />
+      return (
+        <span
+          onClick={async (e) => {
+            e.stopPropagation()
+            try {
+              const omml = latexToOmml(node.value, false)
+              const plain = latexToUnicode(node.value) || node.value
+              const wordHtml = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><head><meta charset="utf-8"></head><body><!--StartFragment-->${omml}<!--EndFragment--></body></html>`
+              const blobHtml = new Blob([wordHtml], { type: 'text/html' })
+              const blobText = new Blob([plain], { type: 'text/plain' })
+              await navigator.clipboard.write([
+                new ClipboardItem({
+                  'text/html': blobHtml,
+                  'text/plain': blobText,
+                }),
+              ])
+            } catch {
+              await navigator.clipboard.writeText(node.value)
+            }
+          }}
+          title="Click to copy equation for Word (OMML)"
+          dangerouslySetInnerHTML={{ __html: html }}
+          className="inline-math px-0.5 text-slate-900 dark:text-slate-100 cursor-pointer hover:bg-blue-500/10 rounded transition-colors"
+        />
+      )
     }
 
     case 'link': {
+      const isAnchor = node.url.startsWith('#')
+      if (isAnchor) {
+        return (
+          <a
+            href={node.url}
+            onClick={(e) => {
+              e.preventDefault()
+              const id = node.url.slice(1)
+              const el = window.document.getElementById(id)
+              if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+              }
+            }}
+            className="text-sky-600 dark:text-sky-400 font-medium hover:underline cursor-pointer transition-colors"
+          >
+            {node.children.map((child, i) => (
+              <InlineRenderer key={i} node={child} />
+            ))}
+          </a>
+        )
+      }
+
       const isOnlyImage = node.children.length === 1 && node.children[0].type === 'image'
       if (isOnlyImage) {
         return (
@@ -172,6 +233,7 @@ interface MathBlockProps {
 }
 
 const MathBlockRenderer: React.FC<MathBlockProps> = ({ value }) => {
+  const [copied, setCopied] = useState(false)
   let html = ''
   let isError = false
   try {
@@ -191,9 +253,147 @@ const MathBlockRenderer: React.FC<MathBlockProps> = ({ value }) => {
     )
   }
 
+  const handleCopyWordMath = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    try {
+      const semantic = renderMathToSemanticHtml(value, true)
+      const plain = latexToUnicode(value) || value
+      const wordHtml = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"><head><meta charset="utf-8"></head><body><!--StartFragment-->${semantic}<!--EndFragment--></body></html>`
+      const blobHtml = new Blob([wordHtml], { type: 'text/html' })
+      const blobText = new Blob([plain], { type: 'text/plain' })
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          'text/html': blobHtml,
+          'text/plain': blobText,
+        }),
+      ])
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      await navigator.clipboard.writeText(value)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
   return (
-    <div className="my-3.5 p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.08] overflow-x-auto text-center shadow-xs">
+    <div
+      onClick={handleCopyWordMath}
+      className="group relative my-3.5 p-4 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/80 dark:border-white/[0.08] hover:border-blue-400 dark:hover:border-blue-500/40 overflow-x-auto text-center shadow-xs cursor-pointer transition-all duration-150"
+      title="Click to copy as editable Word equation (OMML)"
+    >
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 shadow-2xs">
+        {copied ? (
+          <>
+            <Check className="w-3 h-3 text-emerald-500" />
+            <span className="text-emerald-500">Copied for Word</span>
+          </>
+        ) : (
+          <>
+            <Copy className="w-3 h-3 text-slate-400" />
+            <span>Copy for Word</span>
+          </>
+        )}
+      </div>
       <div dangerouslySetInnerHTML={{ __html: html }} className="py-1 text-slate-900 dark:text-slate-100" />
+    </div>
+  )
+}
+
+const TableRenderer: React.FC<{ block: TableNode }> = ({ block }) => {
+  const [copied, setCopied] = useState(false)
+  const hasHeaders = Boolean(block.headers && block.headers.length > 0)
+
+  const copyCsv = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    const getCellText = (cell: TableCellNode) => {
+      const texts: string[] = []
+      const extractText = (nodes: InlineNode[]) => {
+        for (const n of nodes) {
+          if (n.type === 'text' || n.type === 'inlineCode') texts.push(n.value)
+          else if ('children' in n && n.children) extractText(n.children)
+          else if (n.type === 'inlineMath') texts.push(latexToUnicode(n.value) || n.value)
+        }
+      }
+      extractText(cell.children)
+      const raw = texts.join('').trim()
+      if (raw.includes(',') || raw.includes('"') || raw.includes('\n')) {
+        return `"${raw.replace(/"/g, '""')}"`
+      }
+      return raw
+    }
+
+    const rows: string[] = []
+    if (block.headers && block.headers.length > 0) {
+      rows.push(block.headers.map(getCellText).join(','))
+    }
+    for (const row of block.rows) {
+      rows.push(row.cells.map(getCellText).join(','))
+    }
+    const csvContent = rows.join('\n')
+    navigator.clipboard.writeText(csvContent).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div id={block.id} className="group relative my-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+        <button
+          onClick={copyCsv}
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-medium bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 shadow-2xs hover:bg-slate-50 dark:hover:bg-slate-700/90 transition-all cursor-pointer"
+          title="Copy table as CSV (compatible with Excel, Numbers, & Google Sheets)"
+        >
+          {copied ? (
+            <>
+              <Check className="w-3 h-3 text-emerald-500" />
+              <span className="text-emerald-500">CSV Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy className="w-3 h-3 text-slate-400" />
+              <span>Copy CSV / Excel</span>
+            </>
+          )}
+        </button>
+      </div>
+      <table className="w-full text-left border-collapse text-xs sm:text-sm">
+        {hasHeaders && (
+          <thead>
+            <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04]">
+              {block.headers.map((cell, idx) => (
+                <th
+                  key={idx}
+                  className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white"
+                  style={{ textAlign: cell.align || 'left' }}
+                >
+                  {cell.children.map((c, i) => (
+                    <InlineRenderer key={i} node={c} />
+                  ))}
+                </th>
+              ))}
+            </tr>
+          </thead>
+        )}
+        <tbody className="divide-y divide-slate-200/70 dark:divide-white/[0.04]">
+          {block.rows.map((row, rIdx) => (
+            <tr key={rIdx} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
+              {row.cells.map((cell, cIdx) => (
+                <td
+                  key={cIdx}
+                  className="px-4 py-2 text-slate-700 dark:text-slate-300"
+                  style={{ textAlign: cell.align || 'left' }}
+                >
+                  {cell.children.map((c, i) => (
+                    <InlineRenderer key={i} node={c} />
+                  ))}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -210,9 +410,10 @@ export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> =
         if (block.level === 1) {
           return (
             <div
+              id={block.id}
               role="heading"
               aria-level={1}
-              className="text-2xl sm:text-3xl font-bold tracking-tight mt-5 mb-2.5 text-slate-950 dark:text-white font-sans"
+              className="text-2xl sm:text-3xl font-bold tracking-tight mt-5 mb-2.5 text-slate-950 dark:text-white font-sans scroll-mt-6"
             >
               {content}
             </div>
@@ -220,20 +421,20 @@ export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> =
         }
         if (block.level === 2) {
           return (
-            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight mt-5 mb-2 pb-1 border-b border-slate-200/60 dark:border-white/[0.06] text-slate-900 dark:text-slate-100 font-sans">
+            <h2 id={block.id} className="text-xl sm:text-2xl font-semibold tracking-tight mt-5 mb-2 pb-1 border-b border-slate-200/60 dark:border-white/[0.06] text-slate-900 dark:text-slate-100 font-sans scroll-mt-6">
               {content}
             </h2>
           )
         }
         if (block.level === 3) {
           return (
-            <h3 className="text-lg sm:text-xl font-semibold mt-4 mb-1.5 text-slate-800 dark:text-slate-200 font-sans">
+            <h3 id={block.id} className="text-lg sm:text-xl font-semibold mt-4 mb-1.5 text-slate-800 dark:text-slate-200 font-sans scroll-mt-6">
               {content}
             </h3>
           )
         }
         return (
-          <h4 className="text-base font-medium mt-3 mb-1 text-slate-800 dark:text-slate-200 font-sans">
+          <h4 id={block.id} className="text-base font-medium mt-3 mb-1 text-slate-800 dark:text-slate-200 font-sans scroll-mt-6">
             {content}
           </h4>
         )
@@ -241,7 +442,7 @@ export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> =
 
       case 'paragraph':
         return (
-          <p className="my-2.5 leading-relaxed text-slate-700 dark:text-slate-300">
+          <p id={block.id} className="my-2.5 leading-relaxed text-slate-700 dark:text-slate-300 scroll-mt-6">
             {block.children.map((c, i) => (
               <InlineRenderer key={i} node={c} />
             ))}
@@ -261,15 +462,19 @@ export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> =
         return <CodeBlockRenderer language={block.language} value={block.value} />
 
       case 'mathBlock':
-        return <MathBlockRenderer value={block.value} />
+        return (
+          <div id={block.id} className="scroll-mt-6">
+            <MathBlockRenderer value={block.value} />
+          </div>
+        )
 
       case 'list': {
         const Tag = block.ordered ? 'ol' : 'ul'
         const listStyle = block.ordered ? 'list-decimal' : 'list-disc'
         return (
-          <Tag className={`my-2.5 pl-6 space-y-1 ${listStyle} text-slate-700 dark:text-slate-300`}>
+          <Tag id={block.id} start={block.start} className={`my-2.5 pl-6 space-y-1 ${listStyle} text-slate-700 dark:text-slate-300`}>
             {block.items.map((item, idx) => (
-              <li key={idx} className="leading-relaxed">
+              <li key={idx} id={item.id} className="leading-relaxed scroll-mt-6">
                 {item.children.map((child, cIdx) => {
                   if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
                     return child.children.map((c, i) => <InlineRenderer key={i} node={c} />)
@@ -285,51 +490,22 @@ export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> =
         )
       }
 
-      case 'table': {
-        const hasHeaders = Boolean(block.headers && block.headers.length > 0)
-        return (
-          <div className="my-4 overflow-x-auto rounded-xl border border-slate-200 dark:border-white/10 shadow-xs">
-            <table className="w-full text-left border-collapse text-xs sm:text-sm">
-              {hasHeaders && (
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/[0.04]">
-                    {block.headers.map((cell, idx) => (
-                      <th
-                        key={idx}
-                        className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white"
-                        style={{ textAlign: cell.align || 'left' }}
-                      >
-                        {cell.children.map((c, i) => (
-                          <InlineRenderer key={i} node={c} />
-                        ))}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-              )}
-              <tbody className="divide-y divide-slate-200/70 dark:divide-white/[0.04]">
-                {block.rows.map((row, rIdx) => (
-                  <tr key={rIdx} className="hover:bg-slate-50/70 dark:hover:bg-white/[0.02] transition-colors">
-                    {row.cells.map((cell, cIdx) => (
-                      <td
-                        key={cIdx}
-                        className="px-4 py-2 text-slate-700 dark:text-slate-300"
-                        style={{ textAlign: cell.align || 'left' }}
-                      >
-                        {cell.children.map((c, i) => (
-                          <InlineRenderer key={i} node={c} />
-                        ))}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )
-      }
+      case 'table':
+        return <TableRenderer block={block} />
 
       case 'thematicBreak':
+        if (block.isPageBreak) {
+          return (
+            <div
+              className="page-break my-8 relative flex items-center justify-center border-t-2 border-dashed border-sky-400/40 dark:border-sky-500/30 print:my-0 print:border-none"
+              style={{ pageBreakBefore: 'always', breakBefore: 'page' }}
+            >
+              <span className="absolute -top-3 px-2 py-0.5 text-[10px] font-mono tracking-widest uppercase bg-slate-100 dark:bg-slate-900 text-sky-600 dark:text-sky-400 rounded border border-sky-300/40 dark:border-sky-700/50 print:hidden select-none">
+                Page Break
+              </span>
+            </div>
+          )
+        }
         return <hr className="my-5 border-slate-200 dark:border-white/10" />
 
       case 'rawBlock': {
@@ -401,14 +577,15 @@ export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> =
               : block.content
           return (
             <div
-              className="my-2 leading-relaxed [&_img]:inline-block [&_img]:align-middle"
+              id={block.id}
+              className="my-2 leading-relaxed [&_img]:inline-block [&_img]:align-middle scroll-mt-6"
               dangerouslySetInnerHTML={{ __html: cleanHtml }}
             />
           )
         }
 
         return (
-          <div className="my-2 p-2.5 font-mono text-xs bg-slate-100 dark:bg-white/[0.05] rounded-lg">
+          <div id={block.id} className="my-2 p-2.5 font-mono text-xs bg-slate-100 dark:bg-white/[0.05] rounded-lg scroll-mt-6">
             {block.content}
           </div>
         )
@@ -440,6 +617,8 @@ export const RichPreview: React.FC<RichPreviewProps> = ({ document }) => {
     const katexNodes = cloned.querySelectorAll('.katex')
     if (katexNodes.length === 0) return
 
+    const { selectedFormat } = useConverterStore.getState()
+
     // 1. Plain text: Replace math with formatted Unicode Math
     const textClone = cloned.cloneNode(true) as DocumentFragment
     textClone.querySelectorAll('.katex').forEach((kNode) => {
@@ -452,28 +631,45 @@ export const RichPreview: React.FC<RichPreviewProps> = ({ document }) => {
     })
     const plainText = textClone.textContent || ''
 
-    // 2. HTML: Pure MathML without duplicate .katex-html visual spans
+    // 2. HTML: Universal Semantic HTML math with standard sup/sub/fraction tags OR Word Office OMML
     const htmlClone = cloned.cloneNode(true) as DocumentFragment
     htmlClone.querySelectorAll('.katex').forEach((kNode) => {
-      const mathml = kNode.querySelector('.katex-mathml math')
-      const annotation = kNode.querySelector('annotation')
-      if (annotation) annotation.remove()
-      const semantics = kNode.querySelector('semantics')
-      if (semantics && semantics.parentNode) {
-        while (semantics.firstChild) {
-          semantics.parentNode.insertBefore(semantics.firstChild, semantics)
-        }
-        semantics.remove()
+      const annotation = kNode.querySelector('annotation[encoding*="tex"]') || kNode.querySelector('annotation')
+      const latex = annotation?.textContent?.trim() || ''
+      const isDisplay = kNode.classList.contains('katex-display') || Boolean(kNode.parentElement?.classList.contains('math-block'))
+
+      if (selectedFormat === 'word' && latex) {
+        try {
+          const omml = latexToOmml(latex, isDisplay)
+          const temp = window.document.createElement('span')
+          if (isDisplay) {
+            temp.innerHTML = `<p class="MsoNormal" align="center" style="text-align:center;"><m:oMathPara>${omml}</m:oMathPara></p>`
+          } else {
+            temp.innerHTML = omml
+          }
+          kNode.replaceWith(temp)
+          return
+        } catch {}
       }
-      const katexHtml = kNode.querySelector('.katex-html')
-      if (katexHtml) katexHtml.remove()
-      if (mathml) {
-        kNode.replaceWith(mathml)
+
+      if (latex) {
+        const semanticMath = renderMathToSemanticHtml(latex, isDisplay)
+        const temp = window.document.createElement('div')
+        temp.innerHTML = semanticMath
+        const replacement = temp.firstElementChild || window.document.createTextNode(latex)
+        kNode.replaceWith(replacement)
+      } else {
+        const mathml = kNode.querySelector('.katex-mathml math')
+        if (mathml) kNode.replaceWith(mathml)
       }
     })
     const tempDiv = window.document.createElement('div')
     tempDiv.appendChild(htmlClone)
-    const cleanHtml = tempDiv.innerHTML
+    let cleanHtml = tempDiv.innerHTML
+
+    if (selectedFormat === 'word') {
+      cleanHtml = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body><!--StartFragment-->${cleanHtml}<!--EndFragment--></body></html>`
+    }
 
     e.clipboardData.setData('text/plain', plainText)
     e.clipboardData.setData('text/html', cleanHtml)

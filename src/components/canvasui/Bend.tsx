@@ -228,7 +228,7 @@ void main () {
   outColor = vec4(mix(uBg, base.rgb, alpha * base.a), uCover);
 }`;
 
-export function supportsHtmlInCanvas(): boolean {
+function supportsHtmlInCanvas(): boolean {
   if (typeof document === "undefined") return false;
   const probe = document.createElement("canvas") as PaintableCanvas;
   const ctx = probe.getContext("2d") as ElementImageContext | null;
@@ -242,7 +242,7 @@ export function supportsHtmlInCanvas(): boolean {
 const CONTENT_ATTR = "data-canvasui-content";
 const CURSOR_ATTR = "data-canvasui-cursor";
 
-export function createBend(
+function createBend(
   elements: BendElements,
   options: BendOptions = {},
 ): BendInstance | null {

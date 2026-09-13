@@ -20,6 +20,7 @@ import { renderToLatex } from '../renderers/latex'
 import { renderToPlainText } from '../renderers/text'
 import { renderToDocx } from '../renderers/docx'
 import { exportToWord, exportToPdf, exportToFile } from '../utils/exporters'
+import { RichPreview } from './RichPreview'
 
 export type ExportType = 'word' | 'pdf' | 'html' | 'markdown' | 'latex' | 'text' | 'json'
 
@@ -66,6 +67,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
   const [copied, setCopied] = useState<boolean>(false)
   const [htmlViewMode, setHtmlViewMode] = useState<'visual' | 'code'>('visual')
   const [paperView, setPaperView] = useState<'theme' | 'paper'>('theme')
+  const [wordMathMode, setWordMathMode] = useState<'omml' | 'compatible'>('omml')
 
   // Close on Escape key
   useEffect(() => {
@@ -86,7 +88,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
   // Pre-render content for each format
   const contentMarkdown = useMemo(() => renderToMarkdown(parsedDocument), [parsedDocument])
   const contentHtmlClean = useMemo(
-    () => renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'mathml' }),
+    () => renderToHtml(parsedDocument, { includeWrapper: false, mathMode: 'semantic' }),
     [parsedDocument]
   )
   const contentHtmlWord = useMemo(
@@ -108,7 +110,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
   const estimatedSize = useMemo(() => {
     if (activeType === 'word') {
       try {
-        const bytes = renderToDocx(parsedDocument)
+        const bytes = renderToDocx(parsedDocument, { mathMode: wordMathMode })
         return `${(bytes.byteLength / 1024).toFixed(1)} KB`
       } catch {
         return '12.5 KB'
@@ -139,16 +141,16 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
     const bytes = new Blob([raw]).size
     if (bytes < 1024) return `${bytes} B`
     return `${(bytes / 1024).toFixed(1)} KB`
-  }, [activeType, contentHtmlFull, contentHtmlClean, contentLatex, contentPlainText, contentJson, contentMarkdown, parsedDocument])
+  }, [activeType, contentHtmlFull, contentHtmlClean, contentLatex, contentPlainText, contentJson, contentMarkdown, parsedDocument, wordMathMode])
 
   const handleDownload = () => {
     const baseName = filename.trim() || 'document'
     switch (activeType) {
       case 'word':
-        exportToWord(contentHtmlWord, baseName, parsedDocument)
+        exportToWord(contentHtmlWord, baseName, parsedDocument, { mathMode: wordMathMode })
         break
       case 'pdf':
-        exportToPdf(contentHtmlClean, parsedDocument.metadata.title || baseName)
+        exportToPdf(contentHtmlClean, parsedDocument.metadata.title || baseName, parsedDocument)
         break
       case 'html':
         exportToFile(contentHtmlFull, `${baseName}.html`, 'text/html;charset=utf-8')
@@ -241,7 +243,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
 
         {/* Tier 1: Format Selector Tabs */}
         <div className="px-3 sm:px-6 py-2 bg-[#FAF5ED]/90 dark:bg-[#101010] border-b border-[#E8E1D3] dark:border-white/10 shrink-0">
-          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full no-scrollbar touch-pan-x">
+          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-full no-scrollbar touch-pan-x touch-scroll-x">
             {EXPORT_FORMATS.map((fmt) => (
               <button
                 key={fmt.id}
@@ -286,6 +288,33 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
                   title="White Printed Paper Mockup"
                 >
                   Paper
+                </button>
+              </div>
+            )}
+
+            {activeType === 'word' && (
+              <div className="flex items-center rounded-lg border border-[#E2DAD0] dark:border-white/15 bg-white dark:bg-[#171717] p-0.5 shadow-2xs">
+                <button
+                  onClick={() => setWordMathMode('omml')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                    wordMathMode === 'omml'
+                      ? 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-2xs'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                  title="Native Office Math (OMML) - Recommended for Desktop Word & Google Docs"
+                >
+                  Desktop / Docs
+                </button>
+                <button
+                  onClick={() => setWordMathMode('compatible')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                    wordMathMode === 'compatible'
+                      ? 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-2xs'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                  title="Universal Formatted Math - Renders visibly in Word Online & LibreOffice without [Equation] placeholders"
+                >
+                  Word Web / LibreOffice
                 </button>
               </div>
             )}
@@ -351,14 +380,9 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
                   : 'border-[#E0D7C9] dark:border-white/15 bg-white dark:bg-[#0e0e0e] text-neutral-800 dark:text-neutral-200'
               }`}
             >
-              <div
-                className={`prose prose-sm sm:prose-base max-w-none font-serif leading-relaxed select-text overflow-hidden [&_.table-container]:max-w-full [&_.table-container]:overflow-x-auto [&_table]:w-full [&_pre]:max-w-full [&_pre]:overflow-x-auto ${
-                  paperView === 'paper'
-                    ? 'prose-neutral !text-neutral-900 [&_*]:!text-neutral-900 [&_pre]:!bg-neutral-100 [&_pre]:!border-neutral-300 [&_pre]:!border [&_pre_code]:!text-neutral-900 [&_code]:!text-neutral-900 [&_code]:!bg-neutral-100 [&_blockquote]:!text-neutral-700 [&_blockquote]:!border-neutral-400 [&_th]:!text-neutral-900 [&_th]:!bg-neutral-100 [&_td]:!text-neutral-800 [&_td]:!border-neutral-300 [&_th]:!border-neutral-300 [&_a]:!text-blue-600 [&_hr]:!border-neutral-300 [&_img]:filter-none'
-                    : 'dark:prose-invert text-neutral-800 dark:text-neutral-200'
-                }`}
-                dangerouslySetInnerHTML={{ __html: contentHtmlClean }}
-              />
+              <div className={paperView === 'paper' ? 'paper-doc-sheet text-neutral-900 [&_*]:!text-neutral-900 [&_.group]:!bg-neutral-50 [&_.group]:!border-neutral-200 [&_pre]:!bg-neutral-100 [&_pre]:!border-neutral-300' : ''}>
+                <RichPreview document={parsedDocument} />
+              </div>
             </div>
           )}
 
@@ -367,10 +391,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
             <div className="max-w-3xl mx-auto">
               {htmlViewMode === 'visual' ? (
                 <div className="rounded-xl border border-[#E0D7C9] dark:border-white/15 bg-white dark:bg-[#0e0e0e] shadow-md p-4 sm:p-10 min-h-[480px] overflow-hidden">
-                  <div
-                    className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-neutral-800 dark:text-neutral-200 select-text overflow-hidden [&_.table-container]:max-w-full [&_.table-container]:overflow-x-auto [&_table]:w-full [&_pre]:max-w-full [&_pre]:overflow-x-auto"
-                    dangerouslySetInnerHTML={{ __html: contentHtmlClean }}
-                  />
+                  <RichPreview document={parsedDocument} />
                 </div>
               ) : (
                 <div className="rounded-xl border border-[#E5DDD0] dark:border-white/10 bg-white dark:bg-[#0c0c0c] p-4 sm:p-6 shadow-xs font-mono text-xs text-neutral-800 dark:text-neutral-200 overflow-x-auto whitespace-pre leading-relaxed">

@@ -70,6 +70,7 @@ export interface HeadingNode extends BaseNode {
   type: 'heading'
   level: 1 | 2 | 3 | 4 | 5 | 6
   children: InlineNode[]
+  isStarred?: boolean
 }
 
 export interface ParagraphNode extends BaseNode {
@@ -81,11 +82,13 @@ export interface ParagraphNode extends BaseNode {
 
 export interface BlockquoteNode extends BaseNode {
   type: 'blockquote'
+  calloutType?: 'note' | 'tip' | 'warning' | 'important' | 'caution' | null
   children: BlockNode[]
 }
 
 export interface ListItemNode extends BaseNode {
   type: 'listItem'
+  checked?: boolean | null
   children: (BlockNode | InlineNode)[]
 }
 
@@ -128,6 +131,7 @@ export interface TableNode extends BaseNode {
 
 export interface ThematicBreakNode extends BaseNode {
   type: 'thematicBreak'
+  isPageBreak?: boolean
 }
 
 export interface RawBlockNode extends BaseNode {

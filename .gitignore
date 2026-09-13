@@ -34,3 +34,8 @@ Thumbs.db
 !.vscode/extensions.json
 !.vscode/settings.json
 .idea/
+
+# Offline Lab & Python cache
+__pycache__/
+*.pyc
+tools/

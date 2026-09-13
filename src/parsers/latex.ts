@@ -5,10 +5,36 @@ import type {
   TableCellNode,
   TableRowNode,
   ListItemNode,
+  HeadingNode,
+  ListNode,
+  ParagraphNode,
+  ThematicBreakNode,
 } from '../core/types'
 import { computeDocumentStats } from '../core/stats'
 import { parseHipsterCv } from './latexHipsterCv'
 import { parseLatexResume } from './latexResume'
+import { renderTikzToSvg } from '../utils/tikzSvg'
+import { MATH_ENVIRONMENTS, KNOWN_ARITIES } from '../core/knowledge/latexMacros'
+
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/<[^>]+>/g, '')
+    .replace(/[^\w\s-]/g, '')
+    .trim()
+    .replace(/[\s_-]+/g, '-')
+}
+
+function extractInlineText(nodes: InlineNode[]): string {
+  let res = ''
+  for (const n of nodes) {
+    if (n.type === 'text') res += n.value
+    else if ('children' in n && Array.isArray((n as any).children)) {
+      res += extractInlineText((n as any).children)
+    }
+  }
+  return res
+}
 
 /**
  * Extracts content within balanced curly braces starting from startIdx
@@ -642,9 +668,26 @@ export function parseLatexInline(text: string): InlineNode[] {
         const bRes = extractBalancedBraces(cleaned, braceStart + 1)
         if (bRes) {
           flushText()
-          const key = bRes.content.trim()
-          const label = optText ? `[${key}, ${optText}]` : `[${key}]`
-          nodes.push({ type: 'text', value: label })
+          const rawKey = bRes.content.trim()
+          const keys = rawKey.split(',').map((k) => k.trim()).filter(Boolean)
+          if (keys.length > 1) {
+            keys.forEach((singleKey, kIdx) => {
+              if (kIdx > 0) nodes.push({ type: 'text', value: ', ' })
+              nodes.push({
+                type: 'link',
+                url: `#cite-${singleKey}`,
+                children: [{ type: 'text', value: `[${singleKey}]` }],
+              })
+            })
+          } else {
+            const key = keys[0] || rawKey
+            const label = optText ? `[${key}, ${optText}]` : `[${key}]`
+            nodes.push({
+              type: 'link',
+              url: `#cite-${key}`,
+              children: [{ type: 'text', value: label }],
+            })
+          }
           i = bRes.endIdx + 1
           continue
         }
@@ -660,7 +703,12 @@ export function parseLatexInline(text: string): InlineNode[] {
         if (bRes) {
           flushText()
           const refName = bRes.content.trim()
-          nodes.push({ type: 'text', value: isEq ? `(${refName})` : `[${refName}]` })
+          const targetId = refName.replace(/[:\s]/g, '-')
+          nodes.push({
+            type: 'link',
+            url: `#${targetId}`,
+            children: [{ type: 'text', value: isEq ? `(${refName})` : `[${refName}]` }],
+          })
           i = bRes.endIdx + 1
           continue
         }
@@ -720,6 +768,35 @@ export function parseLatexInline(text: string): InlineNode[] {
         })
         i = endParen + 2
         continue
+      }
+    }
+
+    // Generic macro resolution using knowledge base (KNOWN_ARITIES)
+    if (cleaned[i] === '\\') {
+      const cmdMatch = cleaned.slice(i).match(/^\\([a-zA-Z]+[*]?)/)
+      if (cmdMatch) {
+        const cmdName = cmdMatch[1]
+        const arity = KNOWN_ARITIES[cmdName]
+        if (arity !== undefined) {
+          if (arity === 0) {
+            i += cmdMatch[0].length
+            continue
+          } else if (arity === 1) {
+            let braceIdx = i + cmdMatch[0].length
+            while (braceIdx < cleaned.length && (cleaned[braceIdx] === ' ' || cleaned[braceIdx] === '\t')) {
+              braceIdx++
+            }
+            if (cleaned[braceIdx] === '{') {
+              const bRes = extractBalancedBraces(cleaned, braceIdx + 1)
+              if (bRes) {
+                flushText()
+                nodes.push(...parseLatexInline(bRes.content))
+                i = bRes.endIdx + 1
+                continue
+              }
+            }
+          }
+        }
       }
     }
 
@@ -807,11 +884,13 @@ function parseBibliographyContent(content: string): ListItemNode[] {
     const textEnd = next && next.index !== undefined ? next.index : content.length
     const refText = content.slice(textStart, textEnd).trim()
     const label = current[1]?.trim()
+    const citeKey = current[2]?.trim()
     const inlineChildren = parseLatexInline(refText)
     const finalChildren = label ? [{ type: 'text' as const, value: `[${label}] ` }, ...inlineChildren] : inlineChildren
 
     items.push({
       type: 'listItem',
+      id: citeKey ? `cite-${citeKey}` : undefined,
       children: [
         {
           type: 'paragraph',
@@ -923,11 +1002,49 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
       continue
     }
 
+    // Check for \clearpage or \newpage
+    const pageBreakMatch = input.slice(cursor).match(/^\\(clearpage|newpage)\b/)
+    if (pageBreakMatch) {
+      const last = blocks[blocks.length - 1]
+      if (blocks.length > 0 && !(last && last.type === 'thematicBreak' && (last as ThematicBreakNode).isPageBreak)) {
+        blocks.push({
+          type: 'thematicBreak',
+          isPageBreak: true,
+        })
+      }
+      cursor += pageBreakMatch[0].length
+      continue
+    }
+
+    // Ignore \addcontentsline and \includepdf without leaking into text
+    const addContentsMatch = input.slice(cursor).match(/^\\addcontentsline\{[^}]*\}\{[^}]*\}\{([^}]+)\}/)
+    if (addContentsMatch) {
+      cursor += addContentsMatch[0].length
+      continue
+    }
+    const includePdfMatch = input.slice(cursor).match(/^\\includepdf(?:\[[^\]]*\])?\{([^}]+)\}/)
+    if (includePdfMatch) {
+      cursor += includePdfMatch[0].length
+      continue
+    }
+
+    // Standalone \label{...} at block level: assign ID to preceding block if available
+    const standaloneLabel = input.slice(cursor).match(/^\\label\{([^}]+)\}/)
+    if (standaloneLabel) {
+      const labelId = standaloneLabel[1].trim().replace(/[:\s]/g, '-')
+      const last = blocks[blocks.length - 1]
+      if (last && !last.id) {
+        last.id = labelId
+      }
+      cursor += standaloneLabel[0].length
+      continue
+    }
+
     // 2. Ignore no-op formatting commands and layout primitives
     const ignorableMatch = input
       .slice(cursor)
       .match(
-        /^\\(newpage|clearpage|maketitle|noindent|centering|raggedright|raggedleft|bigskip|medskip|smallskip|onehalfspacing|doublespacing|singlespacing|pagestyle\{[^}]*\}|thispagestyle\{[^}]*\}|pagenumbering\{[^}]*\}|vspace\*?\{[^}]*\}|hspace\*?\{[^}]*\}|columnratio(?:\{[^}]*\}(?:\[[^\]]*\])?|\[[^\]]*\](?:\{[^}]*\})?)|hbadness\d*|vbadness\d*|paracolbackgroundoptions|setasidefontcolour|flushright|flushleft|switchcolumn\*?|fontfamily\{[^}]*\}\s*\\selectfont|setlength\{[^}]*\}\{[^}]*\}|newlength\{[^}]*\}|color\{[^}]*\}|vfill\{?\}?|hfill\{?\}?|phantom\{[^}]*\}|vphantom\{[^}]*\}|hphantom\{[^}]*\}|small\b|footnotesize\b|large\b|Large\b|normalsize\b|tiny\b|protect\b)(?:\b|(?=[\s\\{}]|$))/
+        /^\\(maketitle|noindent|centering|raggedright|raggedleft|bigskip|medskip|smallskip|onehalfspacing|doublespacing|singlespacing|pagestyle\{[^}]*\}|thispagestyle\{[^}]*\}|pagenumbering\{[^}]*\}|vspace\*?\{[^}]*\}|hspace\*?\{[^}]*\}|columnratio(?:\{[^}]*\}(?:\[[^\]]*\])?|\[[^\]]*\](?:\{[^}]*\})?)|hbadness\d*|vbadness\d*|paracolbackgroundoptions|setasidefontcolour|flushright|flushleft|switchcolumn\*?|fontfamily\{[^}]*\}\s*\\selectfont|setlength\{[^}]*\}\{[^}]*\}|newlength\{[^}]*\}|color\{[^}]*\}|vfill\{?\}?|hfill\{?\}?|phantom\{[^}]*\}|vphantom\{[^}]*\}|hphantom\{[^}]*\}|small\b|footnotesize\b|large\b|Large\b|normalsize\b|tiny\b|protect\b)(?:\b|(?=[\s\\{}]|$))/
       )
     if (ignorableMatch) {
       cursor += ignorableMatch[0].length
@@ -1047,7 +1164,7 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
     // 4. Check for Section Headings (\part, \chapter, \section, \subsection, \subsubsection, \paragraph, \cvsection)
     const sectionMatch = input
       .slice(cursor)
-      .match(/^\\(part|chapter|section|subsection|subsubsection|paragraph|cvsection|cvsubsection)\*?\s*\{/)
+      .match(/^\\(part|chapter|section|subsection|subsubsection|paragraph|cvsection|cvsubsection)(\*?)\s*\{/)
     if (sectionMatch) {
       const openBrace = cursor + sectionMatch[0].length - 1
       const balanced = extractBalancedBraces(input, openBrace + 1)
@@ -1058,6 +1175,7 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
           continue
         }
         const cmd = sectionMatch[1]
+        const isStarred = sectionMatch[2] === '*'
         const level: 1 | 2 | 3 | 4 =
           cmd === 'part' || cmd === 'chapter'
             ? 1
@@ -1066,12 +1184,34 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
             : cmd === 'subsection' || cmd === 'cvsubsection'
             ? 3
             : 4
+
+        // Prepend page break before chapter or part if preceded by other content
+        if (level === 1 && blocks.length > 0) {
+          const last = blocks[blocks.length - 1]
+          if (!(last && last.type === 'thematicBreak' && (last as ThematicBreakNode).isPageBreak)) {
+            blocks.push({
+              type: 'thematicBreak',
+              isPageBreak: true,
+            })
+          }
+        }
+
+        let afterHeadingIdx = balanced.endIdx + 1
+        const labelMatch = input.slice(afterHeadingIdx).match(/^\s*\\label\{([^}]+)\}/)
+        let customId: string | undefined
+        if (labelMatch) {
+          customId = labelMatch[1].trim().replace(/[:\s]/g, '-')
+          afterHeadingIdx += labelMatch[0].length
+        }
+
         blocks.push({
           type: 'heading',
           level,
+          id: customId || slugify(rawTitle),
+          isStarred,
           children: parseLatexInline(rawTitle),
         })
-        cursor = balanced.endIdx + 1
+        cursor = afterHeadingIdx
         continue
       }
     }
@@ -1123,11 +1263,16 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
           continue
         }
 
-        if (/^(equation|align|gather|multline)\*?$/.test(name)) {
+        if (MATH_ENVIRONMENTS.has(name) || /^(equation|align|gather|multline)\*?$/.test(name)) {
+          const labelMatch = content.match(/\\label\{([^}]+)\}/)
           const cleanedMath = content.replace(/\\label\{[^}]*\}/g, '').trim()
+          const mathVal = /^(equation|align|gather|multline)\*?$/.test(name)
+            ? cleanedMath
+            : `\\begin{${name}}${env.args}\n${cleanedMath}\n\\end{${name}}`
           blocks.push({
             type: 'mathBlock',
-            value: cleanedMath,
+            id: labelMatch ? labelMatch[1].trim().replace(/[:\s]/g, '-') : undefined,
+            value: mathVal,
           })
           cursor = env.endIndex
           continue
@@ -1179,10 +1324,14 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
 
         if (name === 'figure' || name === 'figure*') {
           const captionMatch = content.match(/\\caption\{([^}]+)\}/)
+          const labelMatch = content.match(/\\label\{([^}]+)\}/)
           const imgMatch = content.match(/\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}/)
+          const figId = labelMatch ? labelMatch[1].trim().replace(/[:\s]/g, '-') : undefined
+
           if (imgMatch) {
             blocks.push({
               type: 'paragraph',
+              id: figId,
               children: [
                 {
                   type: 'image',
@@ -1191,14 +1340,40 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
                 },
               ],
             })
+          } else if (content.includes('\\begin{tikzpicture}')) {
+            const svg = renderTikzToSvg(content)
+            if (svg) {
+              blocks.push({
+                type: 'rawBlock',
+                id: figId,
+                content: `<div class="tikz-figure my-6 flex flex-col items-center overflow-x-auto text-center">${svg}</div>`,
+                markdown: `\n\n*(Vector Diagram: ${captionMatch ? captionMatch[1].trim() : 'TikZ Figure'})*\n\n`,
+              })
+            }
           }
+
           if (captionMatch) {
             blocks.push({
               type: 'paragraph',
+              id: figId && !imgMatch && !content.includes('\\begin{tikzpicture}') ? figId : undefined,
               children: [
                 { type: 'strong', children: [{ type: 'text', value: 'Figure: ' }] },
                 ...parseLatexInline(captionMatch[1]),
               ],
+            })
+          }
+          cursor = env.endIndex
+          continue
+        }
+
+        if (name === 'tikzpicture') {
+          const fullTikz = `\\begin{tikzpicture}${env.args}${env.content}\\end{tikzpicture}`
+          const svg = renderTikzToSvg(fullTikz)
+          if (svg) {
+            blocks.push({
+              type: 'rawBlock',
+              content: `<div class="tikz-diagram my-6 flex flex-col items-center overflow-x-auto text-center">${svg}</div>`,
+              markdown: `\n\n*(Vector Diagram: TikZ)*\n\n`,
             })
           }
           cursor = env.endIndex
@@ -1294,31 +1469,31 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
     // 10. TOC and Document indices
     const tocMatch = input.slice(cursor).match(/^\\(tableofcontents|listoftables|listoffigures)\b/)
     if (tocMatch) {
-      const label =
-        tocMatch[1] === 'tableofcontents'
-          ? 'Table of Contents'
-          : tocMatch[1] === 'listoftables'
-          ? 'List of Tables'
-          : 'List of Figures'
-      blocks.push({
-        type: 'heading',
-        level: 2,
-        children: [{ type: 'text', value: label }],
-      })
-      blocks.push({
-        type: 'paragraph',
-        children: [
-          {
-            type: 'emphasis',
-            children: [
-              {
-                type: 'text',
-                value: '(Document index automatically generated in compiled PDF/Word output)',
-              },
-            ],
-          },
-        ],
-      })
+      if (tocMatch[1] === 'tableofcontents') {
+        blocks.push({
+          type: 'heading',
+          level: 2,
+          id: 'table-of-contents',
+          children: [{ type: 'text', value: 'Table of Contents' }],
+        })
+        blocks.push({
+          type: 'list',
+          id: '__toc_placeholder__',
+          ordered: false,
+          items: [],
+        })
+        blocks.push({
+          type: 'thematicBreak',
+          isPageBreak: true,
+        })
+      } else {
+        const label = tocMatch[1] === 'listoftables' ? 'List of Tables' : 'List of Figures'
+        blocks.push({
+          type: 'heading',
+          level: 2,
+          children: [{ type: 'text', value: label }],
+        })
+      }
       cursor += tocMatch[0].length
       continue
     }
@@ -1326,7 +1501,7 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
     // 11. Regular Paragraph text: scan ahead until the next block delimiter
     const remaining = input.slice(cursor)
     const delimMatch = remaining.match(
-      /\n\s*(\n|\\(?:part|chapter|section|subsection|subsubsection|paragraph|cvsection|cvsubsection)\*?\s*\{|\\begin\{|\$\$|\\\[|###\s+|\\(?:tableofcontents|listoftables|listoffigures|input|include)\b|\\(?:hrule|hrulefill)\b|\\(?:pagestyle|thispagestyle|pagenumbering)\{[^}]*\}|\\(?:vspace|hspace)\*?\{[^}]*\}|\\bg\{|\\infobubble|\\roundpic|\\cvevent|\\cvdegree)/
+      /\n\s*(\n|\\(?:clearpage|newpage)\b|\\(?:part|chapter|section|subsection|subsubsection|paragraph|cvsection|cvsubsection)\*?\s*\{|\\begin\{|\$\$|\\\[|###\s+|\\(?:tableofcontents|listoftables|listoffigures|input|include)\b|\\(?:hrule|hrulefill)\b|\\(?:pagestyle|thispagestyle|pagenumbering)\{[^}]*\}|\\(?:vspace|hspace)\*?\{[^}]*\}|\\bg\{|\\infobubble|\\roundpic|\\cvevent|\\cvdegree)/
     )
     const paraEnd = delimMatch && delimMatch.index !== undefined ? cursor + delimMatch.index : input.length
     let paraText = input.slice(cursor, paraEnd).trim()
@@ -1464,6 +1639,40 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     if (docMatch) body = docMatch[1]
   }
 
+  // Expand \newcommand and \def macros with balanced brace matching (arxiv-latex-cleaner approach)
+  const macroMap: Record<string, string> = {}
+  let macroCursor = 0
+  while (macroCursor < cleanedContent.length) {
+    const cmdMatch = cleanedContent.slice(macroCursor).match(/\\(?:re)?newcommand\*?\s*\{?\\([a-zA-Z]+)\}?(?:\[0\])?\s*\{/)
+    if (!cmdMatch || cmdMatch.index === undefined) break
+    const startIdx = macroCursor + cmdMatch.index + cmdMatch[0].length
+    const name = cmdMatch[1]
+    const balanced = extractBalancedBraces(cleanedContent, startIdx)
+    if (balanced) {
+      macroMap[name] = balanced.content.trim()
+      macroCursor = balanced.endIdx + 1
+    } else {
+      macroCursor = startIdx
+    }
+  }
+  let defCursor = 0
+  while (defCursor < cleanedContent.length) {
+    const defMatch = cleanedContent.slice(defCursor).match(/\\def\s*\\([a-zA-Z]+)\s*\{/)
+    if (!defMatch || defMatch.index === undefined) break
+    const startIdx = defCursor + defMatch.index + defMatch[0].length
+    const name = defMatch[1]
+    const balanced = extractBalancedBraces(cleanedContent, startIdx)
+    if (balanced) {
+      macroMap[name] = balanced.content.trim()
+      defCursor = balanced.endIdx + 1
+    } else {
+      defCursor = startIdx
+    }
+  }
+  for (const [name, val] of Object.entries(macroMap)) {
+    body = body.replace(new RegExp(`\\\\${name}(?:\\{\\}|\\b)`, 'g'), val)
+  }
+
   // Preprocess \simpleheader (e.g. \simpleheader{headercolour}{Jack}{Sparrow}{Captain}{white})
   let simpleHeaderCandidate = ''
   let simpleHeaderRole = ''
@@ -1512,7 +1721,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   body = body
     .replace(/\\(pagestyle|thispagestyle|pagenumbering)\{[^}]*\}/g, '')
     .replace(/\\(vspace|hspace)\*?\{[^}]*\}/g, '')
-    .replace(/\\(newpage|clearpage|bigskip|medskip|smallskip|onehalfspacing|doublespacing|singlespacing)\b/g, '')
+    .replace(/\\(bigskip|medskip|smallskip|onehalfspacing|doublespacing|singlespacing)\b/g, '')
     .replace(/\\(hfill|vfill)\b/g, ' · ')
     .replace(/\\noindent\b/g, '')
 
@@ -1601,6 +1810,58 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     const cleanP1 = p1.replace(/\s*\$\|\$\s*/g, ' | ').replace(/\s*\$\\\|\$\s*/g, ' | ').replace(/\s+/g, ' ').replace(/--/g, '–').trim()
     const cleanP2 = p2.replace(/\s+/g, ' ').replace(/--/g, '–').trim()
     const replacement = `\n\n### ${cleanP1} *(${cleanP2})*\n\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
+  // Expand Awesome-CV macros: \cvskill, \cvhonor
+  while (true) {
+    const idx = body.indexOf('\\cvskill')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 8, 2)
+    if (!res) break
+    const [cat, skills] = res.args
+    const replacement = `\n\n**${cat.trim()}**: ${skills.trim()}\n\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
+  while (true) {
+    const idx = body.indexOf('\\cvhonor')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 8, 4)
+    if (!res) break
+    const [pos, title, loc, date] = res.args
+    const replacement = `\n\n**${pos.trim()}**, *${title.trim()}* — ${loc.trim()} *(${date.trim()})*\n\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
+  // Expand billryan/resume macros: \datedsubsection, \datedline, \role
+  while (true) {
+    const idx = body.indexOf('\\datedsubsection')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 16, 2)
+    if (!res) break
+    const [heading, date] = res.args
+    const replacement = `\n\n### ${heading.trim()} *(${date.trim()})*\n\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
+  while (true) {
+    const idx = body.indexOf('\\datedline')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 10, 2)
+    if (!res) break
+    const [content, date] = res.args
+    const replacement = `\n\n${content.trim()} — *(${date.trim()})*\n\n`
+    body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
+  }
+
+  while (true) {
+    const idx = body.indexOf('\\role')
+    if (idx === -1) break
+    const res = extractNBracedArgs(body, idx + 5, 2)
+    if (!res) break
+    const [role, tech] = res.args
+    const replacement = `\n\n*${role.trim()}* (${tech.trim()})\n\n`
     body = body.slice(0, idx) + replacement + body.slice(res.endIdx)
   }
 
@@ -1746,6 +2007,12 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   // 3. Parse Body Blocks sequentially with zero environment severance
   children.push(...parseLatexBodyBlocks(body))
 
+  // 4. Populate interactive Table of Contents if \tableofcontents was present
+  const tocIdx = children.findIndex((b) => b.type === 'list' && b.id === '__toc_placeholder__')
+  if (tocIdx !== -1) {
+    children[tocIdx] = buildTableOfContents(children, tocIdx)
+  }
+
   const stats = computeDocumentStats(children)
 
   return {
@@ -1761,5 +2028,142 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     children,
     stats,
   }
+}
+
+interface TocEntry {
+  level: number
+  title: string
+  id: string
+  prefix: string
+  children: TocEntry[]
+}
+
+function tocEntriesToListNode(entries: TocEntry[]): ListNode {
+  return {
+    type: 'list',
+    ordered: false,
+    items: entries.map((entry) => {
+      const pNode: ParagraphNode = {
+        type: 'paragraph',
+        children: [
+          {
+            type: 'link',
+            url: `#${entry.id}`,
+            children: [
+              {
+                type: 'text',
+                value: entry.prefix ? `${entry.prefix} ${entry.title}` : entry.title,
+              },
+            ],
+          },
+        ],
+      }
+      const itemChildren: (BlockNode | InlineNode)[] = [pNode]
+      if (entry.children && entry.children.length > 0) {
+        itemChildren.push(tocEntriesToListNode(entry.children))
+      }
+      return {
+        type: 'listItem',
+        children: itemChildren,
+      }
+    }),
+  }
+}
+
+function buildTableOfContents(children: BlockNode[], tocIdx: number): ListNode {
+  const headings = children.filter(
+    (b, idx) => b.type === 'heading' && idx !== tocIdx - 1 && (b as HeadingNode).id !== 'table-of-contents'
+  ) as HeadingNode[]
+
+  const rootEntries: TocEntry[] = []
+  let lastChap: TocEntry | null = null
+  let lastSec: TocEntry | null = null
+
+  let chapNum = 0
+  let secNum = 0
+  let subsecNum = 0
+
+  const usedSlugs = new Set<string>()
+
+  for (const h of headings) {
+    const rawTitle = extractInlineText(h.children).trim()
+    if (!rawTitle || rawTitle.toLowerCase() === 'table of contents') continue
+
+    // Assign / ensure unique slug ID on the heading if not already assigned
+    if (!h.id) {
+      let slug = slugify(rawTitle) || 'section'
+      if (usedSlugs.has(slug)) {
+        let i = 2
+        while (usedSlugs.has(`${slug}-${i}`)) i++
+        slug = `${slug}-${i}`
+      }
+      usedSlugs.add(slug)
+      h.id = slug
+    } else {
+      usedSlugs.add(h.id)
+    }
+
+    const isStarred = Boolean(h.isStarred)
+    let prefix = ''
+
+    if (h.level === 1) {
+      if (!isStarred) {
+        chapNum++
+        secNum = 0
+        subsecNum = 0
+        prefix = `${chapNum}.`
+      }
+      const entry: TocEntry = {
+        level: 1,
+        title: rawTitle,
+        id: h.id,
+        prefix,
+        children: [],
+      }
+      rootEntries.push(entry)
+      lastChap = entry
+      lastSec = null
+    } else if (h.level === 2) {
+      if (!isStarred) {
+        secNum++
+        subsecNum = 0
+        prefix = chapNum > 0 ? `${chapNum}.${secNum}` : `${secNum}.`
+      }
+      const entry: TocEntry = {
+        level: 2,
+        title: rawTitle,
+        id: h.id,
+        prefix,
+        children: [],
+      }
+      if (lastChap) {
+        lastChap.children.push(entry)
+      } else {
+        rootEntries.push(entry)
+      }
+      lastSec = entry
+    } else if (h.level === 3) {
+      if (!isStarred) {
+        subsecNum++
+        prefix = chapNum > 0 ? `${chapNum}.${secNum}.${subsecNum}` : `${secNum}.${subsecNum}`
+      }
+      const entry: TocEntry = {
+        level: 3,
+        title: rawTitle,
+        id: h.id,
+        prefix,
+        children: [],
+      }
+      if (lastSec) {
+        lastSec.children.push(entry)
+      } else if (lastChap) {
+        lastChap.children.push(entry)
+      } else {
+        rootEntries.push(entry)
+      }
+    }
+  }
+
+  return tocEntriesToListNode(rootEntries)
 }
 

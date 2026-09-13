@@ -27,8 +27,6 @@ export const Header: React.FC = () => {
       if (scrollTimerRef.current) clearTimeout(scrollTimerRef.current)
 
       scrollTimerRef.current = setTimeout(() => {
-        const scrollPosition = window.scrollY + 200
-
         // Near bottom edge of page -> activate issues
         if (
           window.innerHeight + window.scrollY >=
@@ -39,24 +37,24 @@ export const Header: React.FC = () => {
         }
 
         const sections = [
-          { id: 'issues', el: document.getElementById('issues') },
-          { id: 'faq', el: document.getElementById('faq') },
-          { id: 'about', el: document.getElementById('about') },
-          { id: 'guide', el: document.getElementById('guide') },
           { id: 'converter', el: document.getElementById('converter') },
+          { id: 'guide', el: document.getElementById('guide') },
+          { id: 'about', el: document.getElementById('about') },
+          { id: 'faq', el: document.getElementById('faq') },
+          { id: 'issues', el: document.getElementById('issues') },
         ]
 
+        // Find the last section whose top is scrolled past our threshold (200px)
+        let matched = 'converter'
         for (const section of sections) {
           if (section.el) {
-            const top = section.el.offsetTop
-            if (scrollPosition >= top) {
-              setActiveSection(section.id)
-              return
+            const rect = section.el.getBoundingClientRect()
+            if (rect.top <= 220) {
+              matched = section.id
             }
           }
         }
-
-        setActiveSection('converter')
+        setActiveSection(matched)
       }, 40)
     }
 
@@ -190,6 +188,7 @@ export const Header: React.FC = () => {
           {/* Accessible Motion Toggle */}
           <button
             onClick={cycleMotion}
+            aria-label={`Cycle animation motion mode (currently ${motionMode})`}
             className="inline-flex items-center justify-center whitespace-nowrap text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-white dark:bg-[#111111] hover:bg-[#F5EFE4] dark:hover:bg-[#1c1c1c] text-neutral-800 dark:text-white h-9 rounded-md px-2.5 transition-colors cursor-pointer shadow-2xs"
             title={`Motion: ${motionMode}`}
           >

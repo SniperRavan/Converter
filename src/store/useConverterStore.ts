@@ -11,52 +11,98 @@ import { createEmptyDocument } from '../core/stats'
 
 export const SAMPLE_DOCUMENT = `# Machine Learning Fundamentals
 
-Machine learning is **a subset of artificial intelligence** that enables systems to learn from data.
+Machine learning is **a foundational branch of artificial intelligence** that enables computational systems to infer patterns, generalize across high-dimensional distributions, and optimize objective functions directly from empirical data.
 
 > "The goal of machine learning is not to replace humans, but to amplify human intelligence."
 
 ## 1. Key Mathematical Formulations
 
-The linear regression cost function (Mean Squared Error) is defined as:
+The classical linear regression cost function (Mean Squared Error) is defined as:
 
 $$
 J(\\theta) = \\frac{1}{2m} \\sum_{i=1}^{m} (h_\\theta(x^{(i)}) - y^{(i)})^2
 $$
 
-The famous mass-energy equivalence $E = mc^2$ shows the relationship between mass and energy.
+The famous mass-energy equivalence $E = mc^2$ demonstrates the fundamental conservation principle between matter and energy.
 
-## 2. Model Performance Benchmarks
+### Scaled Dot-Product & Multi-Head Attention
+Given query matrix $Q \\in \\mathbb{R}^{n \\times d_k}$, key matrix $K \\in \\mathbb{R}^{m \\times d_k}$, and value matrix $V \\in \\mathbb{R}^{m \\times d_v}$:
+
+$$
+\\text{Attention}(Q, K, V) = \\text{softmax}\\left( \\frac{Q K^T}{\\sqrt{d_k}} \\right) V
+$$
+
+For multi-head attention with projection matrices $W_i^Q, W_i^K, W_i^V$ and output matrix $W^O$:
+
+$$
+\\text{MultiHead}(Q, K, V) = \\text{Concat}(\\text{head}_1, \\dots, \\text{head}_h) W^O
+$$
+
+### AdamW Optimizer with Decoupled Weight Decay
+At iteration $t$ with gradient $g_t$, learning rate $\\eta_t$, and weight decay factor $\\lambda$:
+
+$$
+m_t = \\beta_1 m_{t-1} + (1 - \\beta_1) g_t, \\quad v_t = \\beta_2 v_{t-1} + (1 - \\beta_2) g_t^2
+$$
+
+$$
+\\theta_t = \\theta_{t-1} - \\eta_t \\left( \\frac{m_t / (1 - \\beta_1^t)}{\\sqrt{v_t / (1 - \\beta_2^t)} + \\epsilon} + \\lambda \\theta_{t-1} \\right)
+$$
+
+### Parameter-Efficient Fine-Tuning (LoRA)
+For frozen pre-trained weights $W_0 \\in \\mathbb{R}^{d \\times k}$ and rank $r \\ll \\min(d, k)$:
+
+$$
+W = W_0 + \\Delta W = W_0 + \\frac{\\alpha}{r} B A, \\quad B \\in \\mathbb{R}^{d \\times r}, \\, A \\in \\mathbb{R}^{r \\times k}
+$$
+
+## 2. Model Performance & Efficiency Benchmarks
 
 | Model Architecture | Parameters | Accuracy (%) | Inference (ms) |
 |:---|:---:|---:|---:|
 | Transformer-Base | 110M | 94.2 | 14.5 |
 | Vision-Transformer | 86M | 92.8 | 11.2 |
+| Selective-Mamba | 2.8B | 91.5 | 4.2 |
+| Sparse-MoE | 46.7B | 95.8 | 16.8 |
 | LightConvNet | 12M | 88.5 | 3.1 |
 
-## 3. Implementation Example
+## 3. Production Training Implementation
 
-Here is a clean PyTorch module definition:
+Here is an optimized PyTorch module with Layer Normalization and residual connections:
 
 \`\`\`python
 import torch
 import torch.nn as nn
+from torch.cuda.amp import autocast
 
-class LinearModel(nn.Module):
-    def __init__(self, in_features: int, out_features: int):
+class TransformerBlock(nn.Module):
+    def __init__(self, d_model: int = 512, n_heads: int = 8):
         super().__init__()
-        self.linear = nn.Linear(in_features, out_features)
+        self.attn = nn.MultiheadAttention(d_model, n_heads, batch_first=True)
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.mlp = nn.Sequential(
+            nn.Linear(d_model, 4 * d_model),
+            nn.GELU(),
+            nn.Linear(4 * d_model, d_model),
+        )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.relu(self.linear(x))
+        # Pre-LN residual flow
+        norm_x = self.norm1(x)
+        attn_out, _ = self.attn(norm_x, norm_x, norm_x)
+        x = x + attn_out
+        x = x + self.mlp(self.norm2(x))
+        return x
 
-model = LinearModel(in_features=128, out_features=10)
-print(f"Parameters: {sum(p.numel() for p in model.parameters())}")
+model = TransformerBlock(d_model=512, n_heads=8)
+print(f"Total Trainable Parameters: {sum(p.numel() for p in model.parameters()):,}")
 \`\`\`
 
 ## 4. Key Advantages
-- **Privacy-First:** Deterministic local execution.
+- **Privacy-First:** Deterministic local execution inside client sandbox.
 - **Interoperability:** Markdown $\\rightarrow$ AST $\\rightarrow$ Multiple formats.
-- **Zero Latency:** Live real-time parsing.
+- **Zero Latency:** Sub-millisecond live AST compilation.
 `
 
 export const LLM_SAMPLE_DOCUMENT = `# AI Model Reasoning Output: Quantum Wave Equation
@@ -304,7 +350,7 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
       },
     })),
 
-  themeMode: (typeof window !== 'undefined' && (localStorage.getItem('convertion_theme') as 'dark' | 'light')) || 'dark',
+  themeMode: (typeof localStorage !== 'undefined' && (localStorage.getItem('convertion_theme') as 'dark' | 'light')) || 'dark',
   toggleThemeMode: () => {
     const next = get().themeMode === 'dark' ? 'light' : 'dark'
     if (typeof document !== 'undefined') {
@@ -320,13 +366,16 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
     set({ themeMode: next })
   },
 
-  motionMode: 'full',
+  motionMode: (typeof localStorage !== 'undefined' && (localStorage.getItem('convertion_motion') as 'full' | 'reduced' | 'off' | null)) || 'full',
   setMotionMode: (mode) => {
     set({ motionMode: mode })
     if (typeof document !== 'undefined') {
       document.documentElement.classList.remove('motion-off', 'motion-reduced')
       if (mode === 'off') document.documentElement.classList.add('motion-off')
       if (mode === 'reduced') document.documentElement.classList.add('motion-reduced')
+      try {
+        localStorage.setItem('convertion_motion', mode)
+      } catch {}
     }
   },
 

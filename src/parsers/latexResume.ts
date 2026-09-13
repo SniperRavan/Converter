@@ -1,17 +1,6 @@
 import type { NormalizedDocument } from '../core/types'
 import { computeDocumentStats } from '../core/stats'
 
-function extractBalancedBraces(str: string, startIdx: number): { content: string; endIdx: number } | null {
-  let depth = 1
-  for (let i = startIdx; i < str.length; i++) {
-    if (str[i] === '{') depth++
-    else if (str[i] === '}') {
-      depth--
-      if (depth === 0) return { content: str.slice(startIdx, i), endIdx: i }
-    }
-  }
-  return null
-}
 
 function extractNBracedArgs(str: string, startIdx: number, count: number): { args: string[]; endIdx: number } | null {
   const args: string[] = []
@@ -40,8 +29,7 @@ function extractNBracedArgs(str: string, startIdx: number, count: number): { arg
 
 function cleanLatexInline(text: string, primaryColor: string): { html: string; markdown: string } {
   let s = text
-    .replace(/\\small\b/g, '')
-    .replace(/\\footnotesize\b/g, '')
+    .replace(/\\(?:Huge|huge|LARGE|Large|normalsize|small|footnotesize)\b/g, '')
     .replace(/\\vspace\*?\{[^}]*\}/g, '')
     .replace(/\\hspace\*?\{[^}]*\}/g, '')
     .replace(/\\noindent\b/g, '')
@@ -50,6 +38,12 @@ function cleanLatexInline(text: string, primaryColor: string): { html: string; m
 
   // Convert math | and normalize spacing
   s = s.replace(/\s*\$\s*\\?\|\s*\$\s*/g, ' | ')
+
+  // Strip layout, sizing, and spacing commands
+  s = s
+    .replace(/\\(small|footnotesize|scriptsize|tiny|large|Large|LARGE|huge|Huge|normalsize)\b/g, '')
+    .replace(/\\(?:hspace|vspace)\*?\{[^}]*\}/g, '')
+    .replace(/\\noindent\b/g, '')
 
   // En and em dashes
   s = s.replace(/---/g, '—').replace(/--/g, '–')
@@ -138,16 +132,19 @@ export function parseLatexResume(content: string): NormalizedDocument | null {
   const centerMatch = tex.match(/\\begin\{center\}([\s\S]*?)\\end\{center\}/)
   if (centerMatch) {
     const centerBody = centerMatch[1]
-    const nameMatch = centerBody.match(/\\textbf\{\\Huge\s*(?:\\scshape)?\s*(?:\\color\{[^}]+\})?\s*([^}]+)\}/)
+    let nameCleanPattern: RegExp | null = null
+    const nameMatch =
+      centerBody.match(/\\textbf\{\\Huge\s*(?:\\scshape)?\s*(?:\\color\{[^}]+\})?\s*([^}]+)\}/) ||
+      centerBody.match(/\{\s*\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape)?\s*(?:\\textbf)?\{?([^}\\]+)\}?\s*\}/) ||
+      centerBody.match(/\\(?:Huge|huge|LARGE|Large)\s*(?:\\scshape)?\s*(?:\\textbf)?\{?([^}\\]+)\}?/)
+
     if (nameMatch) {
       candidateName = nameMatch[1].trim()
-    } else {
-      const hugeMatch = centerBody.match(/\\Huge\s*(?:\\scshape)?\s*(?:\\textbf)?\{?([^}\\]+)\}?/)
-      if (hugeMatch) candidateName = hugeMatch[1].trim()
+      nameCleanPattern = new RegExp(nameMatch[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     }
 
     const smallIdx = centerBody.indexOf('\\small')
-    const restOfCenter = smallIdx !== -1 ? centerBody.slice(smallIdx + 6) : centerBody.replace(/\\textbf\{\\Huge[\s\S]*?\}/, '')
+    let restOfCenter = smallIdx !== -1 ? centerBody.slice(smallIdx + 6) : (nameCleanPattern ? centerBody.replace(nameCleanPattern, '') : centerBody)
     const rawLines = restOfCenter
       .split(/\\\\(?:\[[^\]]*\])?/)
       .map(l => l.replace(/\\small\b/, '').trim())
@@ -171,7 +168,7 @@ export function parseLatexResume(content: string): NormalizedDocument | null {
   }
 
   // Parse sections
-  const sectionRegex = /\\section\{([^}]+)\}/g
+  const sectionRegex = /\\section\*?\{([^}]+)\}/g
   let m: RegExpExecArray | null
   const sectionList: { title: string; body: string }[] = []
   const sIndices: { title: string; index: number; endIdx: number }[] = []
@@ -192,6 +189,10 @@ export function parseLatexResume(content: string): NormalizedDocument | null {
     sectionList.push({ title: cur.title, body })
   }
 
+  if (sectionList.length === 0) {
+    return null
+  }
+
   function parseItemList(listStr: string): { html: string; md: string; items: string[] } {
     const items: string[] = []
     let cursor = 0
@@ -201,14 +202,18 @@ export function parseLatexResume(content: string): NormalizedDocument | null {
       const start = cursor + itemMatch.index
       const isResumeItem = listStr.slice(start, start + 11).startsWith('\\resumeItem')
       if (isResumeItem) {
-        const openBrace = listStr.indexOf('{', start)
-        if (openBrace !== -1) {
-          const extracted = extractBalancedBraces(listStr, openBrace + 1)
-          if (extracted) {
-            items.push(extracted.content.trim())
-            cursor = extracted.endIdx + 1
-            continue
-          }
+        // Support 2-arg \resumeItem{Title}{Body} or 1-arg \resumeItem{Text}
+        const twoArgs = extractNBracedArgs(listStr, start + 11, 2)
+        if (twoArgs) {
+          items.push(`\\textbf{${twoArgs.args[0]}: }${twoArgs.args[1]}`)
+          cursor = twoArgs.endIdx
+          continue
+        }
+        const oneArg = extractNBracedArgs(listStr, start + 11, 1)
+        if (oneArg) {
+          items.push(oneArg.args[0])
+          cursor = oneArg.endIdx
+          continue
         }
       }
       const afterItem = start + itemMatch[0].length
@@ -289,33 +294,71 @@ export function parseLatexResume(content: string): NormalizedDocument | null {
 
     const secBody = sec.body
 
-    // Case 1: \hfill distributed row (e.g. Interests & Hobbies)
-    if (secBody.includes('\\hfill')) {
-      const rawItems = secBody
+    const hasHeadings =
+      secBody.includes('\\resumeSubheading') ||
+      secBody.includes('\\resumeProjectHeading') ||
+      secBody.includes('\\resumeHeading')
+
+    // Case 1: \hfill distributed rows (e.g. Interests & Hobbies, Education)
+    if (secBody.includes('\\hfill') && !hasHeadings) {
+      const rawLines = secBody
         .replace(/\\noindent\b/g, '')
-        .replace(/\\small\b/g, '')
         .replace(/\\vspace\*?\{[^}]*\}/g, '')
         .replace(/\\hspace\*?\{[^}]*\}/g, '')
-        .replace(/[{}]/g, '')
-        .split('\\hfill')
+        .replace(/\\(small|footnotesize|scriptsize|tiny|large|Large|LARGE|huge|Huge|normalsize)\b/g, '')
+        .split(/\\\\/)
         .map(s => s.trim())
         .filter(Boolean)
 
-      const cleanItems = rawItems.map(it => cleanLatexInline(it, primaryColor))
+      let sectionRowsHtml = ''
+      let sectionRowsMd = ''
+
+      for (const line of rawLines) {
+        if (line.includes('\\hfill')) {
+          const parts = line.split('\\hfill').map(s => s.trim()).filter(Boolean)
+          const cleanParts = parts.map(it => cleanLatexInline(it, primaryColor)).filter(p => p.html.length > 0)
+          if (cleanParts.length === 1) {
+            sectionRowsHtml += `<div style="font-size: 11.5px; color: #334155; margin-bottom: 2px;">${cleanParts[0].html}</div>`
+          } else if (cleanParts.length === 2) {
+            sectionRowsHtml += `
+              <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 11.5px; color: #334155; margin-bottom: 2px;">
+                <div>${cleanParts[0].html}</div>
+                <div style="white-space: nowrap; margin-left: 12px; flex-shrink: 0; text-align: right;">${cleanParts[1].html}</div>
+              </div>
+            `
+          } else if (cleanParts.length > 2) {
+            sectionRowsHtml += `
+              <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 11.5px; color: #334155; margin-bottom: 2px; gap: 12px; flex-wrap: wrap;">
+                ${cleanParts.map((p, idx) => {
+                  const isLast = idx === cleanParts.length - 1
+                  const isFirst = idx === 0
+                  const align = isFirst ? 'text-align: left;' : isLast ? 'text-align: right; flex-shrink: 0;' : 'text-align: center;'
+                  return `<div style="${align}">${p.html}</div>`
+                }).join('')}
+              </div>
+            `
+          }
+          sectionRowsMd += `${cleanParts.map(p => p.markdown).join('  ·  ')}\n\n`
+        } else {
+          const clean = cleanLatexInline(line, primaryColor)
+          sectionRowsHtml += `<div style="font-size: 11.5px; color: #334155; margin-bottom: 2px;">${clean.html}</div>`
+          sectionRowsMd += `${clean.markdown}\n\n`
+        }
+      }
+
       renderedHtml += `
-        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: #334155; padding: 2px 4px 4px 4px;">
-          ${cleanItems.map(c => `<span>${c.html}</span>`).join('\n')}
+        <div style="padding: 2px 0 4px 0;">
+          ${sectionRowsHtml}
         </div>
       `
-      renderedMd += `${cleanItems.map(c => c.markdown).join('  ·  ')}\n\n`
+      renderedMd += `${sectionRowsMd}\n`
       continue
     }
 
     // Case 2: Standalone item list (e.g. Technical Skills, Certifications)
     if (
       (secBody.includes('\\resumeItemListStart') || secBody.includes('\\begin{itemize}')) &&
-      !secBody.includes('\\resumeSubheading') &&
-      !secBody.includes('\\resumeProjectHeading')
+      !hasHeadings
     ) {
       const listParsed = parseItemList(secBody)
       renderedHtml += listParsed.html
@@ -324,28 +367,78 @@ export function parseLatexResume(content: string): NormalizedDocument | null {
     }
 
     // Case 3: Pure paragraph / text (e.g. Summary)
-    if (!secBody.includes('\\resumeSubheading') && !secBody.includes('\\resumeProjectHeading')) {
+    if (!hasHeadings) {
       const { html, markdown } = cleanLatexInline(secBody, primaryColor)
       renderedHtml += `<p style="font-size: 11.5px; line-height: 1.5; color: #334155; margin: 3px 0 5px 0; text-align: justify;">${html}</p>`
       renderedMd += `${markdown}\n\n`
       continue
     }
 
-    // Case 4: Sequential subheadings and project headings
+    // Case 4: Sequential subheadings, project headings, and resume headings
     let cursor = 0
     while (cursor < secBody.length) {
       const subIdx = secBody.indexOf('\\resumeSubheading', cursor)
       const projIdx = secBody.indexOf('\\resumeProjectHeading', cursor)
+      const headIdx = secBody.indexOf('\\resumeHeading', cursor)
 
-      if (subIdx === -1 && projIdx === -1) {
-        break
-      }
+      const candidates = [
+        { type: 'sub', idx: subIdx },
+        { type: 'proj', idx: projIdx },
+        { type: 'head', idx: headIdx },
+      ].filter(c => c.idx !== -1).sort((a, b) => a.idx - b.idx)
 
-      if (subIdx !== -1 && (projIdx === -1 || subIdx < projIdx)) {
-        // \resumeSubheading{inst}{loc}{degree}{date}
-        const parsed = extractNBracedArgs(secBody, subIdx + 17, 4)
+      if (candidates.length === 0) break
+      const chosen = candidates[0]
+
+      if (chosen.type === 'head') {
+        // \resumeHeading{title/role}{date}{inst}{loc}
+        const parsed = extractNBracedArgs(secBody, chosen.idx + 14, 4)
         if (!parsed) {
-          cursor = subIdx + 17
+          cursor = chosen.idx + 14
+          continue
+        }
+        const [role, date, inst, loc] = parsed.args
+        const roleC = cleanLatexInline(role, primaryColor)
+        const dateC = cleanLatexInline(date, primaryColor)
+        const instC = cleanLatexInline(inst, primaryColor)
+        const locC = cleanLatexInline(loc, primaryColor)
+
+        const nextSub = secBody.indexOf('\\resumeSubheading', parsed.endIdx)
+        const nextProj = secBody.indexOf('\\resumeProjectHeading', parsed.endIdx)
+        const nextHead = secBody.indexOf('\\resumeHeading', parsed.endIdx)
+        let endOfEntry = secBody.length
+        if (nextSub !== -1 && nextSub < endOfEntry) endOfEntry = nextSub
+        if (nextProj !== -1 && nextProj < endOfEntry) endOfEntry = nextProj
+        if (nextHead !== -1 && nextHead < endOfEntry) endOfEntry = nextHead
+
+        const entryContent = secBody.slice(parsed.endIdx, endOfEntry)
+        const listParsed =
+          entryContent.includes('\\resumeItemListStart') || entryContent.includes('\\begin{itemize}')
+            ? parseItemList(entryContent)
+            : null
+
+        renderedHtml += `
+          <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; margin-top: 5px; margin-bottom: 1px;">
+            <div style="font-weight: 700; color: #0f172a;">${roleC.html}</div>
+            <div style="font-size: 11.5px; color: #475569; white-space: nowrap; margin-left: 12px; flex-shrink: 0;">${dateC.html}</div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; font-size: 11.5px; margin-bottom: 2px; color: #475569;">
+            <div><em>${instC.html}</em></div>
+            <div style="font-size: 11.5px; color: #475569; white-space: nowrap; margin-left: 12px; flex-shrink: 0;">${locC.html}</div>
+          </div>
+          ${listParsed ? listParsed.html : ''}
+        `
+
+        renderedMd += `### ${roleC.markdown} — *${instC.markdown}* (${dateC.markdown})\n*${locC.markdown}*\n`
+        if (listParsed) renderedMd += `${listParsed.md}\n\n`
+        else renderedMd += '\n'
+
+        cursor = endOfEntry
+      } else if (chosen.type === 'sub') {
+        // \resumeSubheading{inst}{loc}{degree}{date}
+        const parsed = extractNBracedArgs(secBody, chosen.idx + 17, 4)
+        if (!parsed) {
+          cursor = chosen.idx + 17
           continue
         }
         const [inst, loc, degree, date] = parsed.args
@@ -356,9 +449,11 @@ export function parseLatexResume(content: string): NormalizedDocument | null {
 
         const nextSub = secBody.indexOf('\\resumeSubheading', parsed.endIdx)
         const nextProj = secBody.indexOf('\\resumeProjectHeading', parsed.endIdx)
+        const nextHead = secBody.indexOf('\\resumeHeading', parsed.endIdx)
         let endOfEntry = secBody.length
         if (nextSub !== -1 && nextSub < endOfEntry) endOfEntry = nextSub
         if (nextProj !== -1 && nextProj < endOfEntry) endOfEntry = nextProj
+        if (nextHead !== -1 && nextHead < endOfEntry) endOfEntry = nextHead
 
         const entryContent = secBody.slice(parsed.endIdx, endOfEntry)
         const listParsed =
@@ -385,9 +480,9 @@ export function parseLatexResume(content: string): NormalizedDocument | null {
         cursor = endOfEntry
       } else {
         // \resumeProjectHeading{title}{date}
-        const parsed = extractNBracedArgs(secBody, projIdx + 21, 2)
+        const parsed = extractNBracedArgs(secBody, chosen.idx + 21, 2)
         if (!parsed) {
-          cursor = projIdx + 21
+          cursor = chosen.idx + 21
           continue
         }
         const [projTitle, date] = parsed.args
@@ -396,9 +491,11 @@ export function parseLatexResume(content: string): NormalizedDocument | null {
 
         const nextSub = secBody.indexOf('\\resumeSubheading', parsed.endIdx)
         const nextProj = secBody.indexOf('\\resumeProjectHeading', parsed.endIdx)
+        const nextHead = secBody.indexOf('\\resumeHeading', parsed.endIdx)
         let endOfEntry = secBody.length
         if (nextSub !== -1 && nextSub < endOfEntry) endOfEntry = nextSub
         if (nextProj !== -1 && nextProj < endOfEntry) endOfEntry = nextProj
+        if (nextHead !== -1 && nextHead < endOfEntry) endOfEntry = nextHead
 
         const entryContent = secBody.slice(parsed.endIdx, endOfEntry)
         const listParsed =

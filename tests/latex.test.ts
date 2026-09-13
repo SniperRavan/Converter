@@ -275,6 +275,12 @@ dylib}), and a dedicated Plugins Manager configuration tab within the Flameshot 
     expect(html).toContain('<h2>Summary</h2>')
     expect(html).not.toContain('\\vspace')
     expect(html).not.toContain('\\pagestyle')
+    expect(html).toContain('Listening to Music')
+    expect(html).toContain('Reading Books')
+    expect(html).toContain('Exploring Emerging Technologies')
+    expect(md).toContain('Listening to Music')
+    expect(md).toContain('Reading Books')
+    expect(md).toContain('Exploring Emerging Technologies')
   })
 
   it('parses real-world arXiv research papers with matrices and multi-line equations', () => {
@@ -501,6 +507,87 @@ nationality: English\\\\
     const ltx = renderToLatex(doc, { includePreamble: true })
     expect(ltx).toContain('John Doe')
   })
+
+  it('parses multi-page LaTeX report with page breaks between chapters and clearpage', () => {
+    const reportTex = `\\documentclass{report}
+\\begin{document}
+\\chapter{First Chapter}
+Content of chapter 1.
+\\clearpage
+\\chapter{Second Chapter}
+Content of chapter 2.
+\\newpage
+Final remarks.
+\\end{document}`
+
+    const doc = parseLatex(reportTex)
+    const pageBreaks = doc.children.filter((c) => c.type === 'thematicBreak' && (c as any).isPageBreak)
+    expect(pageBreaks.length).toBeGreaterThanOrEqual(2)
+
+    const html = renderToHtml(doc)
+    expect(html).toContain('class="page-break"')
+    expect(html).toContain('page-break-before: always')
+
+    const docx = renderToDocx(doc)
+    expect(docx.byteLength).toBeGreaterThan(500)
+  })
+
+  it('renders vector TikZ diagram in figure environment into SVG rawBlock', () => {
+    const tikzTex = `\\documentclass{report}
+\\begin{document}
+\\begin{figure}[htbp]
+\\centering
+\\begin{tikzpicture}
+  \\draw (0, 0) grid (32, -8);
+  \\draw (0, 0) rectangle (1, -2) node {FIN};
+\\end{tikzpicture}
+\\caption{Frame Format}
+\\label{fig:my-diagram}
+\\end{figure}
+See Figure~\\ref{fig:my-diagram}.
+\\end{document}`
+
+    const doc = parseLatex(tikzTex)
+    const svgBlock = doc.children.find((c) => c.type === 'rawBlock' && c.content.includes('<svg'))
+    expect(svgBlock).toBeTruthy()
+    expect(svgBlock?.id).toBe('fig-my-diagram')
+
+    const refLink = doc.children.find((c) => JSON.stringify(c).includes('#fig-my-diagram'))
+    expect(refLink).toBeTruthy()
+
+    const html = renderToHtml(doc)
+    expect(html).toContain('<svg')
+    expect(html).toContain('href="#fig-my-diagram"')
+  })
+
+  it('builds interactive Table of Contents with hyperlinked section anchors and citations', () => {
+    const tocTex = `\\documentclass{report}
+\\begin{document}
+\\chapter*{Declaration}
+I declare this work is original.\\cite{sourceA}
+\\tableofcontents
+\\chapter{Introduction}
+\\section{Motivation}
+Here is why.\\cite{sourceB}
+\\begin{thebibliography}{9}
+\\bibitem{sourceA} First Source Reference.
+\\bibitem{sourceB} Second Source Reference.
+\\end{thebibliography}
+\\end{document}`
+
+    const doc = parseLatex(tocTex)
+    const tocList = doc.children.find((c) => c.type === 'list' && JSON.stringify(c).includes('#introduction'))
+    expect(tocList).toBeTruthy()
+
+    const html = renderToHtml(doc)
+    expect(html).toContain('href="#declaration"')
+    expect(html).toContain('href="#introduction"')
+    expect(html).toContain('href="#motivation"')
+    expect(html).toContain('href="#cite-sourceA"')
+    expect(html).toContain('id="cite-sourceA"')
+    expect(html).toContain('id="cite-sourceB"')
+  })
 })
+
 
 

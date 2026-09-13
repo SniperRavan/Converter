@@ -60,6 +60,21 @@ npm run lint
 npm run build
 ```
 
+### 🔬 Offline Research & Intelligence Lab (Optional)
+For contributors working on deep LaTeX macro extraction or edge-case fuzzing:
+
+```bash
+# Scan sample papers and refresh static knowledge (src/core/knowledge/latex_macros.json)
+python3 tools/lab/run_lab.py scan
+
+# Run differential testing against Pandoc
+python3 tools/lab/run_lab.py diff
+
+# Run chaos stress test
+python3 tools/lab/run_lab.py fuzz 15
+```
+*(Note: Python and Pandoc are optional offline workbench tools. Standard web development only requires Node.js).*
+
 ---
 
 ## 🧩 Adding a New Feature or Parser

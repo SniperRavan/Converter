@@ -100,9 +100,59 @@ const SYMBOL_MAP: Record<string, string> = {
   '\\downarrow': '↓',
   '\\angle': '∠',
   '\\perp': '⊥',
+  '\\hbar': 'ℏ',
+  '\\hslash': 'ℏ',
+  '\\dagger': '†',
+  '\\ddagger': '‡',
+  '\\langle': '⟨',
+  '\\rangle': '⟩',
+  '\\ell': 'ℓ',
+  '\\Re': 'ℜ',
+  '\\Im': 'ℑ',
+  '\\wp': '℘',
+  '\\aleph': 'ℵ',
+  '\\prime': '′',
+  '\\degree': '°',
+  '\\ldots': '…',
+  '\\cdots': '⋯',
+  '\\vdots': '⋮',
+  '\\ddots': '⋱',
+  '\\lfloor': '⌊',
+  '\\rfloor': '⌋',
+  '\\lceil': '⌈',
+  '\\rceil': '⌉',
 }
 
-const SUPERSCRIPT_MAP: Record<string, string> = {
+const MATHCAL_MAP: Record<string, string> = {
+  H: 'ℋ',
+  L: 'ℒ',
+  Z: '𝒵',
+  D: '𝒟',
+  F: 'ℱ',
+  E: 'ℰ',
+  B: 'ℬ',
+  M: 'ℳ',
+  R: 'ℛ',
+  P: '𝒫',
+  C: '𝒞',
+  N: '𝒩',
+  Q: '𝒬',
+  A: '𝒜',
+  G: '𝒢',
+  I: 'ℐ',
+  J: '𝒥',
+  K: '𝒦',
+  O: '𝒪',
+  S: '𝒮',
+  T: '𝒯',
+  U: '𝒰',
+  V: '𝒱',
+  W: '𝒲',
+  X: '𝒳',
+  Y: '𝒴',
+}
+
+export const SUPERSCRIPT_MAP: Record<string, string> = {
   '0': '⁰',
   '1': '¹',
   '2': '²',
@@ -128,11 +178,28 @@ const SUPERSCRIPT_MAP: Record<string, string> = {
   'c': 'ᶜ',
   'd': 'ᵈ',
   'e': 'ᵉ',
+  'f': 'ᶠ',
+  'g': 'ᵍ',
+  'h': 'ʰ',
+  'j': 'ʲ',
   'k': 'ᵏ',
+  'o': 'ᵒ',
+  'p': 'ᵖ',
+  'r': 'ʳ',
+  's': 'ˢ',
   't': 'ᵗ',
+  'u': 'ᵘ',
+  'v': 'ᵛ',
+  'w': 'ʷ',
+  'z': 'ᶻ',
+  'N': 'ᴺ',
+  'T': 'ᵀ',
+  'M': 'ᴹ',
+  'H': 'ᴴ',
+  '†': '†',
 }
 
-const SUBSCRIPT_MAP: Record<string, string> = {
+export const SUBSCRIPT_MAP: Record<string, string> = {
   '0': '₀',
   '1': '₁',
   '2': '₂',
@@ -165,6 +232,30 @@ const SUBSCRIPT_MAP: Record<string, string> = {
   'u': 'ᵤ',
   'v': 'ᵥ',
   'x': 'ₓ',
+  'y': 'ᵧ',
+  'β': 'ᵦ',
+  'γ': 'ᵧ',
+  'ρ': 'ᵨ',
+  'φ': 'ᵩ',
+  'χ': 'ᵪ',
+}
+
+/**
+ * Extracts balanced curly brace contents starting at startIndex.
+ */
+function extractBraced(str: string, startIndex: number): { content: string; endIndex: number } | null {
+  if (str[startIndex] !== '{') return null
+  let depth = 0
+  for (let i = startIndex; i < str.length; i++) {
+    if (str[i] === '{') depth++
+    else if (str[i] === '}') {
+      depth--
+      if (depth === 0) {
+        return { content: str.slice(startIndex + 1, i), endIndex: i }
+      }
+    }
+  }
+  return null
 }
 
 /**
@@ -190,20 +281,28 @@ export function latexToUnicode(tex: string): string {
   s = s.replace(/\\sqrt\[([^\]]+)\]\{([^{}]+)\}/g, (_m, root, inner) => `${root}√(${inner.trim()})`)
   s = s.replace(/\\sqrt\{([^{}]+)\}/g, (_m, inner) => `√(${inner.trim()})`)
 
-  // 4. Convert Fractions: \frac{a}{b}
-  // Loop to handle nested fractions iteratively
-  let fracIter = 0
-  while (/\\frac\{([^{}]+)\}\{([^{}]+)\}/.test(s) && fracIter < 5) {
-    s = s.replace(/\\frac\{([^{}]+)\}\{([^{}]+)\}/g, (_m, num, den) => {
-      const n = num.trim()
-      const d = den.trim()
-      const simpleN = !/[+\-*/=]/.test(n)
-      const simpleD = !/[+\-*/=]/.test(d)
-      if (simpleN && simpleD && d.length <= 2) return `${n}/${d}`
-      if (simpleN) return `${n}/(${d})`
-      return `(${n})/(${d})`
-    })
-    fracIter++
+  // 4. Convert Fractions: \frac{a}{b} with balanced brace support
+  let fracIdx = 0
+  while ((fracIdx = s.indexOf('\\frac')) !== -1) {
+    let p = fracIdx + 5
+    while (p < s.length && /\s/.test(s[p])) p++
+    const num = extractBraced(s, p)
+    if (!num) break
+    p = num.endIndex + 1
+    while (p < s.length && /\s/.test(s[p])) p++
+    const den = extractBraced(s, p)
+    if (!den) break
+
+    const n = latexToUnicode(num.content).trim()
+    const d = latexToUnicode(den.content).trim()
+    const simpleN = !/[+\-*/=]/.test(n)
+    const simpleD = !/[+\-*/=]/.test(d)
+    let frac: string
+    if (simpleN && simpleD && d.length <= 2) frac = `${n}/${d}`
+    else if (simpleN) frac = `${n}/(${d})`
+    else frac = `(${n})/(${d})`
+
+    s = s.slice(0, fracIdx) + frac + s.slice(den.endIndex + 1)
   }
 
   // 5. Convert Superscripts: ^{...} or ^x
@@ -215,6 +314,7 @@ export function latexToUnicode(tex: string): string {
     return `^(${inner.trim()})`
   })
   s = s.replace(/\^([0-9a-zA-Z+-])/g, (_m, c: string) => (c in SUPERSCRIPT_MAP ? SUPERSCRIPT_MAP[c] : `^${c}`))
+  s = s.replace(/\^[†\u2020]/g, '†')
 
   // 6. Convert Subscripts: _{...} or _x
   s = s.replace(/_\{([^{}]+)\}/g, (_m, inner) => {
@@ -224,14 +324,49 @@ export function latexToUnicode(tex: string): string {
     }
     return `_(${inner.trim()})`
   })
-  s = s.replace(/_([0-9a-zA-Z+-])/g, (_m, c: string) => (c in SUBSCRIPT_MAP ? SUBSCRIPT_MAP[c] : `_${c}`))
+  s = s.replace(/_([0-9a-zA-Z+-\u0370-\u03FF])/g, (_m, c: string) => (c in SUBSCRIPT_MAP ? SUBSCRIPT_MAP[c] : `_${c}`))
 
-  // 7. Strip font and text enclosures while preserving inner content
-  s = s.replace(/\\(mathrm|mathbf|mathit|mathsf|mathtt|mathbb|mathcal|text)\{([^{}]+)\}/g, '$2')
+  // 7. Accents & Calligraphy
+  s = s.replace(/\\hat\{([^{}]+)\}/g, '$1\u0302')
+  s = s.replace(/\\hat\s*([a-zA-Z\u0370-\u03FF])/g, '$1\u0302')
+  s = s.replace(/\\vec\{([^{}]+)\}/g, '$1\u20D7')
+  s = s.replace(/\\vec\s*([a-zA-Z\u0370-\u03FF])/g, '$1\u20D7')
+  s = s.replace(/\\bar\{([^{}]+)\}/g, '$1\u0304')
+  s = s.replace(/\\bar\s*([a-zA-Z\u0370-\u03FF])/g, '$1\u0304')
+  s = s.replace(/\\dot\{([^{}]+)\}/g, '$1\u0307')
+  s = s.replace(/\\dot\s*([a-zA-Z\u0370-\u03FF])/g, '$1\u0307')
+  s = s.replace(/\\ddot\{([^{}]+)\}/g, '$1\u0308')
+  s = s.replace(/\\ddot\s*([a-zA-Z\u0370-\u03FF])/g, '$1\u0308')
+  s = s.replace(/\\tilde\{([^{}]+)\}/g, '$1\u0303')
+  s = s.replace(/\\tilde\s*([a-zA-Z\u0370-\u03FF])/g, '$1\u0303')
 
-  // 8. Clean delimiters: \left(, \right), \left[, \right], etc.
+  s = s.replace(/\\mathcal\{([A-Z])\}/g, (_m, char) => MATHCAL_MAP[char] || char)
+  s = s.replace(/\\mathcal\s*([A-Z])/g, (_m, char) => MATHCAL_MAP[char] || char)
+
+  // 8. Math functions without backslash
+  s = s.replace(
+    /\\(sin|cos|tan|sec|csc|cot|arcsin|arccos|arctan|sinh|cosh|tanh|exp|ln|log|lim|max|min|sup|inf|det|dim|ker|deg)(?![a-zA-Z])/g,
+    '$1'
+  )
+
+  // 9. Strip font and text enclosures while preserving inner content
+  const fontCommandRegex = /\\(mathrm|mathbf|mathit|mathsf|mathtt|mathbb|mathcal|text)\{([^{}]+)\}/g
+  while (fontCommandRegex.test(s)) {
+    s = s.replace(fontCommandRegex, '$2')
+  }
+
+  // 10. Bra-ket / Dirac notation
+  s = s.replace(/\\braket\{([^{}]+)\}/g, '⟨$1⟩')
+  s = s.replace(/\\ket\{([^{}]+)\}/g, '|$1⟩')
+  s = s.replace(/\\bra\{([^{}]+)\}/g, '⟨$1|')
+
+  // 11. Clean delimiters: \left., \right., \left\|, \right\|, \left, \right, \left(, \right), etc.
+  s = s.replace(/\\(left|right)\./g, '')
+  s = s.replace(/\\left\s*\\\|/g, '‖').replace(/\\right\s*\\\|/g, '‖')
+  s = s.replace(/\\\|/g, '‖')
   s = s.replace(/\\left([()[\]{}|])/g, '$1')
   s = s.replace(/\\right([()[\]{}|])/g, '$1')
+  s = s.replace(/\\(left|right)\s*/g, '')
   s = s.replace(/\\\{/g, '{').replace(/\\\}/g, '}')
 
   // 9. Remove LaTeX spacing commands

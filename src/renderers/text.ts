@@ -20,7 +20,20 @@ function renderBlockToPlainText(block: BlockNode, mathMode: 'unicode' | 'latex' 
 
     case 'blockquote': {
       const inner = block.children.map(c => renderBlockToPlainText(c, mathMode)).join('\n').trim()
-      return inner.split('\n').map(l => `  | ${l}`).join('\n') + '\n'
+      const lines = inner.split('\n')
+      if (lines.length > 0) {
+        if (block.calloutType) {
+          const type = block.calloutType.toUpperCase()
+          lines[0] = `[${type}] ${lines[0].replace(/^\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]\s*/i, '')}`.trim()
+        } else if (lines[0] && /^\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]/i.test(lines[0])) {
+          const match = lines[0].match(/^\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]\s*(.*)/i)
+          if (match) {
+            const type = match[1].toUpperCase()
+            lines[0] = `[${type}] ${match[2]}`.trim()
+          }
+        }
+      }
+      return lines.map(l => `  | ${l}`).join('\n') + '\n'
     }
 
     case 'codeBlock': {
@@ -39,11 +52,19 @@ function renderBlockToPlainText(block: BlockNode, mathMode: 'unicode' | 'latex' 
     case 'list': {
       return block.items
         .map((item, idx) => {
-          const prefix = block.ordered ? `${(block.start || 1) + idx}. ` : '• '
+          let prefix = block.ordered ? `${(block.start || 1) + idx}. ` : '• '
+          if (!block.ordered) {
+            if (item.checked === true) prefix = '[x] '
+            else if (item.checked === false) prefix = '[ ] '
+          }
           const content = item.children
             .map(child => {
               if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
-                return getInlineText(child.children, { mathMode })
+                let text = getInlineText(child.children, { mathMode })
+                if (!block.ordered && (item.checked === true || item.checked === false)) {
+                  text = text.replace(/^\[[xX ]\]\s*/, '')
+                }
+                return text
               }
               if ('type' in child && child.type === 'list') {
                 return renderBlockToPlainText(child, mathMode)
@@ -51,6 +72,9 @@ function renderBlockToPlainText(block: BlockNode, mathMode: 'unicode' | 'latex' 
               return ''
             })
             .join(' ')
+          if (!block.ordered && (content.startsWith('[x] ') || content.startsWith('[ ] '))) {
+            prefix = ''
+          }
           return `${prefix}${content}`
         })
         .join('\n') + '\n'

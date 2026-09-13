@@ -147,7 +147,7 @@ async function checkBing() {
         console.log(`     Crawled Pages: ${latest.CrawledPages || 0}, Errors: ${latest.CrawlErrors || 0}`)
       }
     }
-  } catch (err) {
+  } catch {
     console.log(`  ${dim('  (Crawl stats currently warming up)')}`)
   }
 
@@ -162,7 +162,7 @@ async function checkBing() {
         console.log(`     Query: "${bold(q.Query)}" -> Impressions: ${q.Impressions}, Clicks: ${q.Clicks}`)
       }
     }
-  } catch (err) {
+  } catch {
     console.log(`  ${dim('  (Query stats currently warming up)')}`)
   }
 
@@ -180,7 +180,7 @@ async function checkBing() {
         }
       }
     }
-  } catch (err) {
+  } catch {
     // Optional
   }
 }
@@ -298,7 +298,7 @@ async function checkGoogle() {
           console.log(`     Backlinks / Referrers: ${status.referringUrls.join(', ')}`)
         }
       }
-    } catch (e) {
+    } catch {
       // Optional
     }
   } catch (err) {

@@ -17,7 +17,6 @@ export const MobilePageBend: React.FC<MobilePageBendProps> = ({ children }) => {
   const contentRef = useRef<HTMLDivElement>(null)
   const topCreaseRef = useRef<HTMLDivElement>(null)
   const bottomCreaseRef = useRef<HTMLDivElement>(null)
-  const resetTimerRef = useRef<number | null>(null)
   const isMobileRef = useRef<boolean>(false)
 
   useEffect(() => {
@@ -102,8 +101,6 @@ export const MobilePageBend: React.FC<MobilePageBendProps> = ({ children }) => {
     return () => {
       window.removeEventListener('resize', checkMobile)
       window.removeEventListener('scroll', onScroll)
-      const timer = resetTimerRef.current
-      if (timer) window.clearTimeout(timer)
     }
   }, [motionMode])
 

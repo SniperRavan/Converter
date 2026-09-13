@@ -16,7 +16,7 @@
 
   <p align="center">
     <a href="https://github.com/sniperravan/Converter/actions"><img src="https://github.com/sniperravan/Converter/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-    <a href="https://github.com/sniperravan/Converter/actions"><img src="https://img.shields.io/badge/Tests-24%20passing-brightgreen?style=flat-square" alt="Tests" /></a>
+    <a href="https://github.com/sniperravan/Converter/actions"><img src="https://img.shields.io/badge/Tests-81%20passing-brightgreen?style=flat-square" alt="Tests" /></a>
     <a href="https://github.com/sniperravan"><img src="https://img.shields.io/badge/Author-Akash%20Das%20Dhibar-blueviolet?style=flat-square" alt="Author" /></a>
     <img src="https://img.shields.io/badge/React-19.0-61dafb?style=flat-square&logo=react" alt="React 19" />
     <img src="https://img.shields.io/badge/TypeScript-5.0-blue?style=flat-square&logo=typescript" alt="TypeScript" />
@@ -112,6 +112,11 @@ Found a tricky syntax edge case? The in-page **Issues** section connects directl
 * Requires zero GitHub accounts and zero Google sign-ins.
 * Collects zero visitor telemetry or IP tracking.
 
+### 6. 📄 Native Word (.docx) & Google Docs Mathematical Equations
+Exporting documents with complex formulas often results in flat text or broken images. Converter includes a dedicated OpenXML compiler:
+* **Native Office Math (OMML):** Generates `<m:oMathPara>` and `<m:oMath>` nodes directly without brittle `<mc:AlternateContent>` fallbacks, ensuring math renders flawlessly in Microsoft Word for Windows/Mac/Web, Google Docs, and LibreOffice Writer.
+* **High-Fidelity Clipboard Exporter:** The "Copy for Word" action emits semantic HTML styled with Microsoft Office MSO tags, preserving table boundaries and eliminating empty spacer rows.
+
 ---
 
 ## 📊 Supported Formats Matrix
@@ -119,7 +124,7 @@ Found a tricky syntax edge case? The in-page **Issues** section connects directl
 | Format | Ingestion (Input) | Live Preview | Direct Export | Clipboard Action |
 | :--- | :---: | :---: | :---: | :---: |
 | **LLM Mixed Stream** | ✅ Full Parser | ✅ Rich Preview | — | 📋 Dual-MIME Rich Text |
-| **Rich Text (WYSIWYG)** | — | ✅ Interactive | 📄 Word (`.doc`), PDF (`.pdf`) | 📋 Dual-MIME Rich Text |
+| **Rich Text (WYSIWYG)** | — | ✅ Interactive | 📑 Word (`.docx`), 📄 PDF (`.pdf`) | 📋 Dual-MIME Rich Text |
 | **Markdown (GFM)** | ✅ Auto-Detect | ✅ Live Syntax | 📝 Markdown (`.md`) | 📋 Raw Source |
 | **HTML5** | ✅ Semantic AST | ✅ Dual-Mode View | 🌐 HTML Document (`.html`) | 📋 Raw Source |
 | **LaTeX Mathematics** | ✅ KaTeX + Macros | ✅ Live Equations | 📐 LaTeX (`.tex`) | 📋 Raw Source |
@@ -194,6 +199,25 @@ npm run lint
 # Preview production build locally
 npm run preview
 ```
+
+---
+
+## 🔬 Offline Document Intelligence & Testing Lab (`tools/lab/`)
+
+To guarantee parsing resilience across cutting-edge machine learning papers (Transformers, LoRA, Mamba, MoE, VAEs, GNNs) and academic CVs without bloating the client-side JavaScript bundle, Converter includes an offline development and research workbench:
+
+* **Static Corpus Scanner (`corpus_scanner.py`):** Scans a rich corpus of real-world scientific documents to extract command arities, math environments, and package distributions into a typed static JSON knowledge base (`src/core/knowledge/latex_macros.json`). The TypeScript engine imports this knowledge at compile-time for zero-runtime-overhead macro resolution.
+* **Differential Testing Oracle (`differential_oracle.py`):** Benchmarks Converter's AST compilation directly against reference Pandoc builds to ensure structural parity, math preservation, and zero content loss.
+* **Pathological Chaos Fuzzer (`document_fuzzer.py`):** Generates high-stress edge cases (deeply nested tables, unbalanced braces, extreme matrices, Unicode stress) to verify zero crashes and deterministic sub-second processing.
+
+```bash
+# Run the complete offline research lab suite (Optional)
+python3 tools/lab/run_lab.py all
+```
+
+> [!NOTE]
+> **Zero-Server Client-Side Independence:**
+> The Python workbench in `tools/lab/` is purely for offline development, corpus extraction, and differential verification. The production web application is **100% client-side TypeScript** and requires **zero Python, zero Pandoc, and zero backend servers**. If you choose not to commit or push the `tools/` directory to GitHub, the web application, unit tests, and production builds will continue to function 100% identically!
 
 ---
 

@@ -57,6 +57,20 @@
   }
 }
 
+/* Hide scrollbar utility for overflow containers that shouldn't show a scrollbar track */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Touch scroll momentum for horizontal pill rows */
+.touch-scroll-x {
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+
 /* Background Atmosphere Grid & Mesh */
 .bg-grid-pattern {
   background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0);
@@ -177,4 +191,24 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 .dark .latex-formula,
 .dark img[src*="png.image"] {
   filter: invert(1) hue-rotate(180deg) contrast(1.1) brightness(1.2);
+}
+
+/* Print & Export Media Styles */
+@media print {
+  .page-break {
+    page-break-before: always !important;
+    break-before: page !important;
+    height: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+  .tikz-figure {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+  h1, h2 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
 }

@@ -1,14 +1,16 @@
-import { renderToDocx } from '../renderers/docx'
+import { renderToDocx, type DocxRenderOptions } from '../renderers/docx'
+import { renderToHtml } from '../renderers/html'
 import type { NormalizedDocument } from '../core/types'
 import { mml2omml } from 'mathml2omml'
+import { convertMathMlToSemanticHtml } from './mathSemantic'
 
 /**
  * Export helpers for Word (.docx/.doc), PDF, HTML, and Markdown
  */
 
-export function exportToDocx(doc: NormalizedDocument, title?: string) {
+export function exportToDocx(doc: NormalizedDocument, title?: string, options?: DocxRenderOptions) {
   const finalTitle = title || doc.metadata?.title || 'document'
-  const bytes = renderToDocx(doc)
+  const bytes = renderToDocx(doc, options)
   const blob = new Blob([bytes as unknown as BlobPart], {
     type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   })
@@ -22,10 +24,10 @@ export function exportToDocx(doc: NormalizedDocument, title?: string) {
   URL.revokeObjectURL(url)
 }
 
-export function exportToWord(htmlBody: string, title?: string, doc?: NormalizedDocument) {
+export function exportToWord(htmlBody: string, title?: string, doc?: NormalizedDocument, options?: DocxRenderOptions) {
   const finalTitle = title || doc?.metadata?.title || 'document'
   if (doc) {
-    exportToDocx(doc, finalTitle)
+    exportToDocx(doc, finalTitle, options)
     return
   }
 
@@ -34,8 +36,8 @@ export function exportToWord(htmlBody: string, title?: string, doc?: NormalizedD
     // Strip table-container div so Word does not collapse table columns
     .replace(/<div class="table-container"[^>]*>\s*([\s\S]*?)\s*<\/div>/gi, '$1')
     .replace(/<table(?![^>]*border=)[^>]*>/gi, '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 12pt 0; border: 1pt solid #cbd5e1; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">')
-    .replace(/<th(?![^>]*style=)[^>]*>/gi, '<th style="border: 1pt solid #cbd5e1; background-color: #f1f5f9; padding: 6pt 8pt; font-weight: bold;">')
-    .replace(/<td(?![^>]*style=)[^>]*>/gi, '<td style="border: 1pt solid #cbd5e1; padding: 6pt 8pt;">')
+    .replace(/<th\b(?![^>]*style=)[^>]*>/gi, '<th style="border: 1pt solid #cbd5e1; background-color: #f1f5f9; padding: 6pt 8pt; font-weight: bold;">')
+    .replace(/<td\b(?![^>]*style=)[^>]*>/gi, '<td style="border: 1pt solid #cbd5e1; padding: 6pt 8pt;">')
 
   // Convert MathML equations to OMML for Word HTML compatibility
   processedHtml = processedHtml.replace(/<math[\s\S]*?<\/math>/gi, (match) => {
@@ -117,6 +119,17 @@ export function exportToWord(htmlBody: string, title?: string, doc?: NormalizedD
       border-top: 1pt solid #cbd5e1;
       margin: 10pt 0;
     }
+    .page-break {
+      page-break-before: always;
+      mso-break-type: section-break;
+      clear: both;
+      height: 0;
+      margin: 0;
+    }
+    .tikz-figure {
+      margin: 12pt auto;
+      text-align: center;
+    }
     table {
       border-collapse: collapse;
       width: 100%;
@@ -176,11 +189,85 @@ export function exportToWord(htmlBody: string, title?: string, doc?: NormalizedD
   URL.revokeObjectURL(url)
 }
 
-export function exportToPdf(htmlBody: string, title = 'document') {
-  const printWindow = window.open('', '_blank')
-  if (!printWindow) return
+/**
+ * Formats HTML into Microsoft Word-compatible clipboard markup.
+ * Uses Universal Semantic HTML and Word MSO styling to guarantee fractions, superscripts,
+ * subscripts, and tables paste cleanly into Microsoft Word without corruption or flattening.
+ */
+export function formatForWordClipboard(htmlBody: string): string {
+  let processedHtml = htmlBody
+    .replace(/<div class="table-container"[^>]*>\s*([\s\S]*?)\s*<\/div>/gi, '$1')
+    .replace(/<table(?![^>]*border=)[^>]*>/gi, '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; margin: 12pt 0; border: 1pt solid #cbd5e1; mso-table-lspace: 0pt; mso-table-rspace: 0pt;">')
+    .replace(/<th\b(?![^>]*style=)[^>]*>/gi, '<th style="border: 1pt solid #cbd5e1; background-color: #f1f5f9; padding: 6pt 8pt; font-weight: bold;">')
+    .replace(/<td\b(?![^>]*style=)[^>]*>/gi, '<td style="border: 1pt solid #cbd5e1; padding: 6pt 8pt;">')
 
-  printWindow.document.write(`<!DOCTYPE html>
+  // Convert any raw MathML to Semantic HTML so Word clipboard paste does not flatten it
+  processedHtml = processedHtml.replace(/<math[\s\S]*?<\/math>/gi, (match) => {
+    return convertMathMlToSemanticHtml(match)
+  })
+
+  return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+<head>
+  <meta charset="utf-8">
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotOptimizeForBrowser/>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    body {
+      font-family: Calibri, 'Segoe UI', Arial, sans-serif;
+      font-size: 11pt;
+      color: #0f172a;
+      line-height: 1.5;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: 12pt 0;
+      mso-table-lspace: 0pt;
+      mso-table-rspace: 0pt;
+    }
+    th {
+      border: 1pt solid #cbd5e1;
+      background-color: #f1f5f9;
+      padding: 6pt 8pt;
+      font-weight: bold;
+    }
+    td {
+      border: 1pt solid #cbd5e1;
+      padding: 6pt 8pt;
+    }
+    .math-block {
+      text-align: center;
+      margin: 12pt 0;
+      font-family: 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif;
+    }
+    .math-inline {
+      font-family: 'Cambria Math', 'STIX Two Math', 'Times New Roman', serif;
+    }
+    .math-frac {
+      display: inline-block;
+      vertical-align: -0.38em;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+<!--StartFragment-->
+${processedHtml}
+<!--EndFragment-->
+</body>
+</html>`
+}
+
+export function exportToPdf(htmlBody: string, title = 'document', doc?: NormalizedDocument) {
+  const content = doc ? renderToHtml(doc, { includeWrapper: false, mathMode: 'katex' }) : htmlBody
+  const htmlDoc = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
@@ -213,8 +300,21 @@ export function exportToPdf(htmlBody: string, title = 'document') {
     code { font-family: 'Consolas', 'Courier New', monospace; background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
     pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; font-family: 'Consolas', monospace; font-size: 0.9em; }
     blockquote { border-left: 4px solid #003884; padding-left: 12px; color: #475569; margin: 12px 0; }
-    .math-block { margin: 16px 0; text-align: center; font-family: 'Cambria Math', 'STIX Two Math', 'DejaVu Serif', serif; }
-    math, .katex { font-size: 1.05em; }
+    .math-block { margin: 16px 0; text-align: center; }
+    .katex-display { margin: 16px 0; text-align: center; }
+    .katex { font-size: 1.08em; text-rendering: auto; }
+    math { font-size: 1.05em; }
+    .page-break {
+      page-break-before: always;
+      break-before: page;
+      height: 0;
+      margin: 0;
+      border: none;
+    }
+    .tikz-figure {
+      margin: 16px auto;
+      text-align: center;
+    }
     @media print {
       body {
         padding: 0;
@@ -224,11 +324,23 @@ export function exportToPdf(htmlBody: string, title = 'document') {
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
+      .page-break {
+        page-break-before: always !important;
+        break-before: page !important;
+        height: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        padding: 0 !important;
+      }
+      .tikz-figure {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
       table, tr, td, th {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
-      .math-block, pre, blockquote, .latex-formula {
+      .math-block, .katex-display, pre, blockquote, .latex-formula {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
       }
@@ -240,21 +352,68 @@ export function exportToPdf(htmlBody: string, title = 'document') {
   </style>
 </head>
 <body>
-  ${htmlBody}
+  ${content}
   <script>
     const doPrint = () => {
+      window.focus();
       window.print();
-      setTimeout(() => window.close(), 1000);
     };
+    window.addEventListener('afterprint', () => {
+      try { window.close(); } catch (_) {}
+    });
     if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(doPrint).catch(doPrint);
+      document.fonts.ready.then(() => setTimeout(doPrint, 150)).catch(doPrint);
     } else {
-      window.onload = doPrint;
+      window.addEventListener('load', () => setTimeout(doPrint, 250));
     }
   </script>
 </body>
-</html>`)
-  printWindow.document.close()
+</html>`
+
+  const printWindow = window.open('', '_blank')
+  if (printWindow) {
+    printWindow.document.write(htmlDoc)
+    printWindow.document.close()
+    return
+  }
+
+  // BUG-09 Fallback: if browser blocks window.open popup, print via hidden iframe
+  try {
+    const iframe = document.createElement('iframe')
+    iframe.style.position = 'fixed'
+    iframe.style.right = '0'
+    iframe.style.bottom = '0'
+    iframe.style.width = '0'
+    iframe.style.height = '0'
+    iframe.style.border = '0'
+    iframe.style.visibility = 'hidden'
+    document.body.appendChild(iframe)
+
+    const iframeDoc = iframe.contentWindow?.document
+    if (iframeDoc) {
+      iframeDoc.write(htmlDoc)
+      iframeDoc.close()
+      setTimeout(() => {
+        try {
+          iframe.contentWindow?.focus()
+          iframe.contentWindow?.print()
+        } finally {
+          setTimeout(() => {
+            if (document.body.contains(iframe)) {
+              document.body.removeChild(iframe)
+            }
+          }, 2000)
+        }
+      }, 500)
+      return
+    }
+  } catch (err) {
+    console.error('PDF print fallback failed:', err)
+  }
+
+  if (typeof window !== 'undefined') {
+    alert('Popup blocked. Please allow popups or use your browser\'s Print dialog to export as PDF.')
+  }
 }
 
 export function exportToFile(content: string, filename: string, mimeType: string) {

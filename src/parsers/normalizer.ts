@@ -2,6 +2,7 @@
  * Universal text normalizer for mixed LLM streaming outputs, terminal tables,
  * Unicode box drawing, checklists, and non-standard markdown delimiters.
  */
+import { SUPERSCRIPT_MAP, SUBSCRIPT_MAP } from '../utils/mathUnicode'
 
 /**
  * Normalizes ASCII and Unicode Box Tables (including CLI/terminal multi-line wrapped cells)
@@ -305,6 +306,12 @@ export function normalizeUniversalInput(rawText: string): string {
   if (!rawText) return ''
   let text = rawText
 
+  // 0a. Strip invisible Unicode zero-width characters (ZWSP, ZWNJ, ZWJ, BOM)
+  text = text.replace(/[\u200B-\u200D\uFEFF]/g, '')
+
+  // 0b. Normalize colon-indexed lists (e.g. 0: "...", 1: "...") into standard Markdown ordered lists
+  text = text.replace(/^([ \t]*\d+)[:][ \t]+/gm, '$1. ')
+
   // Pre-normalize isolated single $ block fences from LLMs
   text = fixSingleDollarBlocks(text)
 
@@ -325,9 +332,9 @@ export function normalizeUniversalInput(rawText: string): string {
   // e.g. "final$|\psi\rangle$" -> "final $|\psi\rangle$", "$\hat{H}$governs" -> "$\hat{H}$ governs", "$\rightarrow$AST" -> "$\rightarrow$ AST"
   text = fixMathSurroundingSpacing(text)
 
-  // 3c. Convert GitHub Flavored Markdown alerts (> [!NOTE]) into clean blockquote prefixes
-  text = text.replace(/^>[ \t]*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\][ \t]*$/gim, (_m, alertType) => {
-    return `> **${alertType.toUpperCase()}:**`
+  // 3c. Normalize GitHub Flavored Markdown alerts (> [!NOTE])
+  text = text.replace(/^>[ \t]*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]/gim, (_m, alertType) => {
+    return `> [!${alertType.toUpperCase()}]`
   })
 
   // 3d. Normalize author separator \and into middle dot
@@ -444,6 +451,29 @@ export function normalizeUniversalInput(rawText: string): string {
     if (/<(table|div)[\s>]/i.test(inner)) return _match
     return '\n\n' + inner.trim() + '\n\n'
   })
+
+  // 9d. Pandoc Smart Typography & Punctuation
+  // En-dash between numbers/ranges: 1990--2020 -> 1990–2020, pp. 12--15 -> pp. 12–15
+  text = text.replace(/(\b\d+)\s*--\s*(\d+\b)/g, '$1–$2')
+  // Em-dash between words: word---word -> word—word
+  text = text.replace(/([a-zA-Z0-9)])\s*---\s*([a-zA-Z0-9(])/g, '$1—$2')
+  // Ellipses: word... -> word…
+  text = text.replace(/([a-zA-Z0-9\u00C0-\u024F])\.\.\.(?!\.)/g, '$1…')
+
+  // 9e. Pandoc Subscripts (~sub~) and Superscripts (^sup^) and HTML <sub> / <sup>
+  text = text
+    .replace(/<sub\b[^>]*>([\s\S]*?)<\/sub>/gi, (_m, inner) => {
+      return inner.split('').map((c: string) => SUBSCRIPT_MAP[c] || c).join('')
+    })
+    .replace(/<sup\b[^>]*>([\s\S]*?)<\/sup>/gi, (_m, inner) => {
+      return inner.split('').map((c: string) => SUPERSCRIPT_MAP[c] || c).join('')
+    })
+    .replace(/~([a-zA-Z0-9+\-=()]{1,6})~/g, (_m, inner) => {
+      return inner.split('').map((c: string) => SUBSCRIPT_MAP[c] || c).join('')
+    })
+    .replace(/\^([a-zA-Z0-9+\-=()]{1,6})\^/g, (_m, inner) => {
+      return inner.split('').map((c: string) => SUPERSCRIPT_MAP[c] || c).join('')
+    })
 
   return text
 }

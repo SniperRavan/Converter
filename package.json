@@ -37,13 +37,18 @@
     "seo:ping": "node scripts/seo.mjs ping",
     "seo:bing": "node scripts/seo.mjs bing",
     "seo:google": "node scripts/seo.mjs google",
-    "seo:health": "node scripts/seo.mjs health"
+    "seo:health": "node scripts/seo.mjs health",
+    "lab": "python3 tools/lab/run_lab.py all",
+    "lab:diff": "python3 tools/lab/run_lab.py diff",
+    "lab:fuzz": "python3 tools/lab/run_lab.py fuzz",
+    "lab:scan": "python3 tools/lab/run_lab.py scan"
   },
   "dependencies": {
     "clsx": "^2.1.1",
     "dompurify": "^3.4.14",
     "fflate": "^0.8.3",
     "katex": "^0.18.5",
+    "linkedom": "^0.18.13",
     "lucide-react": "^1.40.0",
     "mathml2omml": "^0.5.0",
     "react": "^19.2.8",

@@ -92,11 +92,17 @@ Equivalence: $E=mc^2$
     expect(docXml).toContain('Machine Learning Fundamentals')
     // Heading styling must be applied to text runs
     expect(docXml).toMatch(/<w:rPr><w:b\/><w:color w:val="003884"\/><w:sz w:val="36"\/><\/w:rPr><w:t xml:space="preserve">Machine Learning Fundamentals<\/w:t>/)
-    // Contains OMML Office Math
+    // Contains native OMML Office Math directly inside paragraph (native Word & Google Docs standard)
+    expect(docXml).not.toContain('<mc:AlternateContent>')
     expect(docXml).toContain('<m:oMath')
     expect(docXml).toContain('J(θ)=')
-    // Contains native Word table
+    // Inline math must also be native OMML
+    expect(docXml).toContain('E=m')
+    // Contains native Word table with explicit grid and cell widths
     expect(docXml).toContain('<w:tbl>')
+    expect(docXml).toContain('<w:tblGrid>')
+    expect(docXml).toContain('<w:gridCol')
+    expect(docXml).toContain('<w:tcW')
     expect(docXml).toContain('Transformer-Base')
     expect(docXml).toContain('<w:tblHeader/>')
   })
@@ -131,5 +137,95 @@ Details here.`
     expect(md).toContain('final $|\\psi\\rangle$')
     expect(md).toContain('$\\hat{H}$ governs')
   })
+
+  it('ensures docx math export has zero bare text and zero undefined styles in OMML', async () => {
+    const { renderToDocx } = await import('../src/renderers/docx')
+    const { unzipSync, strFromU8 } = await import('fflate')
+
+    const md = `$$F(k) = \\sum_{n=0}^{N-1} f(n) e^{-i 2\\pi k n / N}$$`
+    const doc = parseMarkdown(md)
+    const bytes = renderToDocx(doc)
+    const unzipped = unzipSync(bytes)
+    const docXml = strFromU8(unzipped['word/document.xml'])
+
+    expect(docXml).not.toContain('m:val="undefined"')
+    // Bare text check: (n) must be wrapped in <m:r><m:t>
+    expect(docXml).toContain('<m:r><m:t xml:space="preserve">(n)</m:t></m:r>')
+    expect(docXml).toContain('<m:oMath')
+  })
+
+  it('renders HTML with mathMode katex containing KaTeX HTML classes', () => {
+    const md = `Inline $x^2 + y^2 = z^2$ and block:\n\n$$E = mc^2$$`
+    const doc = parseMarkdown(md)
+    const html = renderToHtml(doc, { includeWrapper: false, mathMode: 'katex' })
+    expect(html).toContain('class="katex"')
+    expect(html).toContain('class="katex-html"')
+  })
+
+  it('renders docx with native OMML equations compatible with Microsoft Word and Google Docs', async () => {
+    const { renderToDocx } = await import('../src/renderers/docx')
+    const { SAMPLE_DOCUMENT } = await import('../src/store/useConverterStore')
+    const doc = parseMarkdown(SAMPLE_DOCUMENT)
+    const bytes = renderToDocx(doc)
+    const { unzipSync, strFromU8 } = await import('fflate')
+    const unzipped = unzipSync(bytes)
+    const docXml = strFromU8(unzipped['word/document.xml'])
+
+    // Native OMML Office Math is emitted directly without mc:AlternateContent (which Word discards)
+    expect(docXml).not.toContain('<mc:AlternateContent>')
+    expect(docXml).not.toContain('mc:Ignorable="m"')
+    expect(docXml).toContain('<m:oMathPara>')
+    expect(docXml).toContain('<m:oMathParaPr>')
+    expect(docXml).toContain('<m:jc m:val="center"/>')
+    expect(docXml).toContain('<m:oMath')
+    expect(docXml).toContain('J(θ)=')
+    // Inline math must also be native OMML
+    expect(docXml).toContain('E=m')
+    expect(docXml).toContain('→')
+  })
+
+  it('verifies LibreOffice successfully converts generated docx to pdf without errors', async () => {
+    const { execSync } = await import('child_process')
+    const fs = await import('fs')
+    const { renderToDocx } = await import('../src/renderers/docx')
+    const { SAMPLE_DOCUMENT } = await import('../src/store/useConverterStore')
+
+    const doc = parseMarkdown(SAMPLE_DOCUMENT)
+    const bytes = renderToDocx(doc)
+    const tmpDocx = '/tmp/test_verify_libreoffice.docx'
+    const tmpPdf = '/tmp/test_verify_libreoffice.pdf'
+
+    const sampleDocxPath = '/home/sniperravan/Desktop/Projects/Convertion/.local/example/samples/machine-learning-fundamentals.docx'
+    if (fs.existsSync(sampleDocxPath)) {
+      fs.writeFileSync(sampleDocxPath, bytes)
+    }
+
+    fs.writeFileSync(tmpDocx, bytes)
+    try {
+      execSync(`libreoffice --headless --convert-to pdf --outdir /tmp ${tmpDocx}`, { stdio: 'pipe' })
+      expect(fs.existsSync(tmpPdf)).toBe(true)
+      const text = execSync(`pdftotext ${tmpPdf} -`, { stdio: 'pipe' }).toString()
+
+      // The headings, body, table content, and text must be intact
+      expect(text).toContain('Machine Learning Fundamentals')
+      expect(text).toContain('Transformer-Base')
+      expect(text).toContain('Privacy-First')
+    } finally {
+      if (fs.existsSync(tmpDocx)) fs.unlinkSync(tmpDocx)
+      if (fs.existsSync(tmpPdf)) fs.unlinkSync(tmpPdf)
+    }
+  })
+
+  it('formats HTML for Word clipboard without corrupting thead and without extra empty table row', async () => {
+    const { formatForWordClipboard } = await import('../src/utils/exporters')
+    const rawHtml = `<table border="1"><thead><tr><th>Header 1</th><th>Header 2</th></tr></thead><tbody><tr><td>Val 1</td><td>Val 2</td></tr></tbody></table>`
+    const clipboard = formatForWordClipboard(rawHtml)
+
+    // Must NOT have a corrupted stray <th before <tr>
+    expect(clipboard).not.toContain('<th style="border: 1pt solid #cbd5e1; background-color: #f1f5f9; padding: 6pt 8pt; font-weight: bold;"><tr>')
+    expect(clipboard).toContain('<thead><tr>')
+    expect(clipboard).toContain('<th')
+  })
 })
+
 

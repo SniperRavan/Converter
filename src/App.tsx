@@ -1,6 +1,5 @@
 import { useEffect, Suspense, lazy } from 'react'
 import { Header } from './components/Header'
-import { HeroSection } from './components/HeroSection'
 import { Workspace } from './components/Workspace'
 import { FluidCanvas } from './components/canvasui/FluidCanvas'
 import { MobilePageBend } from './components/MobilePageBend'
@@ -36,11 +35,8 @@ function App() {
       <MobilePageBend>
         {/* Main Page Container */}
         <main className="relative z-10 flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Hero Section */}
-          <HeroSection />
-
           {/* 2-Column Side-by-Side Converter Studio */}
-          <div id="converter" className="mt-2 mb-10 scroll-mt-20">
+          <div id="converter" className="mt-6 sm:mt-8 mb-10 scroll-mt-24">
             <Workspace />
           </div>
 

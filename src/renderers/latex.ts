@@ -2,13 +2,13 @@ import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
 
 function escapeLatex(text: string): string {
   return text
-    .replace(/\\/g, '\u0000BACKSLASH\u0000')
+    .replace(/\\/g, '__LATEX_BS_TOKEN__')
     .replace(/([&%$#_{}])/g, '\\$1')
     .replace(/~/g, '\\textasciitilde{}')
     .replace(/\^/g, '\\textasciicircum{}')
     .replace(/</g, '\\textless{}')
     .replace(/>/g, '\\textgreater{}')
-    .replace(/\u0000BACKSLASH\u0000/g, '\\textbackslash{}')
+    .replace(/__LATEX_BS_TOKEN__/g, '\\textbackslash{}')
 }
 
 function renderInlineToLatex(node: InlineNode): string {

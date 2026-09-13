@@ -132,6 +132,9 @@ function mapMdastInline(node: any): InlineNode | null {
       return { type: 'text', value: node.value }
     }
 
+    case 'break':
+      return { type: 'text', value: '\n' }
+
     default:
       // Fallback for unknown inlines
       if (node.value) {
@@ -167,13 +170,42 @@ function mapMdastBlock(node: any): BlockNode | null {
         children: (node.children || []).map(mapMdastInline).filter(Boolean) as InlineNode[],
       }
 
-    case 'blockquote':
+    case 'blockquote': {
+      const children = (node.children || []).map(mapMdastBlock).filter(Boolean) as BlockNode[]
+      let calloutType: 'note' | 'tip' | 'warning' | 'important' | 'caution' | null = null
+
+      if (children.length > 0 && children[0].type === 'paragraph' && children[0].children.length > 0) {
+        const firstInline = children[0].children[0]
+        if (firstInline.type === 'text') {
+          const match = firstInline.value.match(/^\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\](?:\s*[\n\r]\s*|\s+)?/i)
+          if (match) {
+            calloutType = match[1].toLowerCase() as any
+            firstInline.value = firstInline.value.slice(match[0].length)
+            if (!firstInline.value.trim() && children[0].children.length > 1) {
+              children[0].children.shift()
+            }
+          }
+        } else if (firstInline.type === 'strong' && firstInline.children?.length > 0) {
+          const strongText = firstInline.children.map((c: any) => c.value || '').join('').trim()
+          const match = strongText.match(/^(NOTE|TIP|WARNING|IMPORTANT|CAUTION):?$/i)
+          if (match) {
+            calloutType = match[1].toLowerCase() as any
+            children[0].children.shift()
+            if (children[0].children.length > 0 && children[0].children[0].type === 'text') {
+              children[0].children[0].value = children[0].children[0].value.replace(/^:\s*/, '').trimStart()
+            }
+          }
+        }
+      }
+
       return {
         type: 'blockquote',
+        calloutType,
         startLine,
         endLine,
-        children: (node.children || []).map(mapMdastBlock).filter(Boolean) as BlockNode[],
+        children,
       }
+    }
 
     case 'list': {
       return {
@@ -182,10 +214,27 @@ function mapMdastBlock(node: any): BlockNode | null {
         start: node.start || 1,
         startLine,
         endLine,
-        items: (node.children || []).map((item: any) => ({
-          type: 'listItem' as const,
-          children: (item.children || []).map(mapMdastBlock).filter(Boolean) as BlockNode[],
-        })),
+        items: (node.children || []).map((item: any) => {
+          let checked: boolean | null = typeof item.checked === 'boolean' ? item.checked : null
+          const children = (item.children || []).map(mapMdastBlock).filter(Boolean) as BlockNode[]
+          if (checked === null && children.length > 0 && children[0].type === 'paragraph') {
+            const p = children[0]
+            if (p.children.length > 0 && p.children[0].type === 'text') {
+              if (/^\[[xX]\]\s*/.test(p.children[0].value)) {
+                checked = true
+                p.children[0].value = p.children[0].value.replace(/^\[[xX]\]\s*/, '')
+              } else if (/^\[ \]\s*/.test(p.children[0].value)) {
+                checked = false
+                p.children[0].value = p.children[0].value.replace(/^\[ \]\s*/, '')
+              }
+            }
+          }
+          return {
+            type: 'listItem' as const,
+            checked,
+            children,
+          }
+        }),
       }
     }
 
