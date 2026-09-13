@@ -290,12 +290,18 @@ function mathmlNodeToOpenXmlRuns(node: XmlNode | string, ctx: MathRunContext = {
 
       const isBigOp = /^[∑∏∫∬∭∮]$/.test(text)
       if (isBigOp) {
-        return `<w:r><w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math" w:cs="DejaVu Sans"/><w:sz w:val="34"/></w:rPr><w:t xml:space="preserve"> ${escapeXml(text)}</w:t></w:r>`
+        return `<w:r><w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math" w:cs="DejaVu Sans"/><w:sz w:val="34"/></w:rPr><w:t xml:space="preserve"> ${escapeXml(text)} </w:t></w:r>`
       }
 
-      // Spaced binary operators and relations (suppress wide spaces in subscripts/superscripts)
-      const isSpaced = !ctx.vertAlign && ctx.position === undefined && /^[=+\-−×÷±≠≈≤≥→←]$/.test(text)
-      const formattedText = isSpaced ? ` ${text} ` : text
+      let formattedText = text
+      if (text === ',') {
+        formattedText = ', '
+      } else if (text === ';' || text === ':') {
+        formattedText = `${text} `
+      } else if (!ctx.vertAlign && ctx.position === undefined && /^[=+\-−×÷±≠≈≤≥→←]$/.test(text)) {
+        formattedText = ` ${text} `
+      }
+
       return `<w:r><w:rPr>${baseRPr}</w:rPr><w:t xml:space="preserve">${escapeXml(formattedText)}</w:t></w:r>`
     }
 
@@ -329,8 +335,7 @@ function mathmlNodeToOpenXmlRuns(node: XmlNode | string, ctx: MathRunContext = {
         const baseRuns = mathmlNodeToOpenXmlRuns(base, ctx)
         const subRuns = mathmlNodeToOpenXmlRuns(sub, { ...ctx, vertAlign: 'subscript', sz: 16 })
         const supRuns = mathmlNodeToOpenXmlRuns(sup, { ...ctx, vertAlign: 'superscript', sz: 16 })
-        const opSpace = `<w:r><w:rPr><w:rFonts w:ascii="Cambria Math" w:hAnsi="Cambria Math"/><w:sz w:val="${ctx.sz || 24}"/></w:rPr><w:t xml:space="preserve"> </w:t></w:r>`
-        return baseRuns + subRuns + supRuns + opSpace
+        return `${baseRuns}<w:r><w:rPr>${baseRPr}</w:rPr><w:t>[</w:t></w:r>${subRuns}<w:r><w:rPr>${baseRPr}</w:rPr><w:t>..</w:t></w:r>${supRuns}<w:r><w:rPr>${baseRPr}</w:rPr><w:t>] </w:t></w:r>`
       }
 
       return (
@@ -407,14 +412,17 @@ function mathmlNodeToOpenXmlRuns(node: XmlNode | string, ctx: MathRunContext = {
       const [num, den] = children
       const numTxt = getNodeText(num).trim()
       const denTxt = getNodeText(den).trim()
-      const numSimple = numTxt.length <= 2 && !/[=+\-−/]/.test(numTxt)
-      const denSimple = denTxt.length <= 1 && !/[=+\-−/]/.test(denTxt)
+      const numSimple = numTxt.length <= 3 && !/[=+\-−/]/.test(numTxt)
+      const denSimple = denTxt.length <= 2 && !/[=+\-−/]/.test(denTxt)
+      const numAlreadyParen = numTxt.startsWith('(') && numTxt.endsWith(')')
+      const denAlreadyParen = denTxt.startsWith('(') && denTxt.endsWith(')')
+      const denIsSqrt = den && typeof den === 'object' && (den.tag === 'msqrt' || den.tag === 'mroot')
 
-      const numPart = numSimple
+      const numPart = numSimple || numAlreadyParen
         ? mathmlNodeToOpenXmlRuns(num, ctx)
         : `<w:r><w:rPr>${baseRPr}</w:rPr><w:t>(</w:t></w:r>${mathmlNodeToOpenXmlRuns(num, ctx)}<w:r><w:rPr>${baseRPr}</w:rPr><w:t>)</w:t></w:r>`
       const slash = `<w:r><w:rPr>${baseRPr}</w:rPr><w:t>/</w:t></w:r>`
-      const denPart = denSimple
+      const denPart = denSimple || denAlreadyParen || denIsSqrt
         ? mathmlNodeToOpenXmlRuns(den, ctx)
         : `<w:r><w:rPr>${baseRPr}</w:rPr><w:t>(</w:t></w:r>${mathmlNodeToOpenXmlRuns(den, ctx)}<w:r><w:rPr>${baseRPr}</w:rPr><w:t>)</w:t></w:r>`
 
@@ -422,8 +430,12 @@ function mathmlNodeToOpenXmlRuns(node: XmlNode | string, ctx: MathRunContext = {
     }
 
     case 'msqrt': {
-      const inner = children.map((c) => mathmlNodeToOpenXmlRuns(c, ctx)).join('')
-      return `<w:r><w:rPr>${baseRPr}</w:rPr><w:t>√(</w:t></w:r>${inner}<w:r><w:rPr>${baseRPr}</w:rPr><w:t>)</w:t></w:r>`
+      const innerTxt = getNodeText(node).trim()
+      const innerRuns = children.map((c) => mathmlNodeToOpenXmlRuns(c, ctx)).join('')
+      if (innerTxt.startsWith('(') && innerTxt.endsWith(')')) {
+        return `<w:r><w:rPr>${baseRPr}</w:rPr><w:t>√</w:t></w:r>${innerRuns}`
+      }
+      return `<w:r><w:rPr>${baseRPr}</w:rPr><w:t>√(</w:t></w:r>${innerRuns}<w:r><w:rPr>${baseRPr}</w:rPr><w:t>)</w:t></w:r>`
     }
 
     case 'mroot': {
@@ -435,7 +447,7 @@ function mathmlNodeToOpenXmlRuns(node: XmlNode | string, ctx: MathRunContext = {
 
     case 'mtext': {
       const text = getNodeText(node).trim()
-      return `<w:r><w:rPr>${baseRPr}</w:rPr><w:t xml:space="preserve"> ${escapeXml(text)} </w:t></w:r>`
+      return `<w:r><w:rPr>${baseRPr}</w:rPr><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`
     }
 
     default:
