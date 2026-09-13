@@ -327,5 +327,88 @@ The Dirichlet eigenvalue problem satisfies:
     expect(html).toContain('<math')
     expect(html).not.toContain('codecogs')
   })
+
+  it('parses modern multi-column HipsterCV templates with custom macros and progress meters', () => {
+    const hipsterTex = `\\documentclass[lighthipster]{simplehipstercv}
+\\title{New Simple CV}
+\\author{\\LaTeX{} Ninja}
+\\date{June 2019}
+\\begin{document}
+\\section*{Start}
+\\simpleheader{headercolour}{Jack}{Sparrow}{Captain}{white}
+\\subsection*{}
+\\columnratio{0.23}[0.75]
+\\begin{paracol}{2}
+\\hbadness5000
+{\\setasidefontcolour
+\\flushright
+\\begin{center}
+    \\roundpic{jack.jpg}
+\\end{center}
+\\bg{cvgreen}{white}{About me}\\\\[0.5em]
+{\\footnotesize
+\\lorem}
+\\bigskip
+\\bg{cvgreen}{white}{personal}\\\\[0.5em]
+Jack Sparrow
+\\bigskip
+\\infobubble{\\faAt}{cvgreen}{white}{jack@sparrow.org}
+\\infobubble{\\faTwitter}{cvgreen}{white}{@sparrow}
+\\phantom{turn the page}
+}
+\\switchcolumn
+\\section*{Short Resumé}
+\\begin{tabular}{r| p{0.5\textwidth} c}
+    \\cvevent{2018--2021}{Captain of the Black Pearl}{Lead}{East Indies \\color{cvred}}{Finally got the ship back.}{disney.png}
+\\end{tabular}
+\\section*{Programming}
+\\begin{tabular}{r @{\\hspace{0.5em}}l}
+     \\bg{skilllabelcolour}{iconcolour}{html, css} & \\barrule{0.4}{0.5em}{cvpurple}\\\\
+     \\bg{skilllabelcolour}{iconcolour}{\\LaTeX} & \\barrule{0.55}{0.5em}{cvgreen}
+\\end{tabular}
+\\section*{Languages}
+\\begin{tabular}{l | ll}
+\\textbf{English} & C2 & {\\phantom{x}\\footnotesize mother tongue} \\\\
+\\textbf{French} & C2 & \\pictofraction{\\faCircle}{cvgreen}{3}{black!30}{1}{\\tiny}
+\\end{tabular}
+\\end{paracol}
+\\end{document}`
+
+    const doc = parseLatex(hipsterTex)
+    expect(doc.metadata.title).toBe('Jack Sparrow')
+    expect(doc.metadata.author).toBe('Jack Sparrow')
+
+    const md = renderToMarkdown(doc)
+    expect(md).toContain('# Jack Sparrow')
+    expect(md).toContain('### Captain')
+    expect(md).not.toContain('New Simple CV')
+    expect(md).not.toContain('LaTeX{} Ninja')
+    expect(md).not.toContain('## Start')
+    expect(md).toContain('![Profile Photo](jack.jpg)')
+    expect(md).toContain('### About me')
+    expect(md).toContain('Lorem ipsum dolor sit amet')
+    expect(md).toContain('### personal')
+    expect(md).toContain('✉️ [jack@sparrow.org](mailto:jack@sparrow.org)')
+    expect(md).toContain('🐦 [@sparrow](https://twitter.com/sparrow)')
+    expect(md).toContain('## Short Resumé')
+    expect(md).toContain('**Captain of the Black Pearl**')
+    expect(md).toContain('Lead · East Indies')
+    expect(md).toContain('![Logo](disney.png)')
+    expect(md).toContain('## Programming')
+    expect(md).toContain('**html, css**')
+    expect(md).toContain('████░░░░░░ 40%')
+    expect(md).toContain('██████░░░░ 55%')
+    expect(md).toContain('## Languages')
+    expect(md).toContain('mother tongue')
+    expect(md).toContain('●●●○')
+    expect(md).not.toContain('\\cvevent')
+    expect(md).not.toContain('\\bg')
+    expect(md).not.toContain('\\barrule')
+    expect(md).not.toContain('\\infobubble')
+    expect(md).not.toContain('\\phantom')
+    expect(md).not.toContain('\\columnratio')
+    expect(md).not.toContain('\\hbadness')
+  })
 })
+
 

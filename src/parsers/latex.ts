@@ -64,6 +64,184 @@ function extractNBracedArgs(str: string, startIdx: number, count: number): { arg
 }
 
 /**
+ * Formats a skill bar percentage into a Unicode progress meter e.g. ████░░░░░░ 40%
+ */
+function formatBarRule(pctStr: string): string {
+  let val = parseFloat(pctStr)
+  if (isNaN(val)) return pctStr
+  if (val <= 1.0) val = val * 100
+  val = Math.max(0, Math.min(100, Math.round(val)))
+  const totalBlocks = 10
+  const filledCount = Math.round((val / 100) * totalBlocks)
+  const emptyCount = totalBlocks - filledCount
+  const bar = '█'.repeat(filledCount) + '░'.repeat(emptyCount)
+  return `${bar} ${val}%`
+}
+
+/**
+ * Formats language / skill fractions into filled and empty glyphs e.g. ●●●○
+ */
+function formatPictoFraction(filledStr: string, emptyStr: string, symbol?: string): string {
+  const filled = parseInt(filledStr, 10) || 0
+  const empty = parseInt(emptyStr, 10) || 0
+  const isStar = symbol && /star/i.test(symbol)
+  const fullChar = isStar ? '★' : '●'
+  const emptyChar = isStar ? '☆' : '○'
+  return fullChar.repeat(filled) + emptyChar.repeat(empty)
+}
+
+/**
+ * Maps icon command names to clean emojis and labels
+ */
+function formatIcon(icon: string, label: string): string {
+  let emoji = ''
+  if (/envelope/i.test(icon) || /email/i.test(icon) || icon.includes('✉')) emoji = '✉️'
+  else if (/mapmarker|marker|location|place/i.test(icon) || icon.includes('📍')) emoji = '📍'
+  else if (/phone|mobile/i.test(icon) || icon.includes('📞')) emoji = '📞'
+  else if (/at\b|email/i.test(icon)) emoji = '✉️'
+  else if (/twitter/i.test(icon)) emoji = '🐦'
+  else if (/github/i.test(icon) || icon.includes('🐙')) emoji = '🐙'
+  else if (/globe|website|url/i.test(icon)) emoji = '🌐'
+  else if (/linkedin/i.test(icon)) emoji = '💼'
+  else if (/facebook/i.test(icon)) emoji = '👤'
+  else emoji = icon.replace(/\\[a-zA-Z]+/g, '').trim()
+
+  const parts = [emoji, label.trim()].filter(Boolean)
+  return parts.length > 0 ? parts.join(' ') : ''
+}
+
+/**
+ * Formats contact bubbles into hyperlinked icon items
+ */
+function formatInfoBubble(icon: string, text: string): string {
+  const cleanText = text.replace(/\\(href|url)\{([^}]+)\}/g, '$2').trim()
+  let emoji = ''
+  let link = ''
+
+  if (icon.includes('faAt') || icon.includes('✉') || (!icon && cleanText.includes('@') && cleanText.includes('.'))) {
+    emoji = '✉️'
+    link = `[${cleanText}](mailto:${cleanText})`
+  } else if (icon.includes('faTwitter') || icon.includes('🐦') || cleanText.startsWith('@')) {
+    emoji = '🐦'
+    const handle = cleanText.replace(/^@/, '')
+    link = `[@${handle}](https://twitter.com/${handle})`
+  } else if (icon.includes('faGithub') || icon.includes('🐙')) {
+    emoji = '🐙'
+    link = `[${cleanText}](https://github.com/${cleanText})`
+  } else if (icon.includes('faLinkedin') || icon.includes('💼')) {
+    emoji = '💼'
+    link = `[${cleanText}](https://linkedin.com/in/${cleanText})`
+  } else if (icon.includes('faFacebook') || icon.includes('👤')) {
+    emoji = '👤'
+    link = cleanText
+  } else if (icon.includes('faPhone') || icon.includes('📞')) {
+    emoji = '📞'
+    link = cleanText
+  } else if (icon.includes('faMapMarker') || icon.includes('📍')) {
+    emoji = '📍'
+    link = cleanText
+  } else {
+    emoji = icon ? icon.trim() : 'ℹ️'
+    link = cleanText
+  }
+
+  return `${emoji} ${link}`
+}
+
+/**
+ * Expands CV event macros inside tabular environments before row splitting
+ */
+function expandTabularCvMacros(content: string): string {
+  let res = content
+
+  // Expand \cvevent{dates}{title}{role}{location}{details}{logo}
+  while (true) {
+    const idx = res.indexOf('\\cvevent')
+    if (idx === -1) break
+    const parsed = extractNBracedArgs(res, idx + 8, 6)
+    if (!parsed) break
+    const [dates, title, role, location, details, logo] = parsed.args
+    const cleanDates = dates.replace(/--/g, '–').trim()
+    const cleanTitle = title.trim()
+    const cleanRole = role.trim()
+    const cleanLoc = location.replace(/\\color\{[^}]+\}/g, '').trim()
+    const cleanDetails = details.trim()
+    const cleanLogo = logo.trim()
+
+    let cell2 = `\\textbf{${cleanTitle}}`
+    const subParts = [cleanRole, cleanLoc].filter(Boolean)
+    if (subParts.length > 0) {
+      cell2 += ` \\newline ${subParts.join(' · ')}`
+    }
+    if (cleanDetails) {
+      cell2 += ` \\newline ${cleanDetails}`
+    }
+    const cell3 = cleanLogo ? `\\includegraphics{${cleanLogo}}` : ''
+    const replacement = `${cleanDates} & ${cell2} & ${cell3}`
+    res = res.slice(0, idx) + replacement + res.slice(parsed.endIdx)
+  }
+
+  // Expand \cvdegree{year}{degree}{level}{university}{details}{logo}
+  while (true) {
+    const idx = res.indexOf('\\cvdegree')
+    if (idx === -1) break
+    const parsed = extractNBracedArgs(res, idx + 9, 6)
+    if (!parsed) break
+    const [year, degree, level, university, details, logo] = parsed.args
+    const cleanYear = year.replace(/--/g, '–').trim()
+    const cleanDegree = degree.trim()
+    const cleanLevel = level.trim()
+    const cleanUni = university.replace(/\\color\{[^}]+\}/g, '').trim()
+    const cleanDetails = details.trim()
+    const cleanLogo = logo.trim()
+
+    let cell2 = `\\textbf{${cleanDegree}}`
+    const subParts = [cleanLevel, cleanUni].filter(Boolean)
+    if (subParts.length > 0) {
+      cell2 += ` \\newline ${subParts.join(' · ')}`
+    }
+    if (cleanDetails) {
+      cell2 += ` \\newline ${cleanDetails}`
+    }
+    const cell3 = cleanLogo ? `\\includegraphics{${cleanLogo}}` : ''
+    const replacement = `${cleanYear} & ${cell2} & ${cell3}`
+    res = res.slice(0, idx) + replacement + res.slice(parsed.endIdx)
+  }
+
+  // Expand \barrule in table
+  while (true) {
+    const idx = res.indexOf('\\barrule')
+    if (idx === -1) break
+    const parsed = extractNBracedArgs(res, idx + 8, 3)
+    if (!parsed) break
+    const bar = formatBarRule(parsed.args[0])
+    res = res.slice(0, idx) + bar + res.slice(parsed.endIdx)
+  }
+
+  // Expand \pictofraction in table
+  while (true) {
+    const idx = res.indexOf('\\pictofraction')
+    if (idx === -1) break
+    const parsed = extractNBracedArgs(res, idx + 14, 6)
+    if (!parsed) break
+    const frac = formatPictoFraction(parsed.args[2], parsed.args[4], parsed.args[0])
+    res = res.slice(0, idx) + frac + res.slice(parsed.endIdx)
+  }
+
+  // Expand \bg in table
+  while (true) {
+    const idx = res.indexOf('\\bg')
+    if (idx === -1) break
+    const parsed = extractNBracedArgs(res, idx + 3, 3)
+    if (!parsed) break
+    res = res.slice(0, idx) + `\\textbf{${parsed.args[2]}}` + res.slice(parsed.endIdx)
+  }
+
+  return res
+}
+
+
+/**
  * Extracts balanced LaTeX environment: \begin{envName}[opt]{arg}... \end{envName}
  */
 function extractEnvironment(str: string, startIndex: number): {
@@ -215,14 +393,23 @@ export function parseLatexInline(text: string): InlineNode[] {
     .replace(/`/g, '‘')
     .replace(/\\(Huge|huge|LARGE|Large|large|normalsize|small|footnotesize|tiny|scshape|bfseries|itshape|centering|raggedright|raggedleft|noindent)/g, '')
     .replace(/\\color\{[^}]+\}/g, '')
+    .replace(/\\setasidefontcolour\b/g, '')
+    .replace(/\\fontfamily\{[^}]*\}\s*\\selectfont/g, '')
+    .replace(/\\protect\b/g, '')
+    .replace(/\\(?:phantom|vphantom|hphantom)\{[^}]*\}/g, '')
     .replace(/\\vspace\*?\{[^}]+\}/g, '')
     .replace(/\\hspace\*?\{[^}]+\}/g, '')
     .replace(/\\(hfill|vfill)\b/g, ' · ')
     .replace(/\\{1,2}\s*\[\s*-?[\d.]+\s*(?:pt|mm|cm|in|ex|em)?\s*\]/g, ' ')
     .replace(/\\\\/g, '\n')
+    .replace(/\\newline\b/g, '\n')
     .replace(/~/g, ' ')
     .replace(/\s*\$\\\|\$\s*/g, ' | ')
     .replace(/\s*\$\|\$\s*/g, ' | ')
+    .replace(/\s*\$\\cdot\$\s*/g, ' · ')
+    .replace(/\s*\\cdot\b\s*/g, ' · ')
+    .replace(/\s*\$\\bullet\$\s*/g, ' • ')
+    .replace(/\s*\\bullet\b\s*/g, ' • ')
     .replace(/\\quad\b/g, '  ')
     .replace(/\\textbackslash(?:\\{\\}|\{\}|\b)/g, '\\')
     .replace(/\\textasciicircum(?:\\{\\}|\{\}|\b)/g, '^')
@@ -291,10 +478,91 @@ export function parseLatexInline(text: string): InlineNode[] {
           const url = uRes.content.trim()
           nodes.push({
             type: 'link',
-            url,
+            url: url.includes('@') && !url.startsWith('mailto:') ? `mailto:${url}` : url,
             children: [{ type: 'text', value: url }],
           })
           i = uRes.endIdx + 1
+          continue
+        }
+      }
+    }
+
+    // Check \includegraphics or \roundpic
+    if (cleaned.startsWith('\\includegraphics', i) || cleaned.startsWith('\\roundpic', i)) {
+      const isRound = cleaned.startsWith('\\roundpic', i)
+      const braceStart = cleaned.indexOf('{', i)
+      if (braceStart !== -1) {
+        const bRes = extractBalancedBraces(cleaned, braceStart + 1)
+        if (bRes) {
+          flushText()
+          nodes.push({
+            type: 'image',
+            url: bRes.content.trim(),
+            alt: isRound ? 'Profile Photo' : 'Logo',
+          })
+          i = bRes.endIdx + 1
+          continue
+        }
+      }
+    }
+
+    // Check \icon{symbol}{color}{label}
+    if (cleaned.startsWith('\\icon', i)) {
+      const parsed = extractNBracedArgs(cleaned, i + 5, 3)
+      if (parsed) {
+        flushText()
+        const iconStr = formatIcon(parsed.args[0], parsed.args[2])
+        if (iconStr) nodes.push({ type: 'text', value: iconStr + ' ' })
+        i = parsed.endIdx
+        continue
+      }
+    }
+
+    // Check \barrule{pct}{height}{color}
+    if (cleaned.startsWith('\\barrule', i)) {
+      const parsed = extractNBracedArgs(cleaned, i + 8, 3)
+      if (parsed) {
+        flushText()
+        nodes.push({ type: 'text', value: formatBarRule(parsed.args[0]) })
+        i = parsed.endIdx
+        continue
+      }
+    }
+
+    // Check \pictofraction{symbol}{color}{filled}{bg}{empty}{size}
+    if (cleaned.startsWith('\\pictofraction', i)) {
+      const parsed = extractNBracedArgs(cleaned, i + 14, 6)
+      if (parsed) {
+        flushText()
+        nodes.push({ type: 'text', value: formatPictoFraction(parsed.args[2], parsed.args[4], parsed.args[0]) })
+        i = parsed.endIdx
+        continue
+      }
+    }
+
+    // Check \bg{col1}{col2}{text}
+    if (cleaned.startsWith('\\bg', i)) {
+      const parsed = extractNBracedArgs(cleaned, i + 3, 3)
+      if (parsed) {
+        flushText()
+        nodes.push({
+          type: 'strong',
+          children: parseLatexInline(parsed.args[2]),
+        })
+        i = parsed.endIdx
+        continue
+      }
+    }
+
+    // Check \textsc{text} (Small Caps -> uppercase)
+    if (cleaned.startsWith('\\textsc', i)) {
+      const bStart = cleaned.indexOf('{', i)
+      if (bStart !== -1) {
+        const bRes = extractBalancedBraces(cleaned, bStart + 1)
+        if (bRes) {
+          flushText()
+          nodes.push(...parseLatexInline(bRes.content.toUpperCase()))
+          i = bRes.endIdx + 1
           continue
         }
       }
@@ -463,12 +731,19 @@ export function parseLatexInline(text: string): InlineNode[] {
  * Parses LaTeX tabular environment contents into a TableNode
  */
 function parseLatexTabular(content: string): BlockNode | null {
-  const rawRows = content
+  const expanded = expandTabularCvMacros(content)
+  const rawRows = expanded
     .split(/\\\\/)
     .map((r) => r.trim())
     .filter((r) => r && !r.startsWith('\\hline') && !r.startsWith('\\toprule') && !r.startsWith('\\bottomrule'))
 
   if (rawRows.length === 0) return null
+
+  // Check if table contains CV macros or numeric/date/icon cells in row 0 without an explicit header
+  const isCvTable =
+    /\\(cvevent|cvdegree|barrule|pictofraction)\b/.test(content) ||
+    /^\s*(?:\d{4}|Nov\.|Jan\.|Feb\.|Mar\.|Apr\.|May|Jun\.|Jul\.|Aug\.|Sep\.|Oct\.|Dec\.|English|French|Spanish|Italian)/i.test(rawRows[0]) ||
+    /\\bg\{[^}]*\}\{[^}]*\}/.test(rawRows[0])
 
   const parsedRows: TableRowNode[] = []
   let headers: TableCellNode[] = []
@@ -490,7 +765,7 @@ function parseLatexTabular(content: string): BlockNode | null {
         children: parseLatexInline(cellStr.replace(/\uFFF0/g, '&').trim()),
       }))
 
-    if (rIdx === 0) {
+    if (rIdx === 0 && !isCvTable) {
       headers = cells
     } else {
       parsedRows.push({ type: 'tableRow', cells })
@@ -499,11 +774,13 @@ function parseLatexTabular(content: string): BlockNode | null {
 
   if (headers.length === 0 && parsedRows.length === 0) return null
 
+  const alignments = (headers.length > 0 ? headers : parsedRows[0]?.cells || []).map(() => null)
+
   return {
     type: 'table',
     headers,
     rows: parsedRows,
-    alignments: headers.map(() => null),
+    alignments,
   }
 }
 
@@ -636,15 +913,119 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
     while (cursor < input.length && /\s/.test(input[cursor])) cursor++
     if (cursor >= input.length) break
 
-    // 2. Ignore no-op formatting commands
+    // Consume bare grouping braces { and } at block level
+    if (input[cursor] === '{' || input[cursor] === '}') {
+      cursor++
+      continue
+    }
+
+    // 2. Ignore no-op formatting commands and layout primitives
     const ignorableMatch = input
       .slice(cursor)
       .match(
-        /^\\(newpage|clearpage|maketitle|noindent|centering|raggedright|raggedleft|bigskip|medskip|smallskip|onehalfspacing|doublespacing|singlespacing|pagestyle\{[^}]*\}|thispagestyle\{[^}]*\}|pagenumbering\{[^}]*\}|vspace\*?\{[^}]*\}|hspace\*?\{[^}]*\})(?:\b|(?=[\s\\{}]|$))/
+        /^\\(newpage|clearpage|maketitle|noindent|centering|raggedright|raggedleft|bigskip|medskip|smallskip|onehalfspacing|doublespacing|singlespacing|pagestyle\{[^}]*\}|thispagestyle\{[^}]*\}|pagenumbering\{[^}]*\}|vspace\*?\{[^}]*\}|hspace\*?\{[^}]*\}|columnratio(?:\{[^}]*\}(?:\[[^\]]*\])?|\[[^\]]*\](?:\{[^}]*\})?)|hbadness\d*|vbadness\d*|paracolbackgroundoptions|setasidefontcolour|flushright|flushleft|switchcolumn\*?|fontfamily\{[^}]*\}\s*\\selectfont|setlength\{[^}]*\}\{[^}]*\}|newlength\{[^}]*\}|color\{[^}]*\}|vfill\{?\}?|hfill\{?\}?|phantom\{[^}]*\}|vphantom\{[^}]*\}|hphantom\{[^}]*\}|small\b|footnotesize\b|large\b|Large\b|normalsize\b|tiny\b|protect\b)(?:\b|(?=[\s\\{}]|$))/
       )
     if (ignorableMatch) {
       cursor += ignorableMatch[0].length
       continue
+    }
+
+    // Check for \roundpic
+    const roundPicMatch = input.slice(cursor).match(/^\\roundpic(?:\[[^\]]*\])?\{([^}]+)\}/)
+    if (roundPicMatch) {
+      blocks.push({
+        type: 'paragraph',
+        children: [
+          {
+            type: 'image',
+            url: roundPicMatch[1].trim(),
+            alt: 'Profile Photo',
+          },
+        ],
+      })
+      cursor += roundPicMatch[0].length
+      continue
+    }
+
+    // Check for block-level \bg section headings
+    const bgMatch = input.slice(cursor).match(/^\\bg\{[^}]*\}\{[^}]*\}\{([^}]+)\}(?:\\\\(?:\[[^\]]*\])?)?/)
+    if (bgMatch) {
+      blocks.push({
+        type: 'heading',
+        level: 3,
+        children: parseLatexInline(bgMatch[1].trim()),
+      })
+      cursor += bgMatch[0].length
+      continue
+    }
+
+    // Check for \infobubble
+    if (input.slice(cursor).startsWith('\\infobubble')) {
+      const parsed = extractNBracedArgs(input, cursor + 11, 4)
+      if (parsed) {
+        const [icon, , , text] = parsed.args
+        const infoLine = formatInfoBubble(icon, text)
+        blocks.push({
+          type: 'paragraph',
+          children: parseLatexInline(infoLine),
+        })
+        cursor = parsed.endIdx
+        continue
+      }
+    }
+
+    // Check for standalone \cvevent
+    if (input.slice(cursor).startsWith('\\cvevent')) {
+      const parsed = extractNBracedArgs(input, cursor + 8, 6)
+      if (parsed) {
+        const [dates, title, role, location, details] = parsed.args
+        blocks.push({
+          type: 'heading',
+          level: 3,
+          children: parseLatexInline(`${title.trim()} — *${role.trim()}* *(${dates.replace(/--/g, '–').trim()})*`),
+        })
+        if (location.trim()) {
+          blocks.push({
+            type: 'paragraph',
+            children: parseLatexInline(`*${location.replace(/\\color\{[^}]+\}/g, '').trim()}*`),
+          })
+        }
+        if (details.trim()) {
+          blocks.push({
+            type: 'paragraph',
+            children: parseLatexInline(details.trim()),
+          })
+        }
+        cursor = parsed.endIdx
+        continue
+      }
+    }
+
+    // Check for standalone \cvdegree
+    if (input.slice(cursor).startsWith('\\cvdegree')) {
+      const parsed = extractNBracedArgs(input, cursor + 9, 6)
+      if (parsed) {
+        const [year, degree, level, university, details] = parsed.args
+        blocks.push({
+          type: 'heading',
+          level: 3,
+          children: parseLatexInline(`${degree.trim()} — *${level.trim()}* *(${year.replace(/--/g, '–').trim()})*`),
+        })
+        if (university.trim()) {
+          blocks.push({
+            type: 'paragraph',
+            children: parseLatexInline(`*${university.replace(/\\color\{[^}]+\}/g, '').trim()}*`),
+          })
+        }
+        if (details.trim()) {
+          blocks.push({
+            type: 'paragraph',
+            children: parseLatexInline(details.trim()),
+          })
+        }
+        cursor = parsed.endIdx
+        continue
+      }
     }
 
     // 3. Check for Markdown-style heading level 3 (from resume macros: ### Heading)
@@ -667,6 +1048,11 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
       const openBrace = cursor + sectionMatch[0].length - 1
       const balanced = extractBalancedBraces(input, openBrace + 1)
       if (balanced) {
+        const rawTitle = balanced.content.trim()
+        if (!rawTitle || rawTitle.toLowerCase() === 'start') {
+          cursor = balanced.endIdx + 1
+          continue
+        }
         const cmd = sectionMatch[1]
         const level: 1 | 2 | 3 | 4 =
           cmd === 'part' || cmd === 'chapter'
@@ -679,7 +1065,7 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
         blocks.push({
           type: 'heading',
           level,
-          children: parseLatexInline(balanced.content.trim()),
+          children: parseLatexInline(rawTitle),
         })
         cursor = balanced.endIdx + 1
         continue
@@ -936,7 +1322,7 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
     // 11. Regular Paragraph text: scan ahead until the next block delimiter
     const remaining = input.slice(cursor)
     const delimMatch = remaining.match(
-      /\n\s*(\n|\\(?:part|chapter|section|subsection|subsubsection|paragraph|cvsection|cvsubsection)\*?\s*\{|\\begin\{|\$\$|\\\[|###\s+|\\(?:tableofcontents|listoftables|listoffigures|input|include)\b|\\(?:hrule|hrulefill)\b|\\(?:pagestyle|thispagestyle|pagenumbering)\{[^}]*\}|\\(?:vspace|hspace)\*?\{[^}]*\})/
+      /\n\s*(\n|\\(?:part|chapter|section|subsection|subsubsection|paragraph|cvsection|cvsubsection)\*?\s*\{|\\begin\{|\$\$|\\\[|###\s+|\\(?:tableofcontents|listoftables|listoffigures|input|include)\b|\\(?:hrule|hrulefill)\b|\\(?:pagestyle|thispagestyle|pagenumbering)\{[^}]*\}|\\(?:vspace|hspace)\*?\{[^}]*\}|\\bg\{|\\infobubble|\\roundpic|\\cvevent|\\cvdegree)/
     )
     const paraEnd = delimMatch && delimMatch.index !== undefined ? cursor + delimMatch.index : input.length
     let paraText = input.slice(cursor, paraEnd).trim()
@@ -945,14 +1331,40 @@ function parseLatexBodyBlocks(input: string): BlockNode[] {
     paraText = paraText
       .replace(/\\\\(?:\[[^\]]*\])?\s*$/, '')
       .replace(/^\\small\{([\s\S]*?)\}$/, '$1')
+      .replace(/^\\footnotesize\{([\s\S]*?)\}$/, '$1')
       .trim()
 
-    // Strip outer balanced braces e.g. {Some text...} from stripped font-size wrappers
+    // Strip outer balanced braces or grouping braces e.g. {Some text...} from stripped font-size wrappers
     if (paraText.startsWith('{') && paraText.endsWith('}')) {
       const balanced = extractBalancedBraces(paraText, 1)
       if (balanced && balanced.endIdx === paraText.length - 1) {
         paraText = balanced.content.trim()
       }
+    }
+    // Strip unparsed layout wrappers that should not leak into text
+    paraText = paraText
+      .replace(/\\fontfamily\{[^}]*\}\s*\\selectfont/g, '')
+      .replace(/\\color\{[^}]*\}/g, '')
+      .replace(/\\protect\b/g, '')
+      .replace(/\\setlength\{[^}]*\}\{[^}]*\}/g, '')
+      .replace(/·\s*\{\}/g, '')
+      .trim()
+
+    // Strip unmatched trailing '}' from TeX scoping groups
+    let openBraces = 0
+    let closeBraces = 0
+    for (let ci = 0; ci < paraText.length; ci++) {
+      if (paraText[ci] === '{') openBraces++
+      else if (paraText[ci] === '}') closeBraces++
+    }
+    while (closeBraces > openBraces && paraText.endsWith('}')) {
+      paraText = paraText.slice(0, -1).trim()
+      closeBraces--
+    }
+
+    // Filter out residual empty delimiter lines
+    if (!paraText || /^[·\s{}]+$/.test(paraText)) {
+      continue
     }
 
     // Normalize lines to avoid 4-space markdown code block indentation
@@ -1000,7 +1412,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   }
 
   // Strip leading/trailing quote marks if user pasted quoted string
-  const cleanedContent = latexContent.trim().replace(/^["']/, '').replace(/["']$/, '')
+  const cleanedContent = latexContent.replace(/\r\n/g, '\n').trim().replace(/^["']/, '').replace(/["']$/, '')
 
   // Extract metadata (Title, Author, Date) with balanced brace matching (avoid matching \titleformat)
   const rawTitle = extractBracedCommand(cleanedContent, 'title')
@@ -1012,11 +1424,11 @@ export function parseLatex(latexContent: string): NormalizedDocument {
   const dateLines = rawDate ? cleanLatexMetadata(rawDate) : []
 
   let docTitle = titleLines.length > 0 ? titleLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
-  const docAuthor = authorLines.length > 0 ? authorLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
+  let docAuthor = authorLines.length > 0 ? authorLines[0].replace(/\\textbf\{([^}]+)\}/g, '$1') : undefined
   const docDate = dateLines.length > 0 ? dateLines[0] : undefined
 
   // Strip comments using negative lookbehind so escaped \% and percentages (e.g. 100%, 99.5%) are preserved
-  let body = cleanedContent.replace(/(?<!\\)(?<!\d\s*)%.*$/gm, '')
+  let body = cleanedContent.replace(/(?<!\\)(?<![0-9][ \t]*)%.*$/gm, '')
 
   // Extract body between \begin{document} and \end{document} if present
   if (body.includes('\\begin{document}')) {
@@ -1024,11 +1436,35 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     if (docMatch) body = docMatch[1]
   }
 
+  // Preprocess \simpleheader (e.g. \simpleheader{headercolour}{Jack}{Sparrow}{Captain}{white})
+  let simpleHeaderCandidate = ''
+  let simpleHeaderRole = ''
+  const simpleHeaderIdx = body.indexOf('\\simpleheader')
+  if (simpleHeaderIdx !== -1) {
+    const parsed = extractNBracedArgs(body, simpleHeaderIdx + 13, 5)
+    if (parsed) {
+      simpleHeaderCandidate = `${parsed.args[1]} ${parsed.args[2]}`.trim()
+      simpleHeaderRole = parsed.args[3].trim()
+      body = body.slice(0, simpleHeaderIdx) + body.slice(parsed.endIdx)
+    }
+  }
+
+  if (simpleHeaderCandidate) {
+    docTitle = simpleHeaderCandidate
+    docAuthor = simpleHeaderCandidate
+  }
+
+  // Expand \lorem placeholder text from hipster / creative CVs
+  body = body.replace(/\\lorem\b/g, 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Donec a diam lectus. ')
+
   // Preprocess FontAwesome icons to universal emojis
   body = body
     .replace(/\\faMapMarker\*?~?/g, '📍 ')
     .replace(/\\faPhone\*?~?/g, '📞 ')
-    .replace(/\\faEnvelope\*?~?/g, '✉️ ')
+    .replace(/\\faEnvelope[A-Za-z]*\*?~?/g, '✉️ ')
+    .replace(/\\faAt\*?~?/g, '✉️ ')
+    .replace(/\\faTwitter\*?~?/g, '🐦 ')
+    .replace(/\\faFacebook\*?~?/g, '👤 ')
     .replace(/\\faGlobe\*?~?/g, '🌐 ')
     .replace(/\\faGithub\*?~?/g, '🐙 ')
     .replace(/\\faLinkedin\*?~?/g, '💼 ')
@@ -1038,6 +1474,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
     .replace(/\\faGraduationCap\*?~?/g, '🎓 ')
     .replace(/\\faBriefcase\*?~?/g, '💼 ')
     .replace(/\\faExternalLink\*?~?/g, '🔗 ')
+    .replace(/\\faCircle\*?~?/g, '●')
     .replace(/\\fa[A-Z][a-zA-Z0-9]*\*?~?/g, '')
 
   // Replace dimensioned line breaks (e.g. \\[4pt], \\[2pt]) with standard newlines
@@ -1164,8 +1601,25 @@ export function parseLatex(latexContent: string): NormalizedDocument {
 
   const children: BlockNode[] = []
 
-  // 1. Build Cover / Title Page if explicit \title metadata is present
-  if (titleLines.length > 0) {
+  // 1. Build Cover / Title Page:
+  // If \simpleheader is present, use it as candidate header and ignore template boilerplate title
+  if (simpleHeaderCandidate) {
+    children.push({
+      type: 'heading',
+      level: 1,
+      children: [{ type: 'text', value: simpleHeaderCandidate }],
+    })
+    if (simpleHeaderRole) {
+      children.push({
+        type: 'heading',
+        level: 3,
+        children: [{ type: 'text', value: simpleHeaderRole }],
+      })
+    }
+    children.push({
+      type: 'thematicBreak',
+    })
+  } else if (titleLines.length > 0) {
     children.push({
       type: 'heading',
       level: 1,
@@ -1207,7 +1661,7 @@ export function parseLatex(latexContent: string): NormalizedDocument {
 
   // 2. Detect Resume / CV Header (\begin{center} with candidate name and contact block)
   const centerHeaderMatch = body.match(/\\begin\{center\}([\s\S]*?)\\end\{center\}/)
-  if (titleLines.length === 0 && centerHeaderMatch) {
+  if (!simpleHeaderCandidate && titleLines.length === 0 && centerHeaderMatch) {
     const rawHeader = centerHeaderMatch[1]
     const bMatch = rawHeader.match(/\\(textbf|Huge|huge|LARGE|Large)\s*\{/)
     let candidateName = ''

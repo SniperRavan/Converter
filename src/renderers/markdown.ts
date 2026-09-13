@@ -114,10 +114,14 @@ function renderBlockToMarkdown(block: BlockNode): string {
 
       // Single-row table without headers
       const cells = block.rows[0].cells
-      const headerLine = `| ${cells.map(() => ' ').join(' | ')} |`
-      const separatorLine = `| ${cells.map(() => '---').join(' | ')} |`
-      const rowLine = `| ${cells.map(formatCell).join(' | ')} |`
-      return [headerLine, separatorLine, rowLine].join('\n') + '\n'
+      const headerLine = `| ${cells.map(formatCell).join(' | ')} |`
+      const separatorLine = `| ${cells.map((_, idx) => {
+        const align = block.alignments?.[idx]
+        if (align === 'center') return ':---:'
+        if (align === 'right') return '---:'
+        return '---'
+      }).join(' | ')} |`
+      return [headerLine, separatorLine].join('\n') + '\n'
     }
 
     case 'thematicBreak':

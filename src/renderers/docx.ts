@@ -67,6 +67,12 @@ function renderInlineToOpenXml(node: InlineNode, style: RunStyle = {}): string {
         rPr += '<w:rFonts w:ascii="Consolas" w:hAnsi="Consolas"/><w:sz w:val="19"/><w:shd w:val="clear" w:color="auto" w:fill="F1F5F9"/>'
       }
       const rPrXml = rPr ? `<w:rPr>${rPr}</w:rPr>` : ''
+      if (node.value.includes('\n')) {
+        const parts = node.value.split('\n')
+        return parts
+          .map((part) => `<w:r>${rPrXml}<w:t xml:space="preserve">${escapeXml(part)}</w:t></w:r>`)
+          .join('<w:r><w:br/></w:r>')
+      }
       return `<w:r>${rPrXml}<w:t xml:space="preserve">${escapeXml(node.value)}</w:t></w:r>`
     }
 
