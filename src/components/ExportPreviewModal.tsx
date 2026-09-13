@@ -67,7 +67,7 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
   const [copied, setCopied] = useState<boolean>(false)
   const [htmlViewMode, setHtmlViewMode] = useState<'visual' | 'code'>('visual')
   const [paperView, setPaperView] = useState<'theme' | 'paper'>('theme')
-  const [wordMathMode, setWordMathMode] = useState<'omml' | 'compatible'>('omml')
+  const [wordMathMode, setWordMathMode] = useState<'omml' | 'compatible'>('compatible')
 
   // Close on Escape key
   useEffect(() => {
@@ -295,26 +295,26 @@ export const ExportPreviewModal: React.FC<ExportPreviewModalProps> = ({
             {activeType === 'word' && (
               <div className="flex items-center rounded-lg border border-[#E2DAD0] dark:border-white/15 bg-white dark:bg-[#171717] p-0.5 shadow-2xs">
                 <button
-                  onClick={() => setWordMathMode('omml')}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-                    wordMathMode === 'omml'
-                      ? 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-2xs'
-                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
-                  }`}
-                  title="Native Office Math (OMML) - Recommended for Desktop Word & Google Docs"
-                >
-                  Desktop / Docs
-                </button>
-                <button
                   onClick={() => setWordMathMode('compatible')}
                   className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                     wordMathMode === 'compatible'
                       ? 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-2xs'
                       : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
                   }`}
-                  title="Universal Formatted Math - Renders visibly in Word Online & LibreOffice without [Equation] placeholders"
+                  title="Universal Formatted Math (Recommended Default) - Displays visibly in Word for the Web, LibreOffice, Desktop Word, and Google Docs without [Equation] boxes"
                 >
-                  Word Web / LibreOffice
+                  Universal (Web &amp; LibreOffice)
+                </button>
+                <button
+                  onClick={() => setWordMathMode('omml')}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                    wordMathMode === 'omml'
+                      ? 'bg-neutral-900 dark:bg-white text-white dark:text-black shadow-2xs'
+                      : 'text-neutral-600 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white'
+                  }`}
+                  title="Native Office Math (OMML) - For Desktop Word and Google Docs"
+                >
+                  Desktop / Docs (OMML)
                 </button>
               </div>
             )}

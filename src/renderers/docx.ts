@@ -355,10 +355,52 @@ function mathmlNodeToOpenXmlRuns(node: XmlNode | string, ctx: MathRunContext = {
 
     case 'mover': {
       const [base, over] = children
+      const overText = getNodeText(over).trim()
+      const isAccent = (typeof node === 'object' && node.attrs['accent'] === 'true') || /^[\^~¯˙¨\u2192]$/.test(overText) || overText === '\u20D7'
+      if (isAccent) {
+        const baseText = getNodeText(base).trim()
+        const accentMap: Record<string, string> = {
+          '^': '\u0302',
+          '~': '\u0303',
+          '¯': '\u0304',
+          '-': '\u0304',
+          '˙': '\u0307',
+          '.': '\u0307',
+          '¨': '\u0308',
+          '..': '\u0308',
+          '→': '\u20D7',
+          '\u20D7': '\u20D7',
+        }
+        const combining = accentMap[overText]
+        if (combining && baseText) {
+          return `<w:r><w:rPr>${baseRPr}<w:i/></w:rPr><w:t xml:space="preserve">${escapeXml(baseText + combining)}</w:t></w:r>`
+        }
+      }
       return (
         mathmlNodeToOpenXmlRuns(base, ctx) +
         mathmlNodeToOpenXmlRuns(over, { ...ctx, vertAlign: 'superscript', sz: 18 })
       )
+    }
+
+    case 'mfenced': {
+      const open = (typeof node === 'object' && node.attrs['open']) || '('
+      const close = (typeof node === 'object' && node.attrs['close']) || ')'
+      const inner = children.map((c) => mathmlNodeToOpenXmlRuns(c, ctx)).join('')
+      return `<w:r><w:rPr>${baseRPr}</w:rPr><w:t>${escapeXml(open)}</w:t></w:r>${inner}<w:r><w:rPr>${baseRPr}</w:rPr><w:t>${escapeXml(close)}</w:t></w:r>`
+    }
+
+    case 'mtable': {
+      const rows = children.map((c) => mathmlNodeToOpenXmlRuns(c, ctx)).filter(Boolean)
+      return `<w:r><w:rPr>${baseRPr}</w:rPr><w:t>[</w:t></w:r>${rows.join(`<w:r><w:rPr>${baseRPr}</w:rPr><w:t>; </w:t></w:r>`)}<w:r><w:rPr>${baseRPr}</w:rPr><w:t>]</w:t></w:r>`
+    }
+
+    case 'mtr': {
+      const cells = children.map((c) => mathmlNodeToOpenXmlRuns(c, ctx)).filter(Boolean)
+      return cells.join(`<w:r><w:rPr>${baseRPr}</w:rPr><w:t>, </w:t></w:r>`)
+    }
+
+    case 'mtd': {
+      return children.map((c) => mathmlNodeToOpenXmlRuns(c, ctx)).join('')
     }
 
     case 'mfrac': {
@@ -788,7 +830,7 @@ export interface DocxRenderOptions {
 }
 
 export function renderToDocx(doc: NormalizedDocument, options: DocxRenderOptions = {}): Uint8Array {
-  const mathMode = options.mathMode || 'omml'
+  const mathMode = options.mathMode || 'compatible'
   const bodyXml = doc.children.map((b) => renderBlockToOpenXml(b, mathMode)).join('\n')
 
   const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

@@ -77,7 +77,7 @@ Equivalence: $E=mc^2$
 | Transformer-Base | 110M | 94.2 |
 `
     const doc = parseMarkdown(source)
-    const bytes = renderToDocx(doc)
+    const bytes = renderToDocx(doc, { mathMode: 'omml' })
 
     expect(bytes).toBeInstanceOf(Uint8Array)
     expect(bytes.byteLength).toBeGreaterThan(500)
@@ -144,7 +144,7 @@ Details here.`
 
     const md = `$$F(k) = \\sum_{n=0}^{N-1} f(n) e^{-i 2\\pi k n / N}$$`
     const doc = parseMarkdown(md)
-    const bytes = renderToDocx(doc)
+    const bytes = renderToDocx(doc, { mathMode: 'omml' })
     const unzipped = unzipSync(bytes)
     const docXml = strFromU8(unzipped['word/document.xml'])
 
@@ -166,7 +166,7 @@ Details here.`
     const { renderToDocx } = await import('../src/renderers/docx')
     const { SAMPLE_DOCUMENT } = await import('../src/store/useConverterStore')
     const doc = parseMarkdown(SAMPLE_DOCUMENT)
-    const bytes = renderToDocx(doc)
+    const bytes = renderToDocx(doc, { mathMode: 'omml' })
     const { unzipSync, strFromU8 } = await import('fflate')
     const unzipped = unzipSync(bytes)
     const docXml = strFromU8(unzipped['word/document.xml'])

@@ -12,7 +12,19 @@ Inline formula: $E = mc^2$ and $A \\rightarrow B$.
 $$\\text{MSE} = \\frac{1}{n} \\sum_{i=1}^n (y_i - \\hat{y}_i)^2$$
   `
 
-  it('renders native OMML in default / desktop mode', () => {
+  it('defaults to universal compatible mode when no options are provided', () => {
+    const doc = parseMarkdown(sampleMathMarkdown)
+    const bytes = renderToDocx(doc)
+    const unzipped = unzipSync(new Uint8Array(bytes))
+    const docXml = strFromU8(unzipped['word/document.xml'])
+
+    // Default must be universal runs so Word Web and LibreOffice work out-of-the-box
+    expect(docXml).not.toContain('<m:oMath')
+    expect(docXml).toContain('<w:vertAlign w:val="superscript"/>')
+    expect(docXml).toContain('→')
+  })
+
+  it('renders native OMML when desktop mode is explicitly requested', () => {
     const doc = parseMarkdown(sampleMathMarkdown)
     const bytes = renderToDocx(doc, { mathMode: 'omml' })
     const unzipped = unzipSync(new Uint8Array(bytes))
@@ -43,6 +55,22 @@ $$\\text{MSE} = \\frac{1}{n} \\sum_{i=1}^n (y_i - \\hat{y}_i)^2$$
     expect(docXml).toContain('→')
     expect(docXml).toContain('∑')
     expect(docXml).toContain('MSE')
+  })
+
+  it('correctly handles combining accents and matrices in compatible mode', () => {
+    const markdown = 'Formula with accents $\\hat{y}$ and $\\vec{v}$ and matrix $\\begin{matrix} 1 & 2 \\\\ 3 & 4 \\end{matrix}$'
+    const doc = parseMarkdown(markdown)
+    const bytes = renderToDocx(doc, { mathMode: 'compatible' })
+    const unzipped = unzipSync(new Uint8Array(bytes))
+    const docXml = strFromU8(unzipped['word/document.xml'])
+
+    // Combining circumflex \u0302 for hat
+    expect(docXml).toContain('y\u0302')
+    // Combining arrow \u20D7 for vec
+    expect(docXml).toContain('v\u20D7')
+    // Matrix formatted with bracket and separators
+    expect(docXml).toContain('[')
+    expect(docXml).toContain(']')
   })
 
   it('includes fontTable with Linux/Word fallback mappings in the docx package', () => {
