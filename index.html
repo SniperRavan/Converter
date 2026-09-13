@@ -23,10 +23,12 @@
 
     <!-- Open Graph / Facebook / LinkedIn / WhatsApp -->
     <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
     <meta property="og:url" content="https://converter-sr.vercel.app/" />
     <meta property="og:title" content="Converter — Markdown Preview, LaTeX & AI to Word & Docs" />
     <meta property="og:description" content="Free private in-browser converter: Preview Markdown, convert MD to Word & Google Docs, format Overleaf CVs, and turn AI & LLM math into Word equations." />
     <meta property="og:image" content="https://converter-sr.vercel.app/hero.png" />
+    <meta property="og:image:alt" content="Converter — Markdown, LaTeX & AI to Word & Docs" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:site_name" content="Converter" />
@@ -37,11 +39,14 @@
     <meta name="twitter:title" content="Converter — Markdown Preview, LaTeX & AI to Word & Docs" />
     <meta name="twitter:description" content="Free private in-browser converter: Preview Markdown, convert MD to Word & Google Docs, format Overleaf CVs, and turn AI & LLM math into Word equations." />
     <meta name="twitter:image" content="https://converter-sr.vercel.app/hero.png" />
+    <meta name="twitter:image:alt" content="Converter — Markdown, LaTeX & AI to Word & Docs" />
     <meta name="twitter:creator" content="@sniperravan" />
 
-    <!-- Favicon & Icons -->
+    <!-- Favicon, Manifest & PWA Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
     <link rel="icon" type="image/png" href="/hero.png" />
     <link rel="apple-touch-icon" href="/hero.png" />
+    <link rel="manifest" href="/site.webmanifest" />
 
     <!-- Non-blocking Web Fonts (KaTeX CSS is bundled locally in vendor-katex) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -143,6 +148,9 @@
     </script>
   </head>
   <body>
+    <a href="#converter" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg focus:shadow-lg focus:outline-none">
+      Skip to main content
+    </a>
     <div id="root">
       <main class="sr-only">
         <h1>Universal Document Converter — Markdown, LaTeX &amp; AI to Word</h1>

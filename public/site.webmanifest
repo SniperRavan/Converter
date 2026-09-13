@@ -1,0 +1,26 @@
+{
+  "name": "Converter — Markdown, LaTeX & AI to Word & Docs",
+  "short_name": "Converter",
+  "description": "Free private in-browser converter: Preview Markdown, convert MD to Word & Google Docs, format Overleaf CVs, and turn AI & LLM math into Word equations.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/hero.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/hero.webp",
+      "sizes": "512x512",
+      "type": "image/webp"
+    }
+  ]
+}
