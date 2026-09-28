@@ -2,7 +2,7 @@ import { renderToDocx, type DocxRenderOptions } from '../renderers/docx'
 import { renderToHtml } from '../renderers/html'
 import type { NormalizedDocument } from '../core/types'
 import { mml2omml } from 'mathml2omml'
-import { convertMathMlToSemanticHtml } from './mathSemantic'
+import katexCss from 'katex/dist/katex.min.css?raw'
 
 /**
  * Export helpers for Word (.docx/.doc), PDF, HTML, and Markdown
@@ -201,11 +201,6 @@ export function formatForWordClipboard(htmlBody: string): string {
     .replace(/<th\b(?![^>]*style=)[^>]*>/gi, '<th style="border: 1pt solid #cbd5e1; background-color: #f1f5f9; padding: 6pt 8pt; font-weight: bold;">')
     .replace(/<td\b(?![^>]*style=)[^>]*>/gi, '<td style="border: 1pt solid #cbd5e1; padding: 6pt 8pt;">')
 
-  // Convert any raw MathML to Semantic HTML so Word clipboard paste does not flatten it
-  processedHtml = processedHtml.replace(/<math[\s\S]*?<\/math>/gi, (match) => {
-    return convertMathMlToSemanticHtml(match)
-  })
-
   return `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
 <head>
   <meta charset="utf-8">
@@ -272,8 +267,8 @@ export function exportToPdf(htmlBody: string, title = 'document', doc?: Normaliz
 <head>
   <meta charset="utf-8">
   <title>${title}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <style>
+${katexCss}
     @page {
       size: auto;
       margin: 15mm 20mm;

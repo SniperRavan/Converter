@@ -396,15 +396,15 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
     })
   },
 
-  setInputContent: (content: string, format?: SupportedInputFormat) => {
+  setInputContent: (content: string, format?: SupportedInputFormat, immediate = false) => {
     const currentFormat = format || get().inputFormat
     // Instantly update text buffer for 0-latency typing
     set({ inputContent: content })
 
     if (parseTimer) clearTimeout(parseTimer)
 
-    // Immediate parse for short inputs (< 40 chars) to prevent lag feel
-    if (content.length < 40) {
+    // Immediate parse when requested, or for empty inputs
+    if (immediate || !content.trim()) {
       const doc = parseUniversalDocument(content, currentFormat)
       const detection = detectInputFormat(content)
       set({
@@ -414,7 +414,7 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
       return
     }
 
-    // 120ms debounce for continuous typing
+    // Uniform 80ms debounce for typing without boundary flicker
     parseTimer = setTimeout(() => {
       const doc = parseUniversalDocument(content, currentFormat)
       const detection = detectInputFormat(content)
@@ -422,7 +422,7 @@ export const useConverterStore = create<ConverterStore>((set, get) => ({
         parsedDocument: doc,
         detectionResult: detection,
       })
-    }, 120)
+    }, 80)
   },
 
   // Context-aware sample loader: loads sample matching the active input format

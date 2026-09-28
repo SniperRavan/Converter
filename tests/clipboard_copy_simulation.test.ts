@@ -56,4 +56,19 @@ The famous mass-energy equivalence $E = mc^2$ shows the relationship between mas
     expect(unicode1).toBe('J(θ) = 1/2m ∑ᵢ₌₁ᵐ (h_θ(x⁽ⁱ⁾) - y⁽ⁱ⁾)²')
     expect(unicode2).toBe('E = mc²')
   })
+
+  it('generates Word clipboard payload with real Presentation MathML for OMML conversion', async () => {
+    const { formatForWordClipboard } = await import('../src/utils/exporters')
+    const doc = parseMarkdown(sampleMarkdown)
+    const htmlOutput = renderToHtml(doc, { includeWrapper: false, mathMode: 'mathml', cleanTables: true })
+    const wordClipboard = formatForWordClipboard(htmlOutput)
+
+    // Must preserve standard Presentation MathML tags and namespaces for Word MML2OMML.XSL
+    expect(wordClipboard).toContain('<math xmlns="http://www.w3.org/1998/Math/MathML">')
+    expect(wordClipboard).toContain('<mfrac>')
+    expect(wordClipboard).toContain('<msup>')
+    expect(wordClipboard).toContain('xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"')
+    // Must NOT convert mathml into semantic table fractions in Word clipboard body
+    expect(wordClipboard).not.toContain('class="math-frac"')
+  })
 })

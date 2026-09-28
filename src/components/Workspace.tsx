@@ -63,9 +63,9 @@ export const Workspace: React.FC = () => {
       if (saved && ['docs', 'word', 'unicode', 'latex'].includes(saved)) {
         return saved as 'docs' | 'word' | 'unicode' | 'latex'
       }
-      localStorage.setItem('convertion_copy_target', 'docs')
+      localStorage.setItem('convertion_copy_target', 'word')
     }
-    return 'docs'
+    return 'word'
   })
   const [exportPreviewOpen, setExportPreviewOpen] = useState(false)
   const [exportPreviewType, setExportPreviewType] = useState<ExportType>('word')
@@ -240,9 +240,9 @@ export const Workspace: React.FC = () => {
   // Universal File Processor for all files
   const processFile = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
-    const binaryExts = ['docx', 'doc', 'pdf', 'odt', 'rtf', 'zip', 'tar', 'gz', 'exe', 'bin', 'pptx', 'xlsx']
+    const binaryExts = ['docx', 'doc', 'pdf', 'odt', 'rtf', 'pages', 'numbers', 'key', 'tar', 'gz', 'exe', 'bin', 'pptx', 'xlsx']
     if (binaryExts.includes(ext)) {
-      alert(`The file "${file.name}" is a compiled binary format. Convertion processes text and markup inputs (Markdown, LaTeX, HTML, JSON, Code). Please copy or save your document as text, Markdown, or LaTeX!`)
+      alert(`The file "${file.name}" is a compiled binary format. Convertion processes text and markup inputs (Markdown, LaTeX, HTML, JSON, Code, ZIP of TeX projects). Please copy or save your document as text, Markdown, or LaTeX!`)
       return
     }
 
@@ -371,10 +371,10 @@ export const Workspace: React.FC = () => {
           const latexSnippet = renderToPlainText(parsedDocument, { mathMode: 'latex' })
           await navigator.clipboard.writeText(latexSnippet)
         } else if (target === 'word') {
-          // Output Microsoft Word-compatible semantic markup with Word MSO styling
+          // Output Microsoft Word-compatible Presentation MathML markup with Word MSO styling
           const htmlSnippet = renderToHtml(parsedDocument, {
             includeWrapper: false,
-            mathMode: 'semantic',
+            mathMode: 'mathml',
             cleanTables: true,
           })
           const plainSnippet = renderToPlainText(parsedDocument, { mathMode: 'unicode' })
@@ -936,7 +936,7 @@ export const Workspace: React.FC = () => {
                         }}
                         className="w-full text-left px-3.5 py-2 hover:bg-[#FAF5ED] dark:hover:bg-[#1c1c1c] flex items-center justify-between text-neutral-800 dark:text-neutral-200 cursor-pointer"
                       >
-                        <span>Copy for Google Docs (Images)</span>
+                        <span>Copy for Google Docs (Rich Text)</span>
                         <span className="text-[10px] text-blue-500 font-mono">DOCS</span>
                       </button>
 
