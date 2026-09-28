@@ -682,19 +682,35 @@ function renderBlockToOpenXml(block: BlockNode, mathMode: 'omml' | 'compatible' 
           }
         }
         let nestedXml = ''
-        const inlines = item.children.map((child) => {
-          if (child.type === 'paragraph') return child.children.map((c) => renderInlineToOpenXml(c, {}, mathMode)).join('')
+        const inlines = item.children.map((child, cIdx) => {
+          if (child.type === 'paragraph') {
+            if (cIdx === 0) {
+              return child.children.map((c) => renderInlineToOpenXml(c, {}, mathMode)).join('')
+            } else {
+              nestedXml += renderBlockToOpenXml(child, mathMode)
+              return ''
+            }
+          }
           if (child.type === 'list') {
             nestedXml += renderBlockToOpenXml(child, mathMode)
             return ''
           }
-          if ('children' in child) return (child.children as InlineNode[]).map((c) => renderInlineToOpenXml(c, {}, mathMode)).join('')
+          if ('type' in child) {
+            nestedXml += renderBlockToOpenXml(child as BlockNode, mathMode)
+            return ''
+          }
+          if ('children' in child && Array.isArray((child as any).children)) {
+            return ((child as any).children as InlineNode[]).map((c) => renderInlineToOpenXml(c, {}, mathMode)).join('')
+          }
           return ''
         }).join('')
 
         const bulletColor = isTask ? '0F172A' : '334155'
         const itemP = `<w:p><w:pPr><w:ind w:left="480" w:hanging="240"/><w:spacing w:after="60"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val="${bulletColor}"/></w:rPr><w:t xml:space="preserve">${bullet} </w:t></w:r>${inlines}</w:p>`
-        return itemP + nestedXml
+        const indentedNestedXml = nestedXml
+          ? nestedXml.replace(/<w:pPr>/g, '<w:pPr><w:ind w:left="480"/>')
+          : ''
+        return itemP + indentedNestedXml
       }).join('')
     }
 
@@ -870,7 +886,15 @@ export function renderToDocx(doc: NormalizedDocument, options: DocxRenderOptions
     <w:pitch w:val="variable"/>
   </w:font>
   <w:font w:name="Cambria Math">
-    <w:altName w:val="DejaVu Sans, Latin Modern Math, STIX Two Math, Symbol"/>
+    <w:altName w:val="STIX Two Math"/>
+    <w:family w:val="roman"/>
+    <w:pitch w:val="variable"/>
+  </w:font>
+  <w:font w:name="STIX Two Math">
+    <w:family w:val="roman"/>
+    <w:pitch w:val="variable"/>
+  </w:font>
+  <w:font w:name="DejaVu Math TeX Gyre">
     <w:family w:val="roman"/>
     <w:pitch w:val="variable"/>
   </w:font>

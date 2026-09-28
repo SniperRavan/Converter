@@ -75,7 +75,10 @@ function renderBlockToLatex(block: BlockNode, levelShift = 0): string {
                 return child.children.map(renderInlineToLatex).join('')
               }
               if ('type' in child && child.type === 'list') {
-                return '\n' + renderBlockToLatex(child)
+                return '\n' + renderBlockToLatex(child, levelShift)
+              }
+              if ('type' in child) {
+                return '\n' + renderBlockToLatex(child as BlockNode, levelShift).trim()
               }
               return ''
             })

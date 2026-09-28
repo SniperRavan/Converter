@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify'
 import katex from 'katex'
+import katexCss from 'katex/dist/katex.min.css?raw'
 import type { BlockNode, InlineNode, NormalizedDocument } from '../core/types'
 import { latexToUnicode } from '../utils/mathUnicode'
 import { renderMathToSemanticHtml } from '../utils/mathSemantic'
@@ -26,7 +27,7 @@ function sanitizeUrl(url: string): string {
 export interface HtmlRenderOptions {
   includeWrapper?: boolean
   title?: string
-  mathMode?: 'images' | 'mathml' | 'latex' | 'semantic' | 'katex'
+  mathMode?: 'mathml' | 'latex' | 'semantic' | 'katex'
   cleanTables?: boolean
 }
 
@@ -49,18 +50,7 @@ function renderMathToMathMl(latex: string, displayMode: boolean): string {
   }
 }
 
-function renderMathToOfflineSvgDataUri(latex: string, displayMode: boolean): string {
-  const unicodeText = latexToUnicode(latex) || latex.trim()
-  const fontSize = displayMode ? 16 : 14
-  const paddingX = displayMode ? 16 : 6
-  const charWidth = fontSize * 0.62
-  const width = Math.max(Math.ceil(unicodeText.length * charWidth + paddingX * 2), displayMode ? 80 : 32)
-  const height = displayMode ? 38 : 22
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="'Cambria Math','STIX Two Math','DejaVu Serif',serif" font-size="${fontSize}" fill="#0f172a">${escapeHtml(unicodeText)}</text></svg>`
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
-}
-
-function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'latex' | 'semantic' | 'katex' = 'mathml'): string {
+function renderInlineToHtml(node: InlineNode, mathMode: 'mathml' | 'latex' | 'semantic' | 'katex' = 'mathml'): string {
   switch (node.type) {
     case 'text':
       return escapeHtml(node.value)
@@ -87,11 +77,6 @@ function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'l
       if (mathMode === 'semantic') {
         return renderMathToSemanticHtml(node.value, false)
       }
-      if (mathMode === 'images') {
-        const unicodeText = escapeHtml(latexToUnicode(node.value) || node.value)
-        const dataUri = renderMathToOfflineSvgDataUri(node.value, false)
-        return `<img src="${dataUri}" class="latex-formula" alt="${unicodeText}" title="${unicodeText}" style="vertical-align: -0.25em; display: inline-block; margin: 0 2px;" />`
-      }
       if (mathMode === 'mathml') {
         return renderMathToMathMl(node.value, false)
       }
@@ -111,7 +96,7 @@ function renderInlineToHtml(node: InlineNode, mathMode: 'images' | 'mathml' | 'l
 
 function renderBlockToHtml(
   block: BlockNode,
-  mathMode: 'images' | 'mathml' | 'latex' | 'semantic' | 'katex' = 'mathml',
+  mathMode: 'mathml' | 'latex' | 'semantic' | 'katex' = 'mathml',
   cleanTables = false
 ): string {
   switch (block.type) {
@@ -201,11 +186,6 @@ function renderBlockToHtml(
         const rendered = renderMathToSemanticHtml(block.value, true)
         return idAttr ? `<div${idAttr} class="math-block">${rendered}</div>` : rendered
       }
-      if (mathMode === 'images') {
-        const unicodeText = escapeHtml(latexToUnicode(block.value) || block.value)
-        const dataUri = renderMathToOfflineSvgDataUri(block.value, true)
-        return `<div${idAttr} class="math-block" style="text-align: center; margin: 16px 0;"><img src="${dataUri}" class="latex-formula" alt="${unicodeText}" title="${unicodeText}" style="max-width: 100%; height: auto;" /></div>`
-      }
       if (mathMode === 'mathml') {
         const mathml = renderMathToMathMl(block.value, true)
         return `<div${idAttr} class="math-block" style="text-align: center; margin: 16px 0;">${mathml}</div>`
@@ -238,6 +218,9 @@ function renderBlockToHtml(
               }
               if ('type' in child && child.type === 'list') {
                 return renderBlockToHtml(child, mathMode, cleanTables)
+              }
+              if ('type' in child) {
+                return renderBlockToHtml(child as BlockNode, mathMode, cleanTables)
               }
               return ''
             })
@@ -351,8 +334,8 @@ export function renderToHtml(doc: NormalizedDocument, options: HtmlRenderOptions
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(options.title || doc.metadata?.title || 'Converted Document')}</title>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
   <style>
+${katexCss}
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       line-height: 1.6;

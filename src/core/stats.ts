@@ -41,14 +41,18 @@ export function computeDocumentStats(blocks: BlockNode[]): DocumentStats {
 
   let combinedText = ''
 
-  function processInlines(inlines: InlineNode[]) {
+  function countMathInlines(inlines: InlineNode[]) {
     for (const inline of inlines) {
       if (inline.type === 'inlineMath') {
         stats.mathExpressions += 1
-      } else if (inline.type === 'strong' || inline.type === 'emphasis' || inline.type === 'strikethrough' || inline.type === 'link') {
-        processInlines(inline.children)
+      } else if ('children' in inline && Array.isArray((inline as any).children)) {
+        countMathInlines((inline as any).children)
       }
     }
+  }
+
+  function processInlines(inlines: InlineNode[]) {
+    countMathInlines(inlines)
     combinedText += ' ' + getInlineText(inlines)
   }
 
@@ -76,12 +80,25 @@ export function computeDocumentStats(blocks: BlockNode[]): DocumentStats {
         break
       case 'list':
         stats.lists += 1
+        const blockTypes = new Set([
+          'paragraph',
+          'heading',
+          'mathBlock',
+          'codeBlock',
+          'table',
+          'list',
+          'blockquote',
+          'thematicBreak',
+          'rawBlock',
+        ])
         block.items.forEach(item => {
           item.children.forEach(child => {
-            if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
-              processBlock(child)
-            } else if ('children' in child && Array.isArray(child.children)) {
-              processInlines(child.children as InlineNode[])
+            if ('type' in child && blockTypes.has(child.type)) {
+              processBlock(child as BlockNode)
+            } else if ('children' in child && Array.isArray((child as any).children)) {
+              processInlines((child as any).children as InlineNode[])
+            } else if ('type' in child) {
+              processInlines([child as InlineNode])
             }
           })
         })

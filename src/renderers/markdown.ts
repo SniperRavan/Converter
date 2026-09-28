@@ -58,21 +58,24 @@ function renderBlockToMarkdown(block: BlockNode): string {
       return block.items
         .map((item, index) => {
           const prefix = block.ordered ? `${(block.start || 1) + index}. ` : '- '
-          const content = item.children
-            .map(child => {
-              if ('type' in child && child.type === 'paragraph') {
-                return child.children.map(renderInlineToMarkdown).join('')
-              }
-              if ('type' in child && child.type === 'heading') {
-                return child.children.map(renderInlineToMarkdown).join('')
-              }
-              if ('type' in child && child.type === 'list') {
-                return '\n  ' + renderBlockToMarkdown(child).trim().replace(/\n/g, '\n  ')
-              }
-              return ''
-            })
-            .join(' ')
-          return `${prefix}${content}`
+          const indent = ' '.repeat(prefix.length)
+          const parts = item.children.map((child, cIdx) => {
+            if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
+              const text = child.children.map(renderInlineToMarkdown).join('')
+              if (cIdx === 0) return text
+              return `\n\n${indent}` + text.split('\n').join(`\n${indent}`)
+            }
+            if ('type' in child && child.type === 'list') {
+              const rendered = renderBlockToMarkdown(child).trim()
+              return `\n${indent}` + rendered.split('\n').join(`\n${indent}`)
+            }
+            if ('type' in child) {
+              const rendered = renderBlockToMarkdown(child as BlockNode).trim()
+              return `\n\n${indent}` + rendered.split('\n').join(`\n${indent}`)
+            }
+            return ''
+          })
+          return `${prefix}${parts.join('')}`
         })
         .join('\n') + '\n'
     }

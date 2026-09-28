@@ -482,6 +482,9 @@ export const BlockRenderer: React.FC<{ block: BlockNode; isActive?: boolean }> =
                   if ('type' in child && child.type === 'list') {
                     return <BlockRenderer key={cIdx} block={child} />
                   }
+                  if ('type' in child) {
+                    return <BlockRenderer key={cIdx} block={child as BlockNode} />
+                  }
                   return null
                 })}
               </li>

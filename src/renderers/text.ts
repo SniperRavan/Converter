@@ -57,21 +57,27 @@ function renderBlockToPlainText(block: BlockNode, mathMode: 'unicode' | 'latex' 
             if (item.checked === true) prefix = '[x] '
             else if (item.checked === false) prefix = '[ ] '
           }
-          const content = item.children
-            .map(child => {
-              if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
-                let text = getInlineText(child.children, { mathMode })
-                if (!block.ordered && (item.checked === true || item.checked === false)) {
-                  text = text.replace(/^\[[xX ]\]\s*/, '')
-                }
-                return text
+          const indent = ' '.repeat(prefix.length)
+          const parts = item.children.map((child, cIdx) => {
+            if ('type' in child && (child.type === 'paragraph' || child.type === 'heading')) {
+              let text = getInlineText(child.children, { mathMode })
+              if (!block.ordered && (item.checked === true || item.checked === false)) {
+                text = text.replace(/^\[[xX ]\]\s*/, '')
               }
-              if ('type' in child && child.type === 'list') {
-                return renderBlockToPlainText(child, mathMode)
-              }
-              return ''
-            })
-            .join(' ')
+              if (cIdx === 0) return text
+              return '\n' + text.split('\n').map(l => indent + l).join('\n')
+            }
+            if ('type' in child && child.type === 'list') {
+              const rendered = renderBlockToPlainText(child, mathMode).trimEnd()
+              return '\n' + rendered.split('\n').map(l => indent + l).join('\n')
+            }
+            if ('type' in child) {
+              const rendered = renderBlockToPlainText(child as BlockNode, mathMode).trim()
+              return '\n' + rendered.split('\n').map(l => indent + l).join('\n')
+            }
+            return ''
+          })
+          const content = parts.join('')
           if (!block.ordered && (content.startsWith('[x] ') || content.startsWith('[ ] '))) {
             prefix = ''
           }
