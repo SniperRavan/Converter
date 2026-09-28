@@ -24,10 +24,9 @@ describe('Math Representation & Unicode Engine', () => {
     expect(html).toContain('</math>')
   })
 
-  it('renders visual fallback with unicode alt when mathMode is images', () => {
-    const doc = parseLatex('\\begin{document}$$ E = mc^2 $$\\end{document}')
-    const html = renderToHtml(doc, { includeWrapper: false, mathMode: 'images' })
-    expect(html).toContain('<img')
-    expect(html).toContain('alt="E = mc²"')
+  it('renders semantic HTML with fraction structure when mathMode is semantic', () => {
+    const doc = parseLatex('\\begin{document}$$ \\frac{a}{b} $$\\end{document}')
+    const html = renderToHtml(doc, { includeWrapper: false, mathMode: 'semantic' })
+    expect(html).toContain('math-frac')
   })
 })

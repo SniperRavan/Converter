@@ -149,4 +149,19 @@ Here is a system architecture note.
     expect(txt).not.toContain('**')
     expect(txt).not.toContain('<h1>')
   })
+
+  it('accurately counts words without inflating counts for bold, italic, or link spans', () => {
+    // "Alpha Beta Gamma Delta" = exactly 4 words
+    const doc = parseUniversalDocument('**Alpha** *Beta* ~~Gamma~~ [Delta](https://example.com)', 'markdown')
+    expect(doc.stats.words).toBe(4)
+  })
+
+  it('reports non-zero stats for malformed JSON fallback content in parseJson', async () => {
+    const { parseJson } = await import('../src/parsers/json')
+    const broken = '{"broken": "payload", '
+    const doc = parseJson(broken)
+    expect(doc.stats.paragraphs).toBe(1)
+    expect(doc.stats.words).toBeGreaterThan(0)
+    expect(doc.stats.characters).toBeGreaterThan(0)
+  })
 })

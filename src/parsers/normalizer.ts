@@ -259,13 +259,20 @@ function normalizeElementSeparation(text: string): string {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const stripped = line.trim()
+    const isCodeFencePlaceholder = /^@@FENCE_STASH_\d+@@$/.test(stripped)
+    const isFence = stripped.startsWith('```') || stripped.startsWith('~~~') || isCodeFencePlaceholder
 
-    if (stripped.startsWith('```') || stripped.startsWith('~~~')) {
+    if (isFence) {
       if (!inCodeBlock && result.length > 0 && result[result.length - 1].trim() !== '') {
         result.push('')
       }
-      inCodeBlock = !inCodeBlock
+      if (!isCodeFencePlaceholder) {
+        inCodeBlock = !inCodeBlock
+      }
       result.push(line)
+      if (isCodeFencePlaceholder && i + 1 < lines.length && lines[i + 1].trim() !== '') {
+        result.push('')
+      }
       continue
     }
 
@@ -290,6 +297,31 @@ function normalizeElementSeparation(text: string): string {
         result.push('')
       } else if (isQuote && !prevIsQuote) {
         result.push('')
+      } else {
+        // Standalone heading-like title or bold label preceding paragraph text without a blank line
+        const prevWords = prevLine.split(/\s+/)
+        const isShortTitle =
+          prevWords.length <= 5 &&
+          prevLine.length <= 45 &&
+          /^[A-Z0-9]/.test(prevLine) &&
+          !/^[#>|*\-+•\d.]/.test(prevLine) &&
+          !/[.,;:!?'"’”)\]\-—\\/]$/.test(prevLine) &&
+          !/\b(a|an|the|in|on|at|to|for|with|of|by|from|and|or|but|as|if|that|which|this|these|those)\s*$/i.test(prevLine) &&
+          !/\b(is|are|was|were|will|would|can|could|should|have|has|had|differs|requires|shows|means)\b/i.test(prevLine)
+
+        const isBoldHeading = /^\*\*[^*]{1,50}\*\*:?$/.test(prevLine)
+
+        // A genuine new paragraph following a title MUST start with an uppercase letter, quote, or bracket.
+        // Lines starting with a lowercase letter (e.g. "from the previous version...") are soft-wrapped continuations
+        // and must NEVER be split.
+        const isCurrentParagraph =
+          /^[A-Z0-9"“'‘([]/.test(stripped) &&
+          !/^[#>|*\-+•\d.]/.test(stripped) &&
+          stripped.length >= 25
+
+        if ((isShortTitle || isBoldHeading) && isCurrentParagraph) {
+          result.push('')
+        }
       }
     }
 
@@ -300,16 +332,203 @@ function normalizeElementSeparation(text: string): string {
 }
 
 /**
+ * Calculates visual column indentation for a line, expanding tabs to 4-column tab stops.
+ */
+function getLeadingIndent(line: string): number {
+  let spaces = 0
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === ' ') {
+      spaces += 1
+    } else if (line[i] === '\t') {
+      spaces += 4 - (spaces % 4)
+    } else {
+      break
+    }
+  }
+  return spaces
+}
+
+/**
+ * Strips up to `margin` visual columns of indentation from `line`, preserving relative tabs.
+ */
+function stripIndent(line: string, margin: number): string {
+  if (margin <= 0) return line
+  let strippedCols = 0
+  let i = 0
+  while (i < line.length && strippedCols < margin) {
+    if (line[i] === ' ') {
+      strippedCols += 1
+      i++
+    } else if (line[i] === '\t') {
+      const nextTab = strippedCols + (4 - (strippedCols % 4))
+      if (nextTab <= margin) {
+        strippedCols = nextTab
+        i++
+      } else {
+        const remainingSpaces = nextTab - margin
+        return ' '.repeat(remainingSpaces) + line.slice(i + 1)
+      }
+    } else {
+      break
+    }
+  }
+  return line.slice(i)
+}
+
+/**
+ * Strips document-level padding (e.g. from terminal or chat transcripts) while preserving
+ * block-level nesting (sub-lists, continuation paragraphs) and genuine 4-space indented code blocks.
+ *
+ * It finds the most common indentation among the first line of each block across the document.
+ * Ties favor the smaller value (0), ensuring unpadded documents with loose lists or indented code
+ * blocks remain untouched.
+ */
+export function dedentMarkdown(text: string): string {
+  if (!text) return ''
+
+  const lines = text.split('\n')
+  const blockIndents: number[] = []
+  let activeFence: { char: string; len: number } | null = null
+  let isNewBlock = true
+  let firstNonBlankIndent: number | null = null
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]
+    const stripped = line.trim()
+
+    if (stripped.length > 0 && firstNonBlankIndent === null) {
+      firstNonBlankIndent = getLeadingIndent(line)
+    }
+
+    if (activeFence) {
+      const closeRegex = new RegExp('^\\s*' + (activeFence.char === '`' ? '`' : '~') + '{' + activeFence.len + ',}\\s*$')
+      if (closeRegex.test(line)) {
+        activeFence = null
+        isNewBlock = true
+      }
+      continue
+    }
+
+    const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/)
+    if (fenceMatch) {
+      blockIndents.push(getLeadingIndent(line))
+      activeFence = { char: fenceMatch[2][0], len: fenceMatch[2].length }
+      isNewBlock = false
+      continue
+    }
+
+    if (stripped.length === 0) {
+      isNewBlock = true
+      continue
+    }
+
+    if (isNewBlock) {
+      blockIndents.push(getLeadingIndent(line))
+      isNewBlock = false
+    }
+  }
+
+  if (blockIndents.length === 0) return text
+
+  const freq: Record<number, number> = {}
+  for (const ind of blockIndents) {
+    freq[ind] = (freq[ind] || 0) + 1
+  }
+
+  let margin = 0
+  let maxCount = 0
+
+  // Sort indents ascending so ties naturally favor the smaller value
+  const sortedIndents = Object.keys(freq).map(Number).sort((a, b) => a - b)
+  for (const ind of sortedIndents) {
+    if (freq[ind] > maxCount) {
+      maxCount = freq[ind]
+      margin = ind
+    }
+  }
+
+  // Cap the margin at the indent of the first non-blank line (real document padding applies to line 1)
+  if (firstNonBlankIndent !== null) {
+    margin = Math.min(margin, firstNonBlankIndent)
+  }
+
+  if (margin === 0) {
+    return text
+  }
+
+  return lines.map((l) => stripIndent(l, margin)).join('\n')
+}
+
+/**
+ * Stashes fenced code blocks and inline code spans before normalization passes,
+ * and provides a restore function to put them back untouched afterwards.
+ */
+function stashCode(text: string) {
+  const fenceStash: string[] = []
+  const inlineStash: string[] = []
+  const putFence = (s: string) => `@@FENCE_STASH_${fenceStash.push(s) - 1}@@`
+  const putInline = (s: string) => `@@INLINE_STASH_${inlineStash.push(s) - 1}@@`
+
+  const out: string[] = []
+  let buf: string[] | null = null
+  let activeFence: { char: string; len: number } | null = null
+
+  for (const line of text.split('\n')) {
+    if (activeFence) {
+      buf!.push(line)
+      const closeRegex = new RegExp('^\\s*' + (activeFence.char === '`' ? '`' : '~') + '{' + activeFence.len + ',}\\s*$')
+      if (closeRegex.test(line)) {
+        out.push(putFence(buf!.join('\n')))
+        buf = null
+        activeFence = null
+      }
+      continue
+    }
+
+    const fenceMatch = line.match(/^(\s*)(`{3,}|~{3,})/)
+    if (fenceMatch) {
+      buf = [line]
+      activeFence = { char: fenceMatch[2][0], len: fenceMatch[2].length }
+      continue
+    }
+
+    out.push(line)
+  }
+
+  if (buf && activeFence) {
+    // Automatically heals unclosed code fence at the end of input
+    const closing = activeFence.char.repeat(activeFence.len)
+    out.push(putFence([...buf, closing].join('\n')))
+  }
+
+  const masked = out.join('\n').replace(/(`+)[^\n]+?\1/g, putInline)
+  return {
+    masked,
+    restore: (s: string) =>
+      s
+        .replace(/@@FENCE_STASH_(\d+)@@/g, (match, i) => fenceStash[+i] ?? match)
+        .replace(/@@INLINE_STASH_(\d+)@@/g, (match, i) => inlineStash[+i] ?? match),
+  }
+}
+
+/**
  * Main normalization pipeline applied to text before markdown parsing.
  */
 export function normalizeUniversalInput(rawText: string): string {
   if (!rawText) return ''
   let text = rawText
 
-  // 0a. Strip invisible Unicode zero-width characters (ZWSP, ZWNJ, ZWJ, BOM)
+  // 0a. Strip common leading indentation (terminal/transcript copies)
+  text = dedentMarkdown(text)
+
+  // Stash code blocks and inline code spans so normalization passes do not alter code contents
+  const { masked, restore } = stashCode(text)
+  text = masked
+
+  // 0b. Strip invisible Unicode zero-width characters (ZWSP, ZWNJ, ZWJ, BOM)
   text = text.replace(/[\u200B-\u200D\uFEFF]/g, '')
 
-  // 0b. Normalize colon-indexed lists (e.g. 0: "...", 1: "...") into standard Markdown ordered lists
+  // 0c. Normalize colon-indexed lists (e.g. 0: "...", 1: "...") into standard Markdown ordered lists
   text = text.replace(/^([ \t]*\d+)[:][ \t]+/gm, '$1. ')
 
   // Pre-normalize isolated single $ block fences from LLMs
@@ -474,6 +693,9 @@ export function normalizeUniversalInput(rawText: string): string {
     .replace(/\^([a-zA-Z0-9+\-=()]{1,6})\^/g, (_m, inner) => {
       return inner.split('').map((c: string) => SUPERSCRIPT_MAP[c] || c).join('')
     })
+
+  // Restore original code blocks and inline code spans untouched
+  text = restore(text)
 
   return text
 }
