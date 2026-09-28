@@ -587,6 +587,26 @@ Here is why.\\cite{sourceB}
     expect(html).toContain('id="cite-sourceA"')
     expect(html).toContain('id="cite-sourceB"')
   })
+
+  it('preserves headers for ordinary tables starting with month names', () => {
+    const tableTex = `\\documentclass{article}
+\\begin{document}
+\\begin{tabular}{ccc}
+\\hline
+May & June & July \\\\
+\\hline
+100 & 200 & 300 \\\\
+\\hline
+\\end{tabular}
+\\end{document}`
+
+    const doc = parseLatex(tableTex)
+    const table = doc.children.find((c) => c.type === 'table') as any
+    expect(table).toBeDefined()
+    expect(table.headers.length).toBe(3)
+    expect(table.headers[0].children[0].value).toBe('May')
+    expect(table.rows.length).toBe(1)
+  })
 })
 
 

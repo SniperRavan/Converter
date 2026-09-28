@@ -220,4 +220,19 @@ Let $x \\in \\R^n$ be a vector. The system \\myproject{} computes AST nodes.
     expect(md).toContain('\\mathbb{R}')
     expect(md).toContain('Convertion Core')
   })
+
+  it('gracefully recovers from unclosed braces in macros without dropping document content', () => {
+    const tex = `\\documentclass{article}
+\\begin{document}
+\\section{Introduction}
+Here is a paragraph with \\textbf{unclosed bold text
+And here is a second paragraph that must not be dropped.
+\\end{document}`
+
+    const doc = parseLatex(tex)
+    const md = renderToMarkdown(doc)
+    expect(md).toContain('Introduction')
+    expect(md).toContain('unclosed bold text')
+    expect(md).toContain('And here is a second paragraph that must not be dropped.')
+  })
 })

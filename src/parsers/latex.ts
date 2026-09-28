@@ -38,6 +38,7 @@ function extractInlineText(nodes: InlineNode[]): string {
 
 /**
  * Extracts content within balanced curly braces starting from startIdx
+ * Self-healing: if an unmatched brace occurs, recovers content up to next newline instead of returning null and aborting
  */
 function extractBalancedBraces(str: string, startIdx: number): { content: string; endIdx: number } | null {
   let depth = 1
@@ -47,6 +48,12 @@ function extractBalancedBraces(str: string, startIdx: number): { content: string
       depth--
       if (depth === 0) return { content: str.slice(startIdx, i), endIdx: i }
     }
+  }
+  // Self-healing fallback: recover up to next newline instead of silent failure
+  const nextBreak = str.indexOf('\n', startIdx)
+  const end = nextBreak === -1 ? str.length : nextBreak
+  if (end > startIdx) {
+    return { content: str.slice(startIdx, end), endIdx: end }
   }
   return null
 }
@@ -65,13 +72,17 @@ function extractBracedCommand(str: string, cmd: string): string | null {
 
 /**
  * Extracts N consecutive balanced-braced arguments: {arg1}{arg2}...{argN}
+ * Self-healing: handles trailing unclosed braces gracefully
  */
 function extractNBracedArgs(str: string, startIdx: number, count: number): { args: string[]; endIdx: number } | null {
   const args: string[] = []
   let cursor = startIdx
   for (let c = 0; c < count; c++) {
     const openBrace = str.indexOf('{', cursor)
-    if (openBrace === -1) return null
+    if (openBrace === -1) {
+      if (args.length > 0) return { args, endIdx: cursor }
+      return null
+    }
     let depth = 1
     let closeBrace = -1
     for (let i = openBrace + 1; i < str.length; i++) {
@@ -84,7 +95,10 @@ function extractNBracedArgs(str: string, startIdx: number, count: number): { arg
         }
       }
     }
-    if (closeBrace === -1) return null
+    if (closeBrace === -1) {
+      const nextBreak = str.indexOf('\n', openBrace + 1)
+      closeBrace = nextBreak === -1 ? str.length : nextBreak
+    }
     args.push(str.slice(openBrace + 1, closeBrace).trim())
     cursor = closeBrace + 1
   }
@@ -815,26 +829,30 @@ function parseLatexTabular(content: string): BlockNode | null {
   const expanded = expandTabularCvMacros(content)
   const rawRows = expanded
     .split(/\\\\/)
-    .map((r) => r.trim())
-    .filter((r) => r && !r.startsWith('\\hline') && !r.startsWith('\\toprule') && !r.startsWith('\\bottomrule'))
+    .map((r) =>
+      r
+        .replace(/\\(hline|toprule|midrule|bottomrule)\b/g, '')
+        .replace(/\\\\(?:\[[^\]]*\])?\s*$/, '')
+        .trim()
+    )
+    .filter(Boolean)
 
   if (rawRows.length === 0) return null
 
-  // Check if table contains CV macros or numeric/date/icon cells in row 0 without an explicit header
+  // Check if table contains CV macros, numeric/date ranges, or language-proficiency cells in row 0 without an explicit header
+  const hasHeaderDivider = /\\\\(?:\[[^\]]*\])?\s*\\(hline|midrule)\b/.test(expanded)
   const isCvTable =
-    /\\(cvevent|cvdegree|barrule|pictofraction)\b/.test(content) ||
-    /^\s*(?:\d{4}|Nov\.|Jan\.|Feb\.|Mar\.|Apr\.|May|Jun\.|Jul\.|Aug\.|Sep\.|Oct\.|Dec\.|English|French|Spanish|Italian)/i.test(rawRows[0]) ||
-    /\\bg\{[^}]*\}\{[^}]*\}/.test(rawRows[0])
+    !hasHeaderDivider &&
+    (/\\(cvevent|cvdegree|barrule|pictofraction)\b/.test(content) ||
+      /^\s*(?:\d{4}\s*[-–—]|\d{4}\s*--\s*\d{4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\.?\s*\d{4}\s*[-–—])/i.test(rawRows[0]) ||
+      /^\s*(?:English|French|Spanish|Italian|German)\s*&.*?(?:Native|Fluent|Proficient|Basic|Intermediate|Advanced|A[12]|B[12]|C[12]|\\pictofraction|\\barrule|\d+%\s*$)/i.test(rawRows[0]) ||
+      /\\bg\{[^}]*\}\{[^}]*\}/.test(rawRows[0]))
 
   const parsedRows: TableRowNode[] = []
   let headers: TableCellNode[] = []
 
   rawRows.forEach((rowStr, rIdx) => {
-    const cleanedRow = rowStr
-      .replace(/\\(hline|toprule|midrule|bottomrule)\b/g, '')
-      .replace(/\\\\(?:\[[^\]]*\])?\s*$/, '')
-      .trim()
-
+    const cleanedRow = rowStr.trim()
     if (!cleanedRow) return
 
     // Preserve escaped \& before splitting on cell delimiter &

@@ -68,7 +68,10 @@ function extractNBracedArgs(str: string, startIdx: number, count: number): { arg
   let cursor = startIdx
   for (let c = 0; c < count; c++) {
     const openBrace = str.indexOf('{', cursor)
-    if (openBrace === -1) return null
+    if (openBrace === -1) {
+      if (args.length > 0) return { args, endIdx: cursor }
+      return null
+    }
     let depth = 1
     let closeBrace = -1
     for (let i = openBrace + 1; i < str.length; i++) {
@@ -81,7 +84,10 @@ function extractNBracedArgs(str: string, startIdx: number, count: number): { arg
         }
       }
     }
-    if (closeBrace === -1) return null
+    if (closeBrace === -1) {
+      const nextBreak = str.indexOf('\n', openBrace + 1)
+      closeBrace = nextBreak === -1 ? str.length : nextBreak
+    }
     args.push(str.slice(openBrace + 1, closeBrace).trim())
     cursor = closeBrace + 1
   }

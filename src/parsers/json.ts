@@ -45,6 +45,12 @@ export function parseJson(jsonString: string): NormalizedDocument {
     }
   } catch {
     // If not valid JSON, treat as text
+    const fallbackChildren: BlockNode[] = [
+      {
+        type: 'paragraph',
+        children: [{ type: 'text', value: jsonString }],
+      },
+    ]
     return {
       type: 'document',
       version: 1,
@@ -52,13 +58,8 @@ export function parseJson(jsonString: string): NormalizedDocument {
         createdAt: new Date().toISOString(),
         sourceFormat: 'json',
       },
-      children: [
-        {
-          type: 'paragraph',
-          children: [{ type: 'text', value: jsonString }],
-        },
-      ],
-      stats: computeDocumentStats([]),
+      children: fallbackChildren,
+      stats: computeDocumentStats(fallbackChildren),
     }
   }
 }
