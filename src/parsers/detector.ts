@@ -28,26 +28,27 @@ export function detectInputFormat(content: string): DetectionResult {
   const contentWithoutTags = clean.replace(/<[^>]+>/g, ' ')
 
   // 1. Structural features
-  const hasHeadings = /^#{1,6}\s+\S+/m.test(contentWithoutTags) || /^\S+.*[\r\n]+[=-]{3,}\s*$/m.test(contentWithoutTags)
+  const hasHeadings = /^[\s]*#{1,6}\s+\S+/m.test(contentWithoutTags) || /^\S+.*[\r\n]+[=-]{3,}\s*$/m.test(contentWithoutTags)
   const hasTables = /\|(.+)\|[\r\n]+\|[-:\s|]+\|/.test(clean) || /\+[─━═=+-]{3,}\+/.test(clean)
   const hasCode = /```[a-zA-Z0-9_-]*[\s\S]*?```/.test(clean)
-  const hasBlockquotes = /^>\s+\S+/m.test(contentWithoutTags)
+  const hasBlockquotes = /^[\s]*>\s+\S+/m.test(contentWithoutTags)
   const hasBullets = /^[\s]*[-*+•]\s+\S+/m.test(contentWithoutTags)
   const hasMarkdownFormat = /(\*\*[^*]+\*\*|(?<!\w)_[^_]+_(?!\w)|~~[^~]+~~|\[.+\]\(.+\))/.test(contentWithoutTags)
 
   // Explicit LaTeX documents & structural commands
-  // Strip fenced code blocks so code snippets inside markdown tutorials aren't falsely detected as whole documents
-  const contentOutsideCode = clean.replace(/```[a-zA-Z0-9_-]*[\s\S]*?```/g, '').trim()
+  // Strip fenced code blocks and inline code spans so code snippets inside markdown tutorials aren't falsely detected as whole documents
+  const contentOutsideCode = clean.replace(/```[a-zA-Z0-9_-]*[\s\S]*?```/g, '').replace(/`[^`\n]+`/g, '').trim()
   const isFullLatex =
     contentOutsideCode.length > 0
       ? /\\documentclass\b/.test(contentOutsideCode) || /\\begin\{document\}/.test(contentOutsideCode)
       : /\\documentclass\b/.test(clean) || /\\begin\{document\}/.test(clean)
-  const hasLineStartLatex =
-    /^\s*\\(part|chapter|section|subsection|subsubsection|cvsection|cvsubsection|paragraph)\*?\s*\{/m.test(clean) ||
-    /^\s*\\begin\{(equation|align|gather|tabular|figure|lstlisting|itemize|enumerate|abstract|thebibliography)\}/m.test(clean) ||
-    /^\s*\\(usepackage|title|author|date)\s*\{/m.test(clean)
+  const hasLatexStructureOrCommands =
+    /^\s*\\(part|chapter|section|subsection|subsubsection|cvsection|cvsubsection|paragraph)\*?\s*\{/m.test(contentOutsideCode) ||
+    /^\s*\\begin\{(equation|align|gather|tabular|figure|lstlisting|itemize|enumerate|abstract|thebibliography)\}/m.test(contentOutsideCode) ||
+    /^\s*\\(usepackage|title|author|date)\s*\{/m.test(contentOutsideCode) ||
+    /\\(textbf|textit|emph|cite|ref|label)\{[^}]+\}/.test(contentOutsideCode)
 
-  const isExplicitLatex = isFullLatex || (hasLineStartLatex && !hasHeadings && !hasCode && !hasBlockquotes)
+  const isExplicitLatex = isFullLatex || (hasLatexStructureOrCommands && !hasHeadings && !hasCode && !hasBlockquotes && !hasMarkdownFormat && !hasBullets)
 
   // 2. Math expressions
   const hasMath =
@@ -105,10 +106,7 @@ export function detectInputFormat(content: string): DetectionResult {
   } else if (hasHeadings || hasCode || hasTables || hasBlockquotes) {
     primaryFormat = 'markdown'
     confidence = 0.95
-  } else if (hasMath) {
-    primaryFormat = 'latex'
-    confidence = 0.85
-  } else if (hasBullets || hasMarkdownFormat) {
+  } else if (hasBullets || hasMarkdownFormat || hasMath) {
     primaryFormat = 'markdown'
     confidence = 0.85
   }

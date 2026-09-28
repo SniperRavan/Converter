@@ -32,10 +32,15 @@ export function parseUniversalDocument(
 
   if (format === 'auto') {
     const detected = detectInputFormat(content)
-    if (detected.primaryFormat === 'html') format = 'html'
-    else if (detected.primaryFormat === 'latex') format = 'latex'
-    else if (detected.hasMath && detected.hasTables) format = 'llm-mixed'
-    else if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+    if (detected.primaryFormat === 'html') {
+      format = 'html'
+    } else if (detected.primaryFormat === 'latex') {
+      format = 'latex'
+    } else if (detected.primaryFormat === 'markdown') {
+      format = 'markdown'
+    } else if (detected.primaryFormat === 'json') {
+      format = 'json'
+    } else if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
       try {
         JSON.parse(content)
         format = 'json'

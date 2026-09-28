@@ -38,4 +38,31 @@ Shallow projects claim 100% of compilation...
     const res = detectInputFormat(text)
     expect(res.primaryFormat).toBe('markdown')
   })
+
+  it('routes clean markdown with tables and math to markdown parser, not llm-mixed', async () => {
+    const { parseUniversalDocument } = await import('../src/parsers')
+    const md = '# Header\n\n| Feature | Status |\n| --- | --- |\n| Math | Enabled |\n\nFormula: $J(\\theta) = \\frac{1}{2m}$'
+    const doc = parseUniversalDocument(md, 'auto')
+    expect(doc.metadata.sourceFormat).toBe('markdown')
+  })
+
+  it('detects indented headings and blockquotes as markdown, not plain text', () => {
+    const indented = '    ## Indented Heading\n\n    Some paragraph text.\n\n    > A blockquote too.'
+    const res = detectInputFormat(indented)
+    expect(res.primaryFormat).toBe('markdown')
+  })
+
+  it('routes bold-plus-bullet-plus-math text to markdown parser in auto mode, not latex', async () => {
+    const { parseUniversalDocument } = await import('../src/parsers')
+    const content = '**Step 1:** Calculate the value of $x + y = z$.\n• Note down the result.'
+    const doc = parseUniversalDocument(content, 'auto')
+    expect(doc.metadata.sourceFormat).toBe('markdown')
+  })
+
+  it('does not misroute markdown containing LaTeX text commands in inline code to latex parser', async () => {
+    const { parseUniversalDocument } = await import('../src/parsers')
+    const content = 'Use `\\textbf{x}` for bold text in LaTeX.'
+    const doc = parseUniversalDocument(content, 'auto')
+    expect(doc.metadata.sourceFormat).toBe('markdown')
+  })
 })
