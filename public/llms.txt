@@ -9,6 +9,7 @@ Converter is an open-source web application designed to normalize and convert ch
 - **LLM Mixed Stream Engine:** Solves the common problem of AI chatbots mixing raw LaTeX math delimiters ($$...$$, \[...\], \(...\)), broken code fences, and ASCII tables into unformatted text. Converter compiles them into native typography on the fly.
 - **Overleaf & LaTeX Resume Support:** Natively parses academic CV and resume templates (Jake's Resume, sb2nov) into editable Microsoft Word (.doc) and PDF documents with bullet lists, hyperlinks, and contact blocks intact.
 - **Dual-MIME Clipboard:** Direct copy-paste into Microsoft Word, Google Docs, Notion, Obsidian, and Slack with preserved formulas and tables.
+- **Universal Document Ingestion (anydoc):** Client-side parsing of Microsoft Word (.docx), PowerPoint (.pptx), and Excel (.xlsx) files directly into clean Markdown and LaTeX equations with zero server uploads.
 - **Zero Telemetry Privacy:** 100% local execution in browser sandbox. No server uploads, no accounts, no tracking.
 
 ## Interactive Tools & Resources
@@ -21,6 +22,9 @@ Converter is an open-source web application designed to normalize and convert ch
 
 ## Supported Input Formats
 
+- [Microsoft Word (.docx)](https://converter-sr.vercel.app/#converter): Client-side DOCX parser converting headings, tables, bullets, and OMML math to Markdown and LaTeX.
+- [PowerPoint Presentations (.pptx)](https://converter-sr.vercel.app/#converter): Slide text and bullet extraction into structured Markdown.
+- [Excel Spreadsheets (.xlsx)](https://converter-sr.vercel.app/#converter): Worksheets and shared strings to clean GitHub Flavored Markdown tables.
 - [LLM Mixed Stream](https://converter-sr.vercel.app/#converter): Raw streaming output from ChatGPT, Claude, DeepSeek, and Gemini.
 - [LaTeX Documents & Formulas](https://converter-sr.vercel.app/#converter): Overleaf CVs, equations, and mathematical papers.
 - [Markdown](https://converter-sr.vercel.app/#converter): GitHub Flavored Markdown (tables, checklists, footnotes, math).

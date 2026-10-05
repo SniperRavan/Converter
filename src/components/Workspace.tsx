@@ -24,6 +24,7 @@ import { renderToHtml } from '../renderers/html'
 import { renderToLatex } from '../renderers/latex'
 import { renderToPlainText } from '../renderers/text'
 import { formatForWordClipboard } from '../utils/exporters'
+import { parseAnyDocument } from '../parsers/anydoc'
 import type { ExportType } from './ExportPreviewModal'
 
 const ExportPreviewModal = React.lazy(() =>
@@ -240,9 +241,26 @@ export const Workspace: React.FC = () => {
   // Universal File Processor for all files
   const processFile = (file: File) => {
     const ext = file.name.split('.').pop()?.toLowerCase() || ''
-    const binaryExts = ['docx', 'doc', 'pdf', 'odt', 'rtf', 'pages', 'numbers', 'key', 'tar', 'gz', 'exe', 'bin', 'pptx', 'xlsx']
+
+    if (['docx', 'pptx', 'xlsx'].includes(ext)) {
+      parseAnyDocument(file)
+        .then((result) => {
+          if (result.markdown) {
+            setInputFormat('markdown')
+            setInputContent(result.markdown, 'markdown', true)
+          } else {
+            alert(`Unable to extract text from "${file.name}". File might be empty or encrypted.`)
+          }
+        })
+        .catch((err) => {
+          alert(`Error reading ${file.name}: ${err.message}`)
+        })
+      return
+    }
+
+    const binaryExts = ['doc', 'odt', 'rtf', 'pages', 'numbers', 'key', 'tar', 'gz', 'exe', 'bin']
     if (binaryExts.includes(ext)) {
-      alert(`The file "${file.name}" is a compiled binary format. Convertion processes text and markup inputs (Markdown, LaTeX, HTML, JSON, Code, ZIP of TeX projects). Please copy or save your document as text, Markdown, or LaTeX!`)
+      alert(`The file "${file.name}" is not supported directly. Convertion natively parses Word (.docx), PowerPoint (.pptx), Excel (.xlsx), Markdown (.md), LaTeX (.tex), HTML (.html), JSON, and ZIP archives. Please convert to .docx or text/markdown!`)
       return
     }
 
@@ -558,7 +576,7 @@ export const Workspace: React.FC = () => {
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="inline-flex items-center justify-center whitespace-nowrap text-xs sm:text-sm font-medium border border-[#E2DAD0] dark:border-white/15 bg-[#FFFAF0]/50 dark:bg-[#141414] hover:bg-[#F7F2E8] dark:hover:bg-[#1f1f1f] text-neutral-800 dark:text-neutral-200 h-8 sm:h-9 rounded-md px-2.5 sm:px-3 transition-colors cursor-pointer shadow-2xs"
-                  title="Upload any file (.md, .html, .tex, .json, .txt, .py, images)"
+                  title="Upload any document (.docx, .pptx, .xlsx, .md, .tex, .html, .json, .txt, .zip, images)"
                 >
                   <Upload className="h-3.5 w-3.5 mr-1 text-neutral-500 dark:text-neutral-400" />
                   <span>Upload File</span>

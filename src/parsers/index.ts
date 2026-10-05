@@ -15,6 +15,8 @@ export {
   parseJson,
   detectInputFormat,
 }
+export { parseAnyDocument, parseDocx, parsePptx, parseXlsx } from './anydoc'
+
 
 /**
  * Universal document parsing engine

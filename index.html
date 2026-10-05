@@ -14,8 +14,8 @@
     <!-- Primary SEO Meta Tags -->
     <title>Converter — Markdown Preview, LaTeX & AI to Word & Docs</title>
     <meta name="title" content="Converter — Markdown Preview, LaTeX & AI to Word & Docs" />
-    <meta name="description" content="Free private in-browser converter: Preview Markdown, convert MD to Word & Google Docs, format Overleaf CVs, and turn AI & LLM math into Word equations." />
-    <meta name="keywords" content="markdown preview, md to text, markdown to text, markdown to word, markdown to docx, markdown to google docs, markdown to html, html to markdown, markdown to pdf, latex to markdown, latex to html, latex to pdf, convert chatgpt to word, convert chatgpt to markdown, convert chatgpt to pdf, convert claude to word, convert deepseek to word, copy math from chatgpt, copy math from claude, copy math from deepseek, copy math from gemini, ai math to word, llm to word, chatgpt equations to word, claude equations to word, deepseek math to word, latex resume to word, overleaf to docx, overleaf resume to word, overleaf to word, markdown editor online, latex math to word, rich text copy, copy formatted text, mathml converter, jake resume to word, client side markdown converter" />
+    <meta name="description" content="Free private in-browser converter: Preview Markdown, convert MD to Word & Google Docs, format Overleaf CVs, import DOCX/PPTX/XLSX to Markdown/LaTeX, and turn AI & LLM math into Word equations." />
+    <meta name="keywords" content="markdown preview, md to text, markdown to text, markdown to word, markdown to docx, markdown to google docs, markdown to html, html to markdown, markdown to pdf, latex to markdown, latex to html, latex to pdf, docx to markdown, docx to latex, word to markdown, word to latex, pptx to markdown, xlsx to markdown, word equations to latex, extract math from word, anydoc, convert chatgpt to word, convert chatgpt to markdown, convert chatgpt to pdf, convert claude to word, convert deepseek to word, copy math from chatgpt, copy math from claude, copy math from deepseek, copy math from gemini, ai math to word, llm to word, chatgpt equations to word, claude equations to word, deepseek math to word, latex resume to word, overleaf to docx, overleaf resume to word, overleaf to word, markdown editor online, latex math to word, rich text copy, copy formatted text, mathml converter, jake resume to word, client side markdown converter" />
     <meta name="author" content="Akash Das Dhibar" />
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
     <meta name="theme-color" content="#FFFAF0" media="(prefers-color-scheme: light)" />
@@ -84,10 +84,39 @@
           "LLM Mixed Stream Syntax Normalizer (ChatGPT, Claude, DeepSeek, Gemini, Perplexity, Grok)",
           "Overleaf and LaTeX Academic CV/Resume Parser (Jake's Resume, sb2nov)",
           "Interactive Pre-Flight Export Modal with Paginated Sheet Preview",
+          "Universal Client-Side Document Parser (DOCX, PPTX, XLSX to Markdown & LaTeX with OMML formula extraction)",
           "Dual-MIME Clipboard Injection (Direct paste into Word, Google Docs, Notion)",
           "Zero Telemetry and 100% Browser-Local Execution",
           "Live KaTeX Formula, OMML, and MathML Typesetting",
           "Export to Word (.docx / .doc), PDF, Markdown (.md), HTML, LaTeX (.tex), JSON AST"
+        ]
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "How to Convert Word (.docx), PowerPoint (.pptx), or Excel (.xlsx) Files to Markdown & LaTeX in the Browser",
+        "description": "Step-by-step guide to importing Office documents and converting them into clean GitHub Flavored Markdown and LaTeX formulas entirely in your browser with zero server uploads.",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Open Converter",
+            "text": "Navigate to https://converter-sr.vercel.app/ in any modern web browser."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Upload or Drag and Drop Document",
+            "text": "Click the Upload file button or drop your .docx, .pptx, or .xlsx file directly into the workspace."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Automatic Client-Side Parsing",
+            "text": "Converter instantly decompresses the document XML in memory, converts headings, bullet lists, and tables, and translates Microsoft Word OMML equations into standard LaTeX math."
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Copy or Export",
+            "text": "Copy the formatted Markdown or export to Word (.docx), PDF, or HTML using the export toolbar."
+          }
         ]
       },
       {
@@ -108,6 +137,22 @@
             "acceptedAnswer": {
               "@type": "Answer",
               "text": "Yes. Paste your .tex source code or upload your LaTeX file. Converter uses an AST parser specifically tuned for academic CV templates like Jake's Resume and sb2nov, converting sections, dates, itemized bullets, and links into an ATS-friendly editable Word (.docx) document."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I convert Word DOCX, PowerPoint PPTX, or Excel XLSX files into clean Markdown or LaTeX in the browser?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Converter includes a built-in client-side document parser (anydoc). You can drag and drop or open any .docx, .pptx, or .xlsx file. It unzips the document in your browser memory, parses the XML structure, and converts headings, tables, bullet points, and OMML equations into clean GitHub Flavored Markdown and standard LaTeX math."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I extract equations from a Word document into LaTeX?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Upload or drop your .docx file into Converter. The parser traverses Word's Office Math Markup Language (<m:oMath>) tree, converting fractions, radicals, superscripts, subscripts, and greek symbols into standard LaTeX math syntax ($$...$$ or $...$) ready for Overleaf, KaTeX, or MathJax."
             }
           },
           {
@@ -157,6 +202,8 @@
         <p>Convert Markdown, LaTeX mathematics, academic CVs, and AI chat outputs (ChatGPT, Claude, DeepSeek, Gemini, Perplexity) into clean Microsoft Word (.docx / .doc), Google Docs, PDF, Markdown, and HTML. Free, open source, and 100% client-side with zero data collection.</p>
         <h2>Markdown Preview, Editor &amp; Document Converter</h2>
         <p>Live Markdown preview, MD to text, Markdown to Word, and Markdown to Google Docs conversion with instant rich text copy.</p>
+        <h2>Word (.docx), PowerPoint (.pptx) &amp; Excel (.xlsx) to Markdown &amp; LaTeX</h2>
+        <p>Import Microsoft Office documents directly in your browser. Convert Word (.docx) headings, lists, tables, and OMML math equations into clean Markdown and LaTeX without uploading files to any server.</p>
         <h2>LaTeX Resume &amp; Academic CV to Word (.docx)</h2>
         <p>Convert Overleaf resumes, Jake's Resume, and LaTeX CVs into formatted Word documents (.docx) with preserved fonts, section borders, and centered contact links.</p>
         <h2>AI &amp; LLM Math to Word (ChatGPT, Claude, DeepSeek, Gemini)</h2>

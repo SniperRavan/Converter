@@ -287,7 +287,7 @@ export const JSON_SAMPLE_DOCUMENT = `{
 interface ConverterStore {
   // Input
   inputContent: string
-  setInputContent: (content: string, format?: SupportedInputFormat) => void
+  setInputContent: (content: string, format?: SupportedInputFormat, immediate?: boolean) => void
   inputFormat: SupportedInputFormat
   setInputFormat: (format: SupportedInputFormat) => void
 
